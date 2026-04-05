@@ -18,7 +18,7 @@ export default function Legal() {
             <tbody className="divide-y divide-gray-100">
               <tr className="py-4">
                 <td className="py-4 pr-6 font-medium text-gray-600 w-40 align-top">販売業者</td>
-                <td className="py-4 text-gray-900">Tomoaki Hara</td>
+                <td className="py-4 text-gray-900">Hara Tech</td>
               </tr>
               <tr>
                 <td className="py-4 pr-6 font-medium text-gray-600 align-top">所在地</td>
