@@ -198,7 +198,7 @@ export default function Home() {
                 <p className="text-sm opacity-90 mb-4">Upgrade to Pro for unlimited optimizations</p>
                 <button
                   type="button"
-                  onClick={e => { e.preventDefault(); e.stopPropagation(); window.open('https://buy.stripe.com/test_8x228qajt3WEbVN0Cqcwg00', '_blank'); }}
+                  onClick={e => { e.preventDefault(); e.stopPropagation(); window.location.href = 'https://buy.stripe.com/test_8x228qajt3WEbVN0Cqcwg00'; }}
                   className="bg-white text-orange-600 font-bold px-6 py-2.5 rounded-lg text-sm hover:bg-orange-50 transition-colors cursor-pointer"
                 >
                   Upgrade to Pro — $9/month
