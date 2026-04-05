@@ -196,12 +196,14 @@ export default function Home() {
               <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl p-5 text-white text-center">
                 <p className="font-bold text-lg mb-1">You&apos;ve used all 5 free optimizations</p>
                 <p className="text-sm opacity-90 mb-4">Upgrade to Pro for unlimited optimizations</p>
-                <button
-                  type="button"
-                  className="bg-white text-orange-600 font-bold px-6 py-2.5 rounded-lg text-sm hover:bg-orange-50 transition-colors cursor-pointer"
+                <a
+                  href="https://buy.stripe.com/test_8x228qajt3WEbVN0Cqcwg00"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block bg-white text-orange-600 font-bold px-6 py-2.5 rounded-lg text-sm hover:bg-orange-50 transition-colors"
                 >
                   Upgrade to Pro — $9/month
-                </button>
+                </a>
                 <p className="text-xs opacity-70 mt-3">Free uses reset on the 1st of each month</p>
               </div>
             ) : (
