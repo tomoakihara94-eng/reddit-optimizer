@@ -127,85 +127,86 @@ export default function Home() {
         {/* Input card */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
           <h2 className="text-base font-semibold text-gray-900 mb-5">Your Post</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Subreddit</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">r/</span>
-                  <input
-                    type="text"
-                    value={subreddit}
-                    onChange={e => setSubreddit(e.target.value)}
-                    placeholder="e.g. AskReddit"
-                    list="subreddits"
-                    className="w-full pl-8 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
-                  />
-                  <datalist id="subreddits">
-                    {POPULAR_SUBREDDITS.map(s => <option key={s} value={s} />)}
-                  </datalist>
+          {isLimitReached ? (
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl p-5 text-white text-center">
+              <p className="font-bold text-lg mb-1">You&apos;ve used all 5 free optimizations</p>
+              <p className="text-sm opacity-90 mb-4">Upgrade to Pro for unlimited optimizations</p>
+              <a
+                href="https://buy.stripe.com/test_8x228qajt3WEbVN0Cqcwg00"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block bg-white text-orange-600 font-bold px-6 py-2.5 rounded-lg text-sm hover:bg-orange-50 transition-colors"
+              >
+                Upgrade to Pro — $9/month
+              </a>
+              <p className="text-xs opacity-70 mt-3">Free uses reset on the 1st of each month</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Subreddit</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">r/</span>
+                    <input
+                      type="text"
+                      value={subreddit}
+                      onChange={e => setSubreddit(e.target.value)}
+                      placeholder="e.g. AskReddit"
+                      list="subreddits"
+                      className="w-full pl-8 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                    />
+                    <datalist id="subreddits">
+                      {POPULAR_SUBREDDITS.map(s => <option key={s} value={s} />)}
+                    </datalist>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Post Type</label>
+                  <select
+                    value={postType}
+                    onChange={e => setPostType(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white"
+                  >
+                    {POST_TYPES.map(t => <option key={t}>{t}</option>)}
+                  </select>
                 </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Post Type</label>
-                <select
-                  value={postType}
-                  onChange={e => setPostType(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white"
-                >
-                  {POST_TYPES.map(t => <option key={t}>{t}</option>)}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="Write your post title..."
+                  maxLength={300}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-400 mt-1 text-right">{title.length}/300</p>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Title <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="Write your post title..."
-                maxLength={300}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
-              />
-              <p className="text-xs text-gray-400 mt-1 text-right">{title.length}/300</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Body <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <textarea
-                value={body}
-                onChange={e => setBody(e.target.value)}
-                placeholder="Write your post body..."
-                rows={5}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent resize-none"
-              />
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
-                {error}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Body <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <textarea
+                  value={body}
+                  onChange={e => setBody(e.target.value)}
+                  placeholder="Write your post body..."
+                  rows={5}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent resize-none"
+                />
               </div>
-            )}
 
-            {isLimitReached ? (
-              <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl p-5 text-white text-center">
-                <p className="font-bold text-lg mb-1">You&apos;ve used all 5 free optimizations</p>
-                <p className="text-sm opacity-90 mb-4">Upgrade to Pro for unlimited optimizations</p>
-                <button
-                  type="button"
-                  onClick={e => { e.preventDefault(); e.stopPropagation(); window.location.href = 'https://buy.stripe.com/test_8x228qajt3WEbVN0Cqcwg00'; }}
-                  className="bg-white text-orange-600 font-bold px-6 py-2.5 rounded-lg text-sm hover:bg-orange-50 transition-colors cursor-pointer"
-                >
-                  Upgrade to Pro — $9/month
-                </button>
-                <p className="text-xs opacity-70 mt-3">Free uses reset on the 1st of each month</p>
-              </div>
-            ) : (
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={loading || !title.trim()}
@@ -228,8 +229,8 @@ export default function Home() {
                   </>
                 )}
               </button>
-            )}
-          </form>
+            </form>
+          )}
         </div>
 
         {/* Result card */}
