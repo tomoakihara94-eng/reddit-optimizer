@@ -45,12 +45,20 @@ export default function Legal() {
                 <td className="py-4 text-gray-900">AI-powered Reddit post optimization</td>
               </tr>
               <tr>
+                <td className="py-4 pr-6 font-medium text-gray-600 align-top">電話番号</td>
+                <td className="py-4 text-gray-900">非公開（メールにてお問い合わせください）</td>
+              </tr>
+              <tr>
                 <td className="py-4 pr-6 font-medium text-gray-600 align-top">支払時期</td>
                 <td className="py-4 text-gray-900">お申し込み時にお支払いいただきます。以降は毎月自動更新となります。</td>
               </tr>
               <tr>
                 <td className="py-4 pr-6 font-medium text-gray-600 align-top">キャンセルについて</td>
                 <td className="py-4 text-gray-900">次回更新日の前日までにメールにてご連絡いただければ、解約いたします。</td>
+              </tr>
+              <tr>
+                <td className="py-4 pr-6 font-medium text-gray-600 align-top">返品・キャンセルポリシー</td>
+                <td className="py-4 text-gray-900">サービスの性質上、返金は原則承っておりません。ただし、サービス開始前のキャンセルは可能です。</td>
               </tr>
             </tbody>
           </table>
