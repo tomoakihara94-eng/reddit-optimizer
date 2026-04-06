@@ -152,6 +152,7 @@ export default function Home() {
                       onChange={e => setSubreddit(e.target.value)}
                       placeholder="e.g. AskReddit"
                       list="subreddits"
+                      style={{ color: '#111827' }}
                       className="w-full pl-8 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                     />
                     <datalist id="subreddits">
@@ -164,6 +165,7 @@ export default function Home() {
                   <select
                     value={postType}
                     onChange={e => setPostType(e.target.value)}
+                    style={{ color: '#111827' }}
                     className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white"
                   >
                     {POST_TYPES.map(t => <option key={t}>{t}</option>)}
@@ -181,6 +183,7 @@ export default function Home() {
                   onChange={e => setTitle(e.target.value)}
                   placeholder="Write your post title..."
                   maxLength={300}
+                  style={{ color: '#111827' }}
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                 />
                 <p className="text-xs text-gray-400 mt-1 text-right">{title.length}/300</p>
@@ -195,6 +198,7 @@ export default function Home() {
                   onChange={e => setBody(e.target.value)}
                   placeholder="Write your post body..."
                   rows={5}
+                  style={{ color: '#111827' }}
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent resize-none"
                 />
               </div>
