@@ -301,6 +301,9 @@ export default function Home() {
         <p className="text-center text-xs text-gray-400">
           Free tier: {FREE_LIMIT} optimizations/month · Resets on the 1st of each month
         </p>
+        <p className="text-center text-xs text-gray-400">
+          <a href="/legal" className="hover:text-gray-600 underline">特定商取引法に基づく表記</a>
+        </p>
       </main>
     </div>
   );
