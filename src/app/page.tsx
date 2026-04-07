@@ -132,7 +132,7 @@ export default function Home() {
               <p className="font-bold text-lg mb-1">You&apos;ve used all 5 free optimizations</p>
               <p className="text-sm opacity-90 mb-4">Upgrade to Pro for unlimited optimizations</p>
               <button
-                onClick={() => { window.location.href = 'https://buy.stripe.com/test_8x228qajt3WEbVN0Cqcwg00'; }}
+                onClick={() => { window.location.href = 'https://buy.stripe.com/6oUaEW9cx6y589IgI77AI01'; }}
                 className="inline-block bg-white text-orange-600 font-bold px-6 py-2.5 rounded-lg text-sm hover:bg-orange-50 transition-colors cursor-pointer"
               >
                 Upgrade to Pro — $9/month
