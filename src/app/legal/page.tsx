@@ -21,6 +21,14 @@ export default function Legal() {
                 <td className="py-4 text-gray-900">Hara Tech</td>
               </tr>
               <tr>
+                <td className="py-4 pr-6 font-medium text-gray-600 align-top">運営責任者</td>
+                <td className="py-4 text-gray-900">Tomoaki Hara</td>
+              </tr>
+              <tr>
+                <td className="py-4 pr-6 font-medium text-gray-600 align-top">住所</td>
+                <td className="py-4 text-gray-900">請求があった場合には速やかに開示いたします</td>
+              </tr>
+              <tr>
                 <td className="py-4 pr-6 font-medium text-gray-600 align-top">所在地</td>
                 <td className="py-4 text-gray-900">Shizuoka, Japan</td>
               </tr>
