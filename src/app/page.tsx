@@ -51,11 +51,38 @@ export default function Home() {
   const [postType, setPostType] = useState('Text');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [language, setLanguage] = useState<'en' | 'ja'>('en');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<OptimizeResult | null>(null);
   const [error, setError] = useState('');
   const [usage, setUsage] = useState<UsageData>({ count: 0, month: '' });
   const [copied, setCopied] = useState<'title' | 'body' | null>(null);
+
+  const t = {
+    yourPost: language === 'ja' ? 'あなたの投稿' : 'Your Post',
+    subreddit: 'Subreddit',
+    postType: language === 'ja' ? '投稿タイプ' : 'Post Type',
+    title: language === 'ja' ? 'タイトル' : 'Title',
+    body: language === 'ja' ? '本文' : 'Body',
+    optional: language === 'ja' ? '任意' : 'optional',
+    titlePlaceholder: language === 'ja' ? 'タイトルを入力...' : 'Write your post title...',
+    bodyPlaceholder: language === 'ja' ? '本文を入力...' : 'Write your post body...',
+    optimize: language === 'ja' ? '投稿を最適化する' : 'Optimize My Post',
+    optimizing: language === 'ja' ? '最適化中...' : 'Optimizing...',
+    optimizedPost: language === 'ja' ? '最適化された投稿' : 'Optimized Post',
+    optimizedTitle: language === 'ja' ? 'タイトル' : 'Title',
+    optimizedBody: language === 'ja' ? '本文' : 'Body',
+    whatWeImproved: language === 'ja' ? '改善したポイント' : 'What we improved',
+    copy: language === 'ja' ? 'コピー' : 'Copy',
+    copied: language === 'ja' ? 'コピー済み!' : 'Copied!',
+    upgradeTitle: language === 'ja' ? '5回の無料最適化を使い切りました' : "You've used all 5 free optimizations",
+    upgradeDesc: language === 'ja' ? '無制限に使うにはProにアップグレード' : 'Upgrade to Pro for unlimited optimizations',
+    upgradeBtn: language === 'ja' ? 'Proにアップグレード — $9/月' : 'Upgrade to Pro — $9/month',
+    resetNote: language === 'ja' ? '毎月1日にリセットされます' : 'Free uses reset on the 1st of each month',
+    footerNote: language === 'ja' ? `無料枠: 月${FREE_LIMIT}回 · 毎月1日リセット` : `Free tier: ${FREE_LIMIT} optimizations/month · Resets on the 1st of each month`,
+    usesLeft: (n: number) => language === 'ja' ? `残り${n}回` : `${n} free use${n !== 1 ? 's' : ''} left`,
+    noUsesLeft: language === 'ja' ? '残り0回' : '0 uses left',
+  };
 
   useEffect(() => {
     setUsage(getUsage());
@@ -76,7 +103,7 @@ export default function Home() {
       const res = await fetch('/api/optimize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subreddit, postType, title, body }),
+        body: JSON.stringify({ subreddit, postType, title, body, language }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Something went wrong');
@@ -118,7 +145,7 @@ export default function Home() {
               ? 'bg-yellow-100 text-yellow-700'
               : 'bg-green-100 text-green-700'
           }`}>
-            {isLimitReached ? '0 uses left' : `${remaining} free use${remaining !== 1 ? 's' : ''} left`}
+            {isLimitReached ? t.noUsesLeft : t.usesLeft(remaining)}
           </div>
         </div>
       </header>
@@ -126,24 +153,40 @@ export default function Home() {
       <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         {/* Input card */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-          <h2 className="text-base font-semibold text-gray-900 mb-5">Your Post</h2>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-base font-semibold text-gray-900">{t.yourPost}</h2>
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setLanguage('en')}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${language === 'en' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                EN
+              </button>
+              <button
+                onClick={() => setLanguage('ja')}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${language === 'ja' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                日本語
+              </button>
+            </div>
+          </div>
           {isLimitReached ? (
             <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl p-5 text-white text-center">
-              <p className="font-bold text-lg mb-1">You&apos;ve used all 5 free optimizations</p>
-              <p className="text-sm opacity-90 mb-4">Upgrade to Pro for unlimited optimizations</p>
+              <p className="font-bold text-lg mb-1">{t.upgradeTitle}</p>
+              <p className="text-sm opacity-90 mb-4">{t.upgradeDesc}</p>
               <button
                 onClick={() => { window.location.href = 'https://buy.stripe.com/6oUaEW9cx6y589IgI77AI01'; }}
                 className="inline-block bg-white text-orange-600 font-bold px-6 py-2.5 rounded-lg text-sm hover:bg-orange-50 transition-colors cursor-pointer"
               >
-                Upgrade to Pro — $9/month
+                {t.upgradeBtn}
               </button>
-              <p className="text-xs opacity-70 mt-3">Free uses reset on the 1st of each month</p>
+              <p className="text-xs opacity-70 mt-3">{t.resetNote}</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Subreddit</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.subreddit}</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">r/</span>
                     <input
@@ -161,27 +204,27 @@ export default function Home() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Post Type</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.postType}</label>
                   <select
                     value={postType}
                     onChange={e => setPostType(e.target.value)}
                     style={{ color: '#111827' }}
                     className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white"
                   >
-                    {POST_TYPES.map(t => <option key={t}>{t}</option>)}
+                    {POST_TYPES.map(type => <option key={type}>{type}</option>)}
                   </select>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Title <span className="text-red-500">*</span>
+                  {t.title} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={title}
                   onChange={e => setTitle(e.target.value)}
-                  placeholder="Write your post title..."
+                  placeholder={t.titlePlaceholder}
                   maxLength={300}
                   style={{ color: '#111827' }}
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
@@ -191,12 +234,12 @@ export default function Home() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Body <span className="text-gray-400 font-normal">(optional)</span>
+                  {t.body} <span className="text-gray-400 font-normal">({t.optional})</span>
                 </label>
                 <textarea
                   value={body}
                   onChange={e => setBody(e.target.value)}
-                  placeholder="Write your post body..."
+                  placeholder={t.bodyPlaceholder}
                   rows={5}
                   style={{ color: '#111827' }}
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent resize-none"
@@ -220,14 +263,14 @@ export default function Home() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
-                    Optimizing...
+                    {t.optimizing}
                   </>
                 ) : (
                   <>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
-                    Optimize My Post
+                    {t.optimize}
                   </>
                 )}
               </button>
@@ -244,21 +287,21 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-base font-semibold text-gray-900">Optimized Post</h2>
+              <h2 className="text-base font-semibold text-gray-900">{t.optimizedPost}</h2>
             </div>
 
             {/* Optimized title */}
             <div className="bg-gray-50 rounded-xl p-4">
               <div className="flex items-start justify-between gap-3 mb-2">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Title</span>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t.optimizedTitle}</span>
                 <button
                   onClick={() => copyToClipboard(result.optimizedTitle, 'title')}
                   className="text-xs text-orange-500 hover:text-orange-600 font-medium flex items-center gap-1 shrink-0 cursor-pointer"
                 >
                   {copied === 'title' ? (
-                    <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Copied!</>
+                    <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>{t.copied}</>
                   ) : (
-                    <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy</>
+                    <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>{t.copy}</>
                   )}
                 </button>
               </div>
@@ -269,15 +312,15 @@ export default function Home() {
             {result.optimizedBody && result.optimizedBody !== '(no body)' && (
               <div className="bg-gray-50 rounded-xl p-4">
                 <div className="flex items-start justify-between gap-3 mb-2">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Body</span>
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t.optimizedBody}</span>
                   <button
                     onClick={() => copyToClipboard(result.optimizedBody, 'body')}
                     className="text-xs text-orange-500 hover:text-orange-600 font-medium flex items-center gap-1 shrink-0 cursor-pointer"
                   >
                     {copied === 'body' ? (
-                      <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Copied!</>
+                      <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>{t.copied}</>
                     ) : (
-                      <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy</>
+                      <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>{t.copy}</>
                     )}
                   </button>
                 </div>
@@ -287,7 +330,7 @@ export default function Home() {
 
             {/* Improvements */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">What we improved</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">{t.whatWeImproved}</h3>
               <ul className="space-y-2.5">
                 {result.improvements.map((imp, i) => (
                   <li key={i} className="flex gap-3 text-sm text-gray-700">
@@ -302,9 +345,7 @@ export default function Home() {
           </div>
         )}
 
-        <p className="text-center text-xs text-gray-400">
-          Free tier: {FREE_LIMIT} optimizations/month · Resets on the 1st of each month
-        </p>
+        <p className="text-center text-xs text-gray-400">{t.footerNote}</p>
         <p className="text-center text-xs text-gray-400">
           <a href="/legal" className="hover:text-gray-600 underline">特定商取引法に基づく表記</a>
         </p>
