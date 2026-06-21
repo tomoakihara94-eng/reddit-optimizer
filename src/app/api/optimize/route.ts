@@ -5,16 +5,13 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(req: NextRequest) {
   try {
-    const { subreddit, postType, title, body, language } = await req.json();
+    const { subreddit, postType, title, body } = await req.json();
 
     if (!title?.trim()) {
-      return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+      return NextResponse.json({ error: 'タイトルは必須です' }, { status: 400 });
     }
 
-    const isJapanese = language === 'ja';
-
-    const prompt = isJapanese
-      ? `あなたはRedditの投稿最適化の専門家です。以下の投稿を分析し、エンゲージメント・アップボート・コメントを最大化するために最適化された版を提供してください。
+    const prompt = `あなたはRedditの投稿最適化の専門家です。以下の投稿を分析し、エンゲージメント・アップボート・コメントを最大化するために最適化された版を提供してください。
 
 サブレディット: r/${subreddit || 'general'}
 投稿タイプ: ${postType || 'テキスト'}
@@ -39,32 +36,7 @@ export async function POST(req: NextRequest) {
 - 長い本文にはTL;DRを末尾に追加する
 - サブレディットのトーンとスタイルに合わせる
 - 元のメッセージの核心は保ちながら、より魅力的にする
-- 日本語で回答すること`
-      : `You are an expert Reddit post optimizer. Analyze the following Reddit post and provide an optimized version that will maximize engagement, upvotes, and comments.
-
-Subreddit: r/${subreddit || 'general'}
-Post Type: ${postType || 'text'}
-Original Title: ${title}
-Original Body: ${body || '(no body)'}
-
-Respond with a JSON object in exactly this format (no markdown, no code blocks, just raw JSON):
-{
-  "optimizedTitle": "your optimized title here",
-  "optimizedBody": "your optimized body here",
-  "improvements": [
-    "First specific improvement made and why it helps",
-    "Second specific improvement made and why it helps",
-    "Third specific improvement made and why it helps"
-  ]
-}
-
-Rules for optimization:
-- Titles should be concise, intriguing, and follow r/${subreddit || 'general'} conventions
-- Use emotional hooks, numbers, or questions when appropriate for the subreddit
-- Body should be well-structured with clear paragraphs
-- Add TL;DR at the end of long bodies
-- Match the tone and style of the subreddit
-- Keep the core message intact but make it more compelling`;
+- 日本語で回答すること`;
 
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',

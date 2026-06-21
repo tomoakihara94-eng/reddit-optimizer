@@ -4,7 +4,7 @@ export default function Legal() {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-4 py-4">
           <a href="/" className="text-sm text-orange-500 hover:text-orange-600 font-medium">
-            ← Back to Reddit Post Optimizer
+            ← Reddit投稿最適化ツールに戻る
           </a>
         </div>
       </header>
@@ -50,7 +50,7 @@ export default function Legal() {
               </tr>
               <tr>
                 <td className="py-4 pr-6 font-medium text-gray-600 align-top">サービス内容</td>
-                <td className="py-4 text-gray-900">AI-powered Reddit post optimization</td>
+                <td className="py-4 text-gray-900">AIによるReddit投稿最適化サービス</td>
               </tr>
               <tr>
                 <td className="py-4 pr-6 font-medium text-gray-600 align-top">電話番号</td>
