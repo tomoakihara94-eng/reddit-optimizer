@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Reddit投稿最適化ツール",
-  description: "AIがあなたのReddit投稿を最適化。エンゲージメントとアップボートを最大化します。",
+  title: "松下モータース 社員用投稿最適化ツール",
+  description: "松下モータース社内専用 AI文章自動生成ツール。Instagram・自社サイト・カーセンサー・グーネット向けの投稿文を自動生成します。",
 };
 
 export default function RootLayout({
