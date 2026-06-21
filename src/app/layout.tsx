@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "松下モータース 社員用投稿最適化ツール",
-  description: "松下モータース社内専用 AI文章自動生成ツール。Instagram・自社サイト・カーセンサー・グーネット向けの投稿文を自動生成します。",
+  title: "松下モータース DX投稿・業務効率化システム",
+  description: "松下モータース社内専用 車両情報/マルチAIアシスタント。カーセンサー・グーネット・Instagram・自社ブログへの投稿文一括生成、グレード補記・アピール提案、問い合わせ返信下書きを自動生成。",
 };
 
 export default function RootLayout({

@@ -39,7 +39,7 @@ export default function Login() {
           </div>
           <div>
             <h1 className="text-base font-bold text-gray-900">松下モータース</h1>
-            <p className="text-xs text-gray-500">社員用投稿最適化ツール</p>
+            <p className="text-xs text-gray-500">DX投稿・業務効率化システム — 社内専用</p>
           </div>
         </div>
 
