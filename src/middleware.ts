@@ -1,26 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const AUTH_COOKIE = 'matsushita_auth';
+
 export function middleware(req: NextRequest) {
-  const basicAuth = req.headers.get('authorization');
+  const { pathname } = req.nextUrl;
 
-  if (basicAuth) {
-    const authValue = basicAuth.split(' ')[1];
-    const [user, pwd] = atob(authValue).split(':');
-
-    if (
-      user === process.env.BASIC_AUTH_USER &&
-      pwd === process.env.BASIC_AUTH_PASSWORD
-    ) {
-      return NextResponse.next();
-    }
+  if (pathname === '/login' || pathname.startsWith('/api/auth')) {
+    return NextResponse.next();
   }
 
-  return new NextResponse('認証が必要です', {
-    status: 401,
-    headers: {
-      'WWW-Authenticate': 'Basic realm="松下モータース 社員用ツール"',
-    },
-  });
+  const cookie = req.cookies.get(AUTH_COOKIE);
+  if (cookie?.value === process.env.BASIC_AUTH_PASSWORD) {
+    return NextResponse.next();
+  }
+
+  return NextResponse.redirect(new URL('/login', req.url));
 }
 
 export const config = {
