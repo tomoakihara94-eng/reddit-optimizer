@@ -14,6 +14,32 @@ async function callClaude(prompt: string, maxTokens = 2048): Promise<string> {
   return content.text.trim();
 }
 
+async function callClaudeVision(
+  images: { base64: string; mediaType: string }[],
+  prompt: string,
+  maxTokens = 2048,
+): Promise<string> {
+  const content: Anthropic.MessageParam['content'] = [
+    ...images.map(img => ({
+      type: 'image' as const,
+      source: {
+        type: 'base64' as const,
+        media_type: img.mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+        data: img.base64,
+      },
+    })),
+    { type: 'text' as const, text: prompt },
+  ];
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: maxTokens,
+    messages: [{ role: 'user', content }],
+  });
+  const res = message.content[0];
+  if (res.type !== 'text') throw new Error('AIからの応答が不正です');
+  return res.text.trim();
+}
+
 function parseJSON(text: string): unknown {
   try {
     return JSON.parse(text);
@@ -148,16 +174,50 @@ ${body.inquiry}
   return NextResponse.json(parseJSON(text));
 }
 
+async function handlePhoto(body: Record<string, unknown>) {
+  const images = body.images as { base64: string; mediaType: string }[] | undefined;
+  if (!images || images.length === 0) {
+    return NextResponse.json({ error: '画像を1枚以上アップロードしてください' }, { status: 400 });
+  }
+
+  const prompt = `あなたは中古車・未使用車の専門家AIです。
+添付された車両画像（コーションプレート・内装・外観など）を詳しく解析してください。
+
+以下の情報を読み取り、JSONのみで出力してください（マークダウン・コードブロック不使用）：
+
+{
+  "mode": "photo",
+  "chassisNumber": "車台番号（コーションプレートから正確に読み取る。例: ZRR80-0123456）",
+  "modelCode": "型式（例: 3BA-ZRR80W）",
+  "colorCode": "カラーコード（例: 070）",
+  "trimCode": "トリムコード（例: FJ010）",
+  "year": "年式推測（例: 2020年式）",
+  "grade": "グレード推測（例: Si W×B III）",
+  "equipment": ["読み取れた装備・オプション1", "装備2", "装備3"],
+  "notes": "その他の特記事項（読み取り精度・不明点など）"
+}
+
+【解析のポイント】
+- コーションプレートが写っていれば車台番号・型式・カラーコード・トリムコードを正確に読み取る
+- ナビ画面・シート素材・ルーフ形状・ADAS表示等から装備を判断
+- 外観からボディカラー・ホイール・オプションを判断
+- 確実でない情報には「（推測）」と付記し、読み取れなかった項目は空文字にする`;
+
+  const text = await callClaudeVision(images, prompt, 2048);
+  return NextResponse.json(parseJSON(text));
+}
+
 // ── Entry point ────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json() as Record<string, string>;
+    const body = await req.json() as Record<string, unknown>;
     const { mode } = body;
 
-    if (mode === 'multi') return handleMulti(body);
-    if (mode === 'grade') return handleGrade(body);
-    if (mode === 'reply') return handleReply(body);
+    if (mode === 'multi') return handleMulti(body as Record<string, string>);
+    if (mode === 'grade') return handleGrade(body as Record<string, string>);
+    if (mode === 'reply') return handleReply(body as Record<string, string>);
+    if (mode === 'photo') return handlePhoto(body);
 
     return NextResponse.json({ error: '不正なモードです' }, { status: 400 });
   } catch (err) {
