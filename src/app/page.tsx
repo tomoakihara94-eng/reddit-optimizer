@@ -116,6 +116,8 @@ export default function Home() {
   const [grade, setGrade]       = useState('');
   const [year, setYear]         = useState('');
   const [color, setColor]       = useState('');
+  const [seating, setSeating]   = useState('');
+  const [carStatus, setCarStatus] = useState('');
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [inquiry, setInquiry]   = useState('');
   const [loading, setLoading]   = useState(false);
@@ -160,7 +162,7 @@ export default function Home() {
       const carName = [maker, model].filter(Boolean).join(' ');
       const equipment = [color, ...selectedOptions].filter(Boolean).join('・');
       const body = isVehicleMode
-        ? { mode, carName, grade, year, equipment }
+        ? { mode, carName, grade, year, seating, carStatus, equipment }
         : { mode, inquiry };
 
       const res = await fetch('/api/optimize', {
@@ -240,7 +242,21 @@ export default function Home() {
     return (
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
         <ResultHeader label="グレード補記・アピール提案" />
-        <TextBlock label="グレード補記" text={r.gradeNote} id="grade-note" copied={copied} onCopy={onCopy} />
+        <div className="bg-gray-50 rounded-xl p-4">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">グレード補記（カーセンサー）</span>
+            <div className="flex items-center gap-3">
+              <span className={`text-xs font-medium tabular-nums ${r.gradeNote.length > 100 ? 'text-red-500' : r.gradeNote.length > 85 ? 'text-yellow-600' : 'text-gray-400'}`}>
+                {r.gradeNote.length}/100文字
+              </span>
+              <CopyBtn text={r.gradeNote} id="grade-note" copied={copied} onCopy={onCopy} />
+            </div>
+          </div>
+          <p className="text-gray-900 text-sm leading-relaxed whitespace-pre-wrap">{r.gradeNote}</p>
+          {r.gradeNote.length > 100 && (
+            <p className="text-xs text-red-500 mt-2">⚠ 100文字を超えています。カーセンサーへの入力時は調整してください。</p>
+          )}
+        </div>
         <div className="bg-gray-50 rounded-xl p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">アピールポイント</span>
@@ -422,6 +438,38 @@ export default function Home() {
                     <option value="">カラーを選択</option>
                     {COLORS.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
+                </div>
+
+                {/* 乗車定員・車両状態 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">乗車定員</label>
+                    <select
+                      value={seating}
+                      onChange={e => setSeating(e.target.value)}
+                      style={{ color: seating ? '#111827' : '#9ca3af' }}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white"
+                    >
+                      <option value="">選択してください</option>
+                      {['2人乗り','4人乗り','5人乗り','6人乗り','7人乗り','8人乗り'].map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">車両状態</label>
+                    <select
+                      value={carStatus}
+                      onChange={e => setCarStatus(e.target.value)}
+                      style={{ color: carStatus ? '#111827' : '#9ca3af' }}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white"
+                    >
+                      <option value="">選択してください</option>
+                      <option value="新車">新車</option>
+                      <option value="登録済未使用車">登録済未使用車</option>
+                      <option value="中古車">中古車</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* 装備・特徴チェックボックス */}

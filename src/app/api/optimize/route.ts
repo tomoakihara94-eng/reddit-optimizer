@@ -27,8 +27,10 @@ function parseJSON(text: string): unknown {
 function buildVehicleInfo(body: Record<string, string>): string {
   return [
     `車種名: ${body.carName}`,
-    body.grade     ? `グレード: ${body.grade}`     : null,
-    body.year      ? `年式: ${body.year}`           : null,
+    body.grade     ? `グレード: ${body.grade}`       : null,
+    body.year      ? `年式: ${body.year}`             : null,
+    body.seating   ? `乗車定員: ${body.seating}`      : null,
+    body.carStatus ? `車両状態: ${body.carStatus}`    : null,
     body.equipment ? `カラー/装備: ${body.equipment}` : null,
   ].filter(Boolean).join('\n');
 }
@@ -85,8 +87,20 @@ async function handleGrade(body: Record<string, string>) {
 ${vehicleInfo}
 
 【出力要件】
-- グレード補記: 検索に引っかかりやすいオプション・限定装備・仕様を正確かつ詳細に記述（150〜200文字）。型式・パッケージ名・希少オプションを積極的に含める
-- アピールポイント: 購買意欲を高める具体的なポイントを5〜7つ（各30〜60文字）
+
+■ グレード補記（カーセンサーのグレード補記入力フィールド用・100文字以内厳守）
+以下のフォーマットで出力すること：
+「{エンジン型式・グレード略称}　{乗車定員} {車両状態} {装備1} {装備2} {装備3}…　（{カラー名}）」
+
+フォーマットのルール：
+- 冒頭はエンジン排気量・駆動方式・グレード名の略称（例: 2.0 e:HEV エアー EX）
+- 乗車定員・車両状態はその直後
+- 装備はスペース区切り（読点・句読点なし）、検索されやすいキーワードを優先して列挙
+- カラー名は最後に全角括弧で（例: （メテオロイドグレー・メタリック））
+- 合計100文字以内に厳密に収める
+- 自然な流れで読めるよう重要度順に並べる
+
+■ アピールポイント: 購買意欲を高める具体的なポイントを5〜7つ（各30〜60文字）
 
 以下のJSON形式のみで回答してください（マークダウン・コードブロック不使用）：
 {
