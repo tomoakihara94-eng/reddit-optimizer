@@ -84,6 +84,114 @@ const MULTI_TABS = [
   { id: 'blog',      label: '自社ブログ' },
 ];
 
+// ── カーセンサー 装備チェック項目 ───────────────────────────────────────────
+const CARSENSOR_CATEGORIES = [
+  {
+    id: 'interior',
+    label: 'インテリア',
+    color: 'blue',
+    items: [
+      'キーレス', 'スマートキー', 'パワーウインドウ', '後席モニター',
+      'ベンチシート', '3列シート', 'ウォークスルー', '電動シート',
+      'シートエアコン', 'シートヒーター', 'フルフラットシート', 'オットマン', '本革シート',
+    ],
+  },
+  {
+    id: 'exterior',
+    label: 'エクステリア',
+    color: 'green',
+    items: [
+      'ヘッドライト：LED', 'フロントフォグランプ', 'サンルーフ・ガラスルーフ',
+      'ルーフレール', 'フルエアロ', 'アルミホイール', 'ローダウン', 'リフトアップ',
+      'スライドドア：両側(電動)', '全塗装済',
+    ],
+  },
+  {
+    id: 'comfort',
+    label: '快適装備',
+    color: 'purple',
+    items: [
+      '過給器設定モデル', 'エアコン・クーラー', 'Wエアコン', 'カーナビ',
+      'TV', 'ディスプレイオーディオ', 'ミュージックプレイヤー接続可',
+      'ETC', 'ドライブレコーダー', 'エアサスペンション', '1500W給電', '寒冷地仕様',
+    ],
+  },
+  {
+    id: 'safety',
+    label: '安全装備',
+    color: 'red',
+    items: [
+      'パワステ', 'ABS', 'サポカー', '衝突被害軽減ブレーキ',
+      'アダプティブクルーズコントロール', 'レーンキープアシスト', 'パーキングアシスト',
+      '誤発進防止装置', '障害物センサー',
+      'エアバッグ：運転席', 'エアバッグ：助手席', 'エアバッグ：サイド', 'エアバッグ：カーテン',
+      '頸部衝撃緩和ヘッドレスト', '全周囲カメラ',
+      'カメラ：バック', 'カメラ：フロント', 'カメラ：サイド',
+      'ブラインドスポットモニター', '横滑り防止装置', 'ヒルディセントコントロール',
+      'アイドリングストップ', '盗難防止装置', 'オートマチックハイビーム',
+    ],
+  },
+] as const;
+
+// デモ用初期検出値（トヨタ アルファード系の装備を想定）
+const DEMO_DETECTED = new Set([
+  'スマートキー', 'パワーウインドウ', 'シートヒーター', '3列シート',
+  'ヘッドライト：LED', 'アルミホイール', 'スライドドア：両側(電動)',
+  'エアコン・クーラー', 'Wエアコン', 'カーナビ', 'ETC', 'ドライブレコーダー', 'ディスプレイオーディオ',
+  'パワステ', 'ABS', '衝突被害軽減ブレーキ', 'アダプティブクルーズコントロール',
+  'レーンキープアシスト', '全周囲カメラ', 'カメラ：バック', 'ブラインドスポットモニター',
+  '横滑り防止装置', 'アイドリングストップ', 'エアバッグ：運転席', 'エアバッグ：助手席',
+]);
+
+// AI出力テキスト → カーセンサー装備項目 のキーワードマッピング
+const EQUIPMENT_KEYWORDS: Record<string, string[]> = {
+  'スマートキー':                   ['スマートキー', 'インテリジェントキー', 'プッシュスタート'],
+  'キーレス':                       ['キーレス'],
+  'パワーウインドウ':               ['パワーウインドウ', 'パワーウィンドウ'],
+  '後席モニター':                   ['後席モニター', 'リアモニター', '後席ディスプレイ'],
+  'シートヒーター':                  ['シートヒーター', 'シートウォーマー'],
+  'シートエアコン':                  ['シートエアコン', 'シートベンチレーション', '通気シート'],
+  '本革シート':                     ['本革', 'レザーシート'],
+  '3列シート':                      ['3列シート', '7人乗り', '8人乗り'],
+  'フルフラットシート':              ['フルフラット'],
+  '電動シート':                     ['電動シート', 'パワーシート'],
+  'ヘッドライト：LED':              ['LED', 'LEDヘッドライト'],
+  'フロントフォグランプ':            ['フォグランプ', 'フォグライト'],
+  'サンルーフ・ガラスルーフ':       ['サンルーフ', 'ガラスルーフ', 'ムーンルーフ'],
+  'ルーフレール':                   ['ルーフレール', 'ルーフキャリア'],
+  'アルミホイール':                  ['アルミホイール', 'アルミ'],
+  'スライドドア：両側(電動)':       ['両側パワースライド', '電動スライドドア', '両側スライド'],
+  'エアコン・クーラー':             ['エアコン'],
+  'Wエアコン':                      ['Wエアコン', 'デュアルエアコン', 'リアエアコン'],
+  'カーナビ':                       ['カーナビ', 'ナビ', 'ナビゲーション'],
+  'TV':                             ['TV', 'テレビ', 'フルセグ'],
+  'ディスプレイオーディオ':         ['ディスプレイオーディオ', 'DA'],
+  'ETC':                            ['ETC'],
+  'ドライブレコーダー':              ['ドライブレコーダー', 'ドラレコ'],
+  '1500W給電':                      ['1500W', 'AC100V', 'コンセント'],
+  '衝突被害軽減ブレーキ':           ['衝突軽減', '自動ブレーキ', 'プリクラッシュ', 'AEBS'],
+  'アダプティブクルーズコントロール': ['アダプティブクルーズ', 'ACC', 'レーダークルーズ'],
+  'レーンキープアシスト':            ['レーンキープ', 'LKA', 'レーン逸脱'],
+  '誤発進防止装置':                  ['誤発進', 'ペダル踏み間違い'],
+  '障害物センサー':                  ['障害物センサー', 'コーナーセンサー', 'ソナー'],
+  '全周囲カメラ':                   ['全周囲カメラ', 'パノラミックビュー', '360度カメラ', '全方位カメラ', 'マルチアラウンド'],
+  'カメラ：バック':                  ['バックカメラ', 'リアカメラ', 'バックモニター'],
+  'カメラ：フロント':               ['フロントカメラ'],
+  'カメラ：サイド':                  ['サイドカメラ'],
+  'ブラインドスポットモニター':      ['ブラインドスポット', 'BSM', '側方警告'],
+  '横滑り防止装置':                  ['横滑り防止', 'VSC', 'ESC', 'スタビリティ'],
+  'アイドリングストップ':            ['アイドリングストップ', 'アイスト'],
+  '盗難防止装置':                   ['盗難防止', 'イモビライザー', 'セキュリティ'],
+  'オートマチックハイビーム':        ['オートハイビーム', 'AHB', 'オートマチックハイビーム'],
+  'ABS':                            ['ABS'],
+  'パワステ':                       ['パワーステアリング', 'パワステ', '電動パワステ'],
+  'サポカー':                       ['サポカー', 'スマートアシスト', '予防安全'],
+  'エアバッグ：運転席':              ['運転席エアバッグ'],
+  'エアバッグ：助手席':              ['助手席エアバッグ'],
+  'エアバッグ：サイド':              ['サイドエアバッグ'],
+  'エアバッグ：カーテン':            ['カーテンエアバッグ', 'カーテンシールドエアバッグ'],
+};
+
 // ── Sub-components ─────────────────────────────────────────────────────
 function CopyBtn({
   text, id, copied, onCopy,
@@ -151,9 +259,11 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('carsensor');
   const [copied, setCopied]     = useState<string | null>(null);
 
-  const [photoFiles, setPhotoFiles] = useState<PhotoFile[]>([]);
-  const [dragOver, setDragOver]     = useState(false);
-  const fileInputRef                = useRef<HTMLInputElement>(null);
+  const [photoFiles, setPhotoFiles]       = useState<PhotoFile[]>([]);
+  const [dragOver, setDragOver]           = useState(false);
+  const [equipmentChecked, setEquipmentChecked] = useState<Set<string>>(new Set(DEMO_DETECTED));
+  const [aiDetected, setAiDetected]       = useState<Set<string>>(new Set(DEMO_DETECTED));
+  const fileInputRef                      = useRef<HTMLInputElement>(null);
 
   const isVehicleMode = mode === 'multi' || mode === 'grade';
   const canSubmit =
@@ -177,6 +287,37 @@ export default function Home() {
     );
   }, []);
 
+  function matchEquipmentToChecklist(aiEquipment: string[]): Set<string> {
+    const result = new Set<string>();
+    const allItems = CARSENSOR_CATEGORIES.flatMap(c => c.items);
+    for (const detected of aiEquipment) {
+      const d = detected.replace('（推測）', '').trim();
+      for (const item of allItems) {
+        const keywords = EQUIPMENT_KEYWORDS[item] ?? [item];
+        if (keywords.some(kw => d.includes(kw) || kw.includes(d))) {
+          result.add(item);
+        }
+      }
+    }
+    return result;
+  }
+
+  function toggleEquipment(item: string) {
+    setEquipmentChecked(prev => {
+      const next = new Set(prev);
+      next.has(item) ? next.delete(item) : next.add(item);
+      return next;
+    });
+  }
+
+  function getCheckedEquipmentText(): string {
+    return CARSENSOR_CATEGORIES.map(cat => {
+      const checked = cat.items.filter(i => equipmentChecked.has(i));
+      if (checked.length === 0) return null;
+      return `【${cat.label}】\n${checked.map(i => `・${i}`).join('\n')}`;
+    }).filter(Boolean).join('\n\n');
+  }
+
   async function resizeImage(file: File): Promise<{ base64: string; mediaType: string }> {
     return new Promise(resolve => {
       const img = new Image();
@@ -199,12 +340,12 @@ export default function Home() {
   }
 
   async function addPhotoFiles(files: FileList | File[]) {
-    const arr = Array.from(files).filter(f => f.type.startsWith('image/')).slice(0, 6);
+    const arr = Array.from(files).filter(f => f.type.startsWith('image/')).slice(0, 80);
     const processed = await Promise.all(arr.map(async file => {
       const { base64, mediaType } = await resizeImage(file);
       return { name: file.name, base64, mediaType, preview: URL.createObjectURL(file) };
     }));
-    setPhotoFiles(prev => [...prev, ...processed].slice(0, 6));
+    setPhotoFiles(prev => [...prev, ...processed].slice(0, 80));
   }
 
   function removePhoto(idx: number) {
@@ -243,6 +384,11 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error || '生成に失敗しました');
       setResult(data);
       if (data.mode === 'multi') setActiveTab('carsensor');
+      if (data.mode === 'photo' && Array.isArray(data.equipment)) {
+        const detected = matchEquipmentToChecklist(data.equipment as string[]);
+        setAiDetected(detected);
+        setEquipmentChecked(prev => new Set([...prev, ...detected]));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '文章の生成に失敗しました');
     } finally {
@@ -376,64 +522,60 @@ export default function Home() {
       { label: '年式',         value: r.year,          id: 'ph-year'    },
       { label: 'グレード',     value: r.grade,         id: 'ph-grade'   },
     ];
-    const equipmentText = r.equipment.map(e => `・${e}`).join('\n');
-    const allText = fields.map(f => `${f.label}: ${f.value}`).join('\n')
-      + `\n装備:\n${equipmentText}`
-      + (r.notes ? `\n備考: ${r.notes}` : '');
+    const filledFields = fields.filter(f => f.value);
+    const idText = filledFields.map(f => `${f.label}: ${f.value}`).join('\n');
+    const equipText = getCheckedEquipmentText();
 
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
-        <ResultHeader label="AI車両解析結果（カーセンサー登録用）" />
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+        <ResultHeader label="AI解析完了 — 車両識別情報" />
 
         {/* 識別情報 */}
-        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">車両識別情報</p>
-          {fields.map(f => f.value ? (
-            <div key={f.id} className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="text-xs text-gray-500 w-24 shrink-0">{f.label}</span>
-                <span className="text-sm font-medium text-gray-900 truncate">{f.value}</span>
+        {filledFields.length > 0 ? (
+          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+            {filledFields.map(f => (
+              <div key={f.id} className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xs text-gray-500 w-24 shrink-0">{f.label}</span>
+                  <span className="text-sm font-mono font-medium text-gray-900 truncate">{f.value}</span>
+                </div>
+                <CopyBtn text={f.value} id={f.id} copied={copied} onCopy={onCopy} />
               </div>
-              <CopyBtn text={f.value} id={f.id} copied={copied} onCopy={onCopy} />
-            </div>
-          ) : null)}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 text-center py-3">
+            コーションプレートを含む写真を追加すると識別情報を読み取れます
+          </p>
+        )}
 
-        {/* 装備リスト */}
+        {/* AI検出装備の補足サマリー */}
         {r.equipment.length > 0 && (
-          <div className="bg-gray-50 rounded-xl p-4">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">読み取り装備</p>
-              <CopyBtn text={equipmentText} id="ph-equip" copied={copied} onCopy={onCopy} />
-            </div>
-            <ul className="space-y-1.5">
-              {r.equipment.map((item, i) => (
-                <li key={i} className="text-sm text-gray-800 flex items-start gap-2">
-                  <span className="text-blue-500 shrink-0">・</span>{item}
-                </li>
-              ))}
-            </ul>
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+            <p className="text-xs font-semibold text-orange-700 mb-2">
+              ✓ AIが検出した装備 {r.equipment.length}件 → 上のチェックリストに反映済み
+            </p>
+            <p className="text-xs text-orange-600 leading-relaxed">{r.equipment.join(' ／ ')}</p>
           </div>
         )}
 
         {/* 備考 */}
         {r.notes && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <p className="text-xs font-semibold text-amber-700 mb-1">AIからの注記</p>
-            <p className="text-sm text-amber-800 leading-relaxed">{r.notes}</p>
+          <div className="bg-gray-50 rounded-xl px-4 py-3">
+            <p className="text-xs text-gray-500 leading-relaxed">{r.notes}</p>
           </div>
         )}
 
-        {/* 一括コピー */}
+        {/* 全データ一括コピー */}
         <button
-          onClick={() => onCopy(allText, 'photo-all')}
+          onClick={() => onCopy(`${idText}\n\n${equipText}`, 'photo-all')}
           className={`w-full py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
             copied === 'photo-all'
               ? 'bg-green-50 border-green-200 text-green-700'
               : 'border-gray-200 text-gray-600 hover:bg-gray-50'
           }`}
         >
-          {copied === 'photo-all' ? '✓ 全データをコピー済み' : '全データを一括コピー（カーセンサー入力用）'}
+          {copied === 'photo-all' ? '✓ 全データをコピー済み' : '識別情報 ＋ 装備チェックリストを一括コピー'}
         </button>
       </div>
     );
@@ -459,7 +601,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <main className={`mx-auto px-4 py-8 space-y-6 ${mode === 'photo' ? 'max-w-5xl' : 'max-w-3xl'}`}>
         {/* Mode selector */}
         <div className="space-y-2">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1">業務モードを選択</p>
@@ -494,71 +636,144 @@ export default function Home() {
         </div>
 
         {/* Input form */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-          <h2 className="text-base font-semibold text-gray-900 mb-5">
-            {mode === 'reply' ? 'お客様の問い合わせ内容を入力'
-              : mode === 'photo' ? '車両写真をアップロード'
-              : '車両情報を入力'}
-          </h2>
+        <div className={`bg-white rounded-2xl border border-gray-200 shadow-sm ${mode === 'photo' ? 'p-5' : 'p-6'}`}>
+          {mode !== 'photo' && (
+            <h2 className="text-base font-semibold text-gray-900 mb-5">
+              {mode === 'reply' ? 'お客様の問い合わせ内容を入力' : '車両情報を入力'}
+            </h2>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'photo' ? (
-              <div className="space-y-4">
-                {/* Drop zone */}
-                <div
-                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={e => { e.preventDefault(); setDragOver(false); addPhotoFiles(e.dataTransfer.files); }}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors select-none ${
-                    dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/40'
-                  }`}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    className="hidden"
-                    onChange={e => { if (e.target.files) addPhotoFiles(e.target.files); e.target.value = ''; }}
-                  />
-                  <div className="text-3xl mb-2">📷</div>
-                  <p className="text-sm font-medium text-gray-700">写真をドラッグ＆ドロップ、またはクリックして選択</p>
-                  <p className="text-xs text-gray-400 mt-1">コーションプレート・内装・外観など複数枚対応 / 最大6枚 / JPG・PNG</p>
+              <div className="space-y-5">
+
+                {/* ── 写真アップロード ─────────────────────────────── */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-bold text-gray-900">📷 車両写真</h2>
+                    <span className="text-xs text-gray-400">{photoFiles.length} / 80枚</span>
+                  </div>
+
+                  {/* Drop zone */}
+                  <div
+                    onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={e => { e.preventDefault(); setDragOver(false); addPhotoFiles(e.dataTransfer.files); }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors select-none ${
+                      dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/40'
+                    }`}
+                  >
+                    <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden"
+                      onChange={e => { if (e.target.files) addPhotoFiles(e.target.files); e.target.value = ''; }} />
+                    <p className="text-sm font-medium text-gray-600">ドラッグ＆ドロップ、またはクリックして選択</p>
+                    <p className="text-xs text-gray-400 mt-0.5">コーションプレート・内装・外観 最大80枚 / JPG・PNG</p>
+                  </div>
+
+                  {/* Photo grid */}
+                  {photoFiles.length > 0 && (
+                    <div className="max-h-52 overflow-y-auto rounded-xl border border-gray-200 p-2 bg-gray-50">
+                      <div className="grid grid-cols-6 sm:grid-cols-10 gap-1.5">
+                        {photoFiles.map((f, i) => (
+                          <div key={i} className="relative group rounded overflow-hidden border border-gray-200 aspect-square bg-gray-100">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={f.preview} alt={f.name} className="w-full h-full object-cover" />
+                            <button type="button" onClick={e => { e.stopPropagation(); removePhoto(i); }}
+                              className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 hover:bg-red-500 text-white rounded-full text-[9px] items-center justify-center hidden group-hover:flex transition-colors cursor-pointer">✕</button>
+                          </div>
+                        ))}
+                        {photoFiles.length < 80 && (
+                          <button type="button" onClick={() => fileInputRef.current?.click()}
+                            className="aspect-square rounded border-2 border-dashed border-gray-300 text-gray-300 hover:border-blue-300 hover:text-blue-400 transition-colors cursor-pointer flex items-center justify-center text-xl">＋</button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Thumbnails */}
-                {photoFiles.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 mb-2">アップロード済み（{photoFiles.length}枚）</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {photoFiles.map((f, i) => (
-                        <div key={i} className="relative group rounded-lg overflow-hidden border border-gray-200 aspect-video bg-gray-100">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={f.preview} alt={f.name} className="w-full h-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={e => { e.stopPropagation(); removePhoto(i); }}
-                            className="absolute top-1 right-1 w-5 h-5 bg-black/60 hover:bg-red-500 text-white rounded-full text-xs flex items-center justify-center transition-colors cursor-pointer"
-                          >✕</button>
-                          <div className="absolute bottom-0 left-0 right-0 bg-black/40 px-1.5 py-0.5">
-                            <p className="text-white text-[10px] truncate">{f.name}</p>
-                          </div>
-                        </div>
-                      ))}
-                      {photoFiles.length < 6 && (
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="aspect-video rounded-lg border-2 border-dashed border-gray-300 text-gray-400 hover:border-blue-300 hover:text-blue-400 transition-colors cursor-pointer flex items-center justify-center text-2xl"
-                        >＋</button>
-                      )}
+                {/* ── カーセンサー 装備チェックリスト ─────────────── */}
+                <div className="border-t border-gray-100 pt-5 space-y-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-sm font-bold text-gray-900">カーセンサー 装備チェック</h2>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] bg-orange-100 text-orange-700 border border-orange-300 rounded px-1.5 py-0.5 font-medium">■ AI検出</span>
+                      <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-300 rounded px-1.5 py-0.5 font-medium">■ 手動選択</span>
                     </div>
                   </div>
-                )}
 
-                <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-700">
-                  <span className="font-semibold">【開発中機能】</span> コーションプレートが写っている写真を含めるとより正確に解析できます。
+                  {CARSENSOR_CATEGORIES.map(cat => {
+                    const checkedCount = cat.items.filter(i => equipmentChecked.has(i)).length;
+                    return (
+                      <div key={cat.id}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${
+                            cat.color === 'blue'   ? 'bg-blue-600 text-white' :
+                            cat.color === 'green'  ? 'bg-green-600 text-white' :
+                            cat.color === 'purple' ? 'bg-purple-600 text-white' :
+                            'bg-red-600 text-white'
+                          }`}>{cat.label}</span>
+                          {checkedCount > 0 && (
+                            <span className="text-[10px] text-gray-400">{checkedCount}項目選択中</span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {cat.items.map(item => {
+                            const isAI      = aiDetected.has(item);
+                            const isChecked = equipmentChecked.has(item);
+                            return (
+                              <button
+                                key={item}
+                                type="button"
+                                onClick={() => toggleEquipment(item)}
+                                className={`text-[11px] px-2 py-1 rounded border transition-all cursor-pointer select-none ${
+                                  isChecked && isAI
+                                    ? 'bg-orange-50 border-orange-400 text-orange-800 font-semibold ring-1 ring-orange-300'
+                                    : isChecked
+                                    ? 'bg-blue-50 border-blue-400 text-blue-800 font-semibold ring-1 ring-blue-300'
+                                    : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700'
+                                }`}
+                              >
+                                {isChecked && <span className="mr-0.5">✓</span>}{item}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* 装備コピーボタン */}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const checkedCount = CARSENSOR_CATEGORIES.flatMap(c => c.items).filter(i => equipmentChecked.has(i)).length;
+                        if (checkedCount === 0) return;
+                        onCopy(getCheckedEquipmentText(), 'equip-list');
+                      }}
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                        copied === 'equip-list'
+                          ? 'bg-green-50 border-green-300 text-green-700'
+                          : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {copied === 'equip-list' ? '✓ 装備リストをコピー済み' : '選択中の装備をカテゴリ別コピー'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEquipmentChecked(new Set());
+                        setAiDetected(new Set());
+                      }}
+                      className="px-3 py-2 rounded-lg text-xs text-gray-400 border border-gray-200 hover:border-gray-300 hover:text-gray-600 transition-colors cursor-pointer"
+                    >
+                      リセット
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-xs text-amber-700">
+                  <span className="font-semibold">【開発中】</span> 写真をアップロードして「解析する」を押すと装備が自動検出されます。
                 </div>
               </div>
             ) : isVehicleMode ? (
