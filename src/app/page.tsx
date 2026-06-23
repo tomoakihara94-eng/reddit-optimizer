@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { CAR_DATA, COLORS, OPTION_GROUPS } from '@/lib/car-data';
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -260,6 +260,7 @@ export default function Home() {
   const [equipmentChecked, setEquipmentChecked] = useState<Set<string>>(new Set(DEMO_DETECTED));
   const [aiDetected, setAiDetected]       = useState<Set<string>>(new Set(DEMO_DETECTED));
   const fileInputRef                      = useRef<HTMLInputElement>(null);
+  const resultRef                         = useRef<HTMLDivElement>(null);
 
   const isVehicleMode = mode === 'multi' || mode === 'grade';
   const canSubmit =
@@ -282,6 +283,12 @@ export default function Home() {
       prev.includes(item) ? prev.filter(o => o !== item) : [...prev, item]
     );
   }, []);
+
+  useEffect(() => {
+    if (result) {
+      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+    }
+  }, [result]);
 
   function matchEquipmentToChecklist(aiEquipment: string[]): Set<string> {
     const result = new Set<string>();
@@ -517,60 +524,134 @@ export default function Home() {
       { label: 'グレード',     value: r.grade,         id: 'ph-grade'   },
     ];
     const filledFields = fields.filter(f => f.value);
-    const idText = filledFields.map(f => `${f.label}: ${f.value}`).join('\n');
-    const equipText = getCheckedEquipmentText();
+    const idText       = filledFields.map(f => `${f.label}: ${f.value}`).join('\n');
+    const equipText    = getCheckedEquipmentText();
+    const totalChecked = CARSENSOR_CATEGORIES.flatMap(c => c.items).filter(i => equipmentChecked.has(i)).length;
 
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
-        <ResultHeader label="AI解析完了 — 車両識別情報" />
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
+        <ResultHeader label="AI解析完了 — 車両識別情報 ＋ 装備チェック" />
 
-        {/* 識別情報 */}
+        {/* ── 識別情報 ─────────────────────────────────────────── */}
         {filledFields.length > 0 ? (
           <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">車両識別情報</p>
             {filledFields.map(f => (
               <div key={f.id} className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-xs text-gray-500 w-24 shrink-0">{f.label}</span>
-                  <span className="text-sm font-mono font-medium text-gray-900 truncate">{f.value}</span>
+                  <span className="text-xs text-gray-400 w-24 shrink-0">{f.label}</span>
+                  <span className="text-sm font-mono font-semibold text-gray-900 truncate">{f.value}</span>
                 </div>
                 <CopyBtn text={f.value} id={f.id} copied={copied} onCopy={onCopy} />
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-gray-400 text-center py-3">
-            コーションプレートを含む写真を追加すると識別情報を読み取れます
+          <p className="text-xs text-gray-400 text-center py-2 bg-gray-50 rounded-xl">
+            コーションプレートを含む写真を追加すると車台番号・型式を読み取れます
           </p>
         )}
 
-        {/* AI検出装備の補足サマリー */}
+        {/* ── AI生テキストサマリー ─────────────────────────────── */}
         {r.equipment.length > 0 && (
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-            <p className="text-xs font-semibold text-orange-700 mb-2">
-              ✓ AIが検出した装備 {r.equipment.length}件 → 上のチェックリストに反映済み
+          <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
+            <p className="text-[11px] font-bold text-orange-700 mb-1.5">
+              ✓ AIが検出した装備 {r.equipment.length}件（下のチェックリストに自動反映済み）
             </p>
             <p className="text-xs text-orange-600 leading-relaxed">{r.equipment.join(' ／ ')}</p>
           </div>
         )}
 
-        {/* 備考 */}
+        {/* ── 装備チェックリスト（AI更新済み）────────────────── */}
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between bg-gray-50 px-4 py-2.5 border-b border-gray-200">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-gray-900">カーセンサー 装備チェック</span>
+              <span className="text-[11px] bg-orange-100 text-orange-700 border border-orange-300 rounded px-1.5 py-0.5 font-medium">
+                {aiDetected.size}件 AI検出
+              </span>
+              <span className="text-[11px] text-gray-400">{totalChecked}項目選択中</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] bg-orange-50 text-orange-700 border border-orange-300 rounded px-1.5 py-0.5">■ AI検出</span>
+              <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-300 rounded px-1.5 py-0.5">■ 手動</span>
+            </div>
+          </div>
+
+          <div className="p-4 space-y-4">
+            {CARSENSOR_CATEGORIES.map(cat => {
+              const checkedCount = cat.items.filter(i => equipmentChecked.has(i)).length;
+              return (
+                <div key={cat.id}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${
+                      cat.color === 'blue'   ? 'bg-blue-600 text-white' :
+                      cat.color === 'green'  ? 'bg-green-600 text-white' :
+                      cat.color === 'purple' ? 'bg-purple-600 text-white' :
+                      'bg-red-600 text-white'
+                    }`}>{cat.label}</span>
+                    {checkedCount > 0 && (
+                      <span className="text-[10px] text-gray-400">{checkedCount}項目</span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {cat.items.map(item => {
+                      const isAI      = aiDetected.has(item);
+                      const isChecked = equipmentChecked.has(item);
+                      return (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => toggleEquipment(item)}
+                          className={`text-[11px] px-2 py-1 rounded border transition-all cursor-pointer select-none ${
+                            isChecked && isAI
+                              ? 'bg-orange-50 border-orange-400 text-orange-800 font-semibold ring-1 ring-orange-300'
+                              : isChecked
+                              ? 'bg-blue-50 border-blue-400 text-blue-800 font-semibold ring-1 ring-blue-300'
+                              : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700'
+                          }`}
+                        >
+                          {isChecked && <span className="mr-0.5">✓</span>}{item}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── 備考 ───────────────────────────────────────────── */}
         {r.notes && (
           <div className="bg-gray-50 rounded-xl px-4 py-3">
             <p className="text-xs text-gray-500 leading-relaxed">{r.notes}</p>
           </div>
         )}
 
-        {/* 全データ一括コピー */}
-        <button
-          onClick={() => onCopy(`${idText}\n\n${equipText}`, 'photo-all')}
-          className={`w-full py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
-            copied === 'photo-all'
-              ? 'bg-green-50 border-green-200 text-green-700'
-              : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-          }`}
-        >
-          {copied === 'photo-all' ? '✓ 全データをコピー済み' : '識別情報 ＋ 装備チェックリストを一括コピー'}
-        </button>
+        {/* ── コピーボタン ──────────────────────────────────── */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => onCopy(equipText, 'photo-equip')}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+              copied === 'photo-equip'
+                ? 'bg-green-50 border-green-200 text-green-700'
+                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {copied === 'photo-equip' ? '✓ 装備リストをコピー済み' : '装備チェックリストをコピー'}
+          </button>
+          <button
+            onClick={() => onCopy(`${idText}\n\n${equipText}`, 'photo-all')}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+              copied === 'photo-all'
+                ? 'bg-green-50 border-green-200 text-green-700'
+                : 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100'
+            }`}
+          >
+            {copied === 'photo-all' ? '✓ 全データをコピー済み' : '識別情報 ＋ 装備を一括コピー'}
+          </button>
+        </div>
       </div>
     );
   }
@@ -965,10 +1046,12 @@ export default function Home() {
         </div>
 
         {/* Results */}
-        {result && result.mode === 'multi'  && renderMulti(result)}
-        {result && result.mode === 'grade'  && renderGrade(result)}
-        {result && result.mode === 'reply'  && renderReply(result)}
-        {result && result.mode === 'photo'  && renderPhoto(result)}
+        <div ref={resultRef}>
+          {result && result.mode === 'multi'  && renderMulti(result)}
+          {result && result.mode === 'grade'  && renderGrade(result)}
+          {result && result.mode === 'reply'  && renderReply(result)}
+          {result && result.mode === 'photo'  && renderPhoto(result)}
+        </div>
 
         <p className="text-center text-xs text-gray-400 pb-4">
           松下モータース 社内専用 · 車両情報/マルチAIアシスタント · 利用制限なし
