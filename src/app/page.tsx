@@ -8,8 +8,6 @@ type Mode = 'multi' | 'grade' | 'reply' | 'photo';
 
 interface MultiResult {
   mode: 'multi';
-  carsensor: string;
-  goonet: string;
   instagram: string;
   instagramHashtags: string;
   blogTitle: string;
@@ -53,8 +51,8 @@ type Result = MultiResult | GradeResult | ReplyResult | PhotoResult;
 const MODES: { id: Mode; label: string; desc: string; icon: string }[] = [
   {
     id: 'multi',
-    label: '主要媒体・マルチ投稿文生成',
-    desc: 'カーセンサー・グーネット・Instagram・自社ブログ用の文章を1入力で同時生成',
+    label: 'Instagram ＋ 自社ブログ 投稿文生成',
+    desc: 'バズる Instagram 投稿文＋SEO最適化ブログ記事を1入力で同時生成',
     icon: '📢',
   },
   {
@@ -78,8 +76,6 @@ const MODES: { id: Mode; label: string; desc: string; icon: string }[] = [
 ];
 
 const MULTI_TABS = [
-  { id: 'carsensor', label: 'カーセンサー' },
-  { id: 'goonet',    label: 'グーネット' },
   { id: 'instagram', label: 'Instagram' },
   { id: 'blog',      label: '自社ブログ' },
 ];
@@ -398,17 +394,15 @@ export default function Home() {
 
   // ── Result renderers ───────────────────────────────────────────────
   function renderMulti(r: MultiResult) {
-    type TabId = 'carsensor' | 'goonet' | 'instagram' | 'blog';
+    type TabId = 'instagram' | 'blog';
     const tabSections: Record<TabId, { label: string; text: string; id: string }[]> = {
-      carsensor: [{ label: 'カーセンサー掲載文', text: r.carsensor,           id: 'cs' }],
-      goonet:    [{ label: 'グーネット掲載文',   text: r.goonet,              id: 'gn' }],
       instagram: [
-        { label: 'Instagram 投稿文',    text: r.instagram,          id: 'ig-post' },
-        { label: 'ハッシュタグ',        text: r.instagramHashtags,  id: 'ig-hash' },
+        { label: 'Instagram 投稿文',    text: r.instagram,         id: 'ig-post' },
+        { label: 'ハッシュタグ',        text: r.instagramHashtags, id: 'ig-hash' },
       ],
       blog: [
-        { label: 'ブログ 記事タイトル', text: r.blogTitle,           id: 'bl-title' },
-        { label: 'ブログ 本文',         text: r.blog,                id: 'bl-body' },
+        { label: 'ブログ 記事タイトル', text: r.blogTitle,         id: 'bl-title' },
+        { label: 'ブログ 本文',         text: r.blog,              id: 'bl-body'  },
       ],
     };
     const sections = tabSections[activeTab as TabId] ?? [];
