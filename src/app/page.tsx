@@ -317,20 +317,22 @@ function CopyBtn({
   return (
     <button
       onClick={() => onCopy(text, id)}
-      className={`text-xs font-medium flex items-center gap-1 shrink-0 transition-colors cursor-pointer ${
-        done ? 'text-green-600' : 'text-blue-600 hover:text-blue-700'
+      className={`text-xs font-medium flex items-center gap-1.5 shrink-0 transition-all cursor-pointer px-2.5 py-1 rounded-full ${
+        done
+          ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200'
+          : 'bg-blue-50 text-blue-600 hover:bg-blue-100 ring-1 ring-blue-100'
       }`}
     >
       {done ? (
         <>
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
           </svg>
           コピー済み
         </>
       ) : (
         <>
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
           </svg>
           コピー
@@ -346,12 +348,12 @@ function TextBlock({
   label: string; text: string; id: string; copied: string | null; onCopy: (t: string, k: string) => void;
 }) {
   return (
-    <div className="bg-gray-50 rounded-xl p-4">
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
+    <div className="bg-slate-50 rounded-xl p-4 border-l-4 border-blue-500">
+      <div className="flex items-center justify-between gap-3 mb-2.5">
+        <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">{label}</span>
         <CopyBtn text={text} id={id} copied={copied} onCopy={onCopy} />
       </div>
-      <p className="text-gray-900 text-sm leading-relaxed whitespace-pre-wrap">{text}</p>
+      <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">{text}</p>
     </div>
   );
 }
@@ -672,17 +674,17 @@ export default function Home() {
     const allText = sections.map(s => `【${s.label}】\n${s.text}`).join('\n\n');
 
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
         {/* Tabs */}
-        <div className="flex border-b border-gray-200">
+        <div className="flex border-b border-gray-100 bg-slate-50/50">
           {MULTI_TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-3 text-sm font-medium transition-colors cursor-pointer ${
+              className={`flex-1 py-3.5 text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === tab.id
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/40'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-white'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-white/60'
               }`}
             >
               {tab.label}
@@ -696,10 +698,10 @@ export default function Home() {
           ))}
           <button
             onClick={() => onCopy(allText, `${activeTab}-all`)}
-            className={`w-full py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+            className={`w-full py-2.5 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
               copied === `${activeTab}-all`
-                ? 'bg-green-50 border-green-200 text-green-700'
-                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100'
             }`}
           >
             {copied === `${activeTab}-all` ? '✓ このタブをすべてコピー済み' : 'このタブをすべてコピー'}
@@ -712,11 +714,11 @@ export default function Home() {
   function renderGrade(r: GradeResult) {
     const appealsText = r.appealPoints.map((p, i) => `${i + 1}. ${p}`).join('\n');
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+      <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 space-y-4">
         <ResultHeader label="グレード補記・アピール提案" />
-        <div className="bg-gray-50 rounded-xl p-4">
+        <div className="bg-slate-50 rounded-xl p-4 border-l-4 border-blue-500">
           <div className="flex items-center justify-between gap-3 mb-2">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">グレード補記（カーセンサー）</span>
+            <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">グレード補記（カーセンサー）</span>
             <div className="flex items-center gap-3">
               <span className={`text-xs font-medium tabular-nums ${r.gradeNote.length > 100 ? 'text-red-500' : r.gradeNote.length > 85 ? 'text-yellow-600' : 'text-gray-400'}`}>
                 {r.gradeNote.length}/100文字
@@ -729,15 +731,15 @@ export default function Home() {
             <p className="text-xs text-red-500 mt-2">⚠ 100文字を超えています。カーセンサーへの入力時は調整してください。</p>
           )}
         </div>
-        <div className="bg-gray-50 rounded-xl p-4">
+        <div className="bg-slate-50 rounded-xl p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">アピールポイント</span>
+            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">アピールポイント</span>
             <CopyBtn text={appealsText} id="appeal" copied={copied} onCopy={onCopy} />
           </div>
           <ul className="space-y-2">
             {r.appealPoints.map((point, i) => (
-              <li key={i} className="flex gap-2.5 text-sm text-gray-900">
-                <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+              <li key={i} className="flex gap-2.5 text-sm text-gray-800">
+                <span className="w-5 h-5 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
                   {i + 1}
                 </span>
                 <span>{point}</span>
@@ -752,16 +754,16 @@ export default function Home() {
   function renderReply(r: ReplyResult) {
     const allText = `件名: ${r.subject}\n\n${r.body}`;
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+      <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 space-y-4">
         <ResultHeader label="返信メール下書き" />
         <TextBlock label="件名" text={r.subject} id="reply-subject" copied={copied} onCopy={onCopy} />
         <TextBlock label="本文" text={r.body}    id="reply-body"    copied={copied} onCopy={onCopy} />
         <button
           onClick={() => onCopy(allText, 'reply-all')}
-          className={`w-full py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+          className={`w-full py-2.5 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
             copied === 'reply-all'
-              ? 'bg-green-50 border-green-200 text-green-700'
-              : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              : 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100'
           }`}
         >
           {copied === 'reply-all' ? '✓ 件名＋本文をすべてコピー済み' : '件名＋本文をすべてコピー'}
@@ -789,12 +791,12 @@ export default function Home() {
     const totalChecked   = checklistTab === 'carsensor' ? totalCheckedCS : totalCheckedGN;
 
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
+      <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 space-y-5">
         <ResultHeader label="AI解析完了 — 車両識別情報 ＋ 装備チェック" />
 
         {/* ── 識別情報 ─────────────────────────────────────────── */}
         {filledFields.length > 0 ? (
-          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+          <div className="bg-slate-50 rounded-xl p-4 space-y-3">
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">車両識別情報</p>
             {filledFields.map(f => (
               <div key={f.id} className="flex items-center justify-between gap-3">
@@ -823,8 +825,8 @@ export default function Home() {
         )}
 
         {/* ── 装備チェックリスト（AI更新済み）────────────────── */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 space-y-2">
+        <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-slate-50 px-4 py-3 border-b border-gray-100 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-bold text-gray-900">装備チェック（AI更新済み）</span>
               <span className="text-[11px] text-gray-400">{totalChecked}項目選択中</span>
@@ -842,9 +844,9 @@ export default function Home() {
 
         {/* ── グレード補記 ──────────────────────────────────── */}
         {r.gradeNote && (
-          <div className="bg-gray-50 rounded-xl p-4">
+          <div className="bg-slate-50 rounded-xl p-4 border-l-4 border-blue-500">
             <div className="flex items-center justify-between gap-3 mb-2">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">グレード補記（カーセンサー 100文字枠）</span>
+              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">グレード補記（カーセンサー 100文字枠）</span>
               <div className="flex items-center gap-2">
                 <span className={`text-xs font-medium tabular-nums ${
                   r.gradeNote.length > 100 ? 'text-red-500' :
@@ -862,9 +864,9 @@ export default function Home() {
 
         {/* ── アピール提案 ───────────────────────────────────── */}
         {r.appealPoints && r.appealPoints.length > 0 && (
-          <div className="bg-gray-50 rounded-xl p-4">
+          <div className="bg-slate-50 rounded-xl p-4">
             <div className="flex items-center justify-between gap-3 mb-3">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">アピールポイント</span>
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">アピールポイント</span>
               <CopyBtn
                 text={r.appealPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}
                 id="ph-appeals"
@@ -874,8 +876,8 @@ export default function Home() {
             </div>
             <ul className="space-y-2">
               {r.appealPoints.map((point, i) => (
-                <li key={i} className="flex gap-2.5 text-sm text-gray-900">
-                  <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                <li key={i} className="flex gap-2.5 text-sm text-gray-800">
+                  <span className="w-5 h-5 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
                     {i + 1}
                   </span>
                   <span>{point}</span>
@@ -887,7 +889,7 @@ export default function Home() {
 
         {/* ── 備考 ───────────────────────────────────────────── */}
         {r.notes && (
-          <div className="bg-gray-50 rounded-xl px-4 py-3">
+          <div className="bg-slate-50 rounded-xl px-4 py-3">
             <p className="text-xs text-gray-500 leading-relaxed">{r.notes}</p>
           </div>
         )}
@@ -896,10 +898,10 @@ export default function Home() {
         <div className="flex gap-2">
           <button
             onClick={() => onCopy(equipText, 'photo-equip')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+            className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
               copied === 'photo-equip'
-                ? 'bg-green-50 border-green-200 text-green-700'
-                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
             }`}
           >
             {copied === 'photo-equip'
@@ -908,10 +910,10 @@ export default function Home() {
           </button>
           <button
             onClick={() => onCopy([idText, gradeSection, appealsSection, equipText].filter(Boolean).join('\n\n'), 'photo-all')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+            className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
               copied === 'photo-all'
-                ? 'bg-green-50 border-green-200 text-green-700'
-                : 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
             }`}
           >
             {copied === 'photo-all' ? '✓ 全データをコピー済み' : '識別情報 ＋ 装備を一括コピー'}
@@ -923,20 +925,23 @@ export default function Home() {
 
   // ── Render ─────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-700 rounded-xl flex items-center justify-center shrink-0">
+      <header className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 sticky top-0 z-10 shadow-lg">
+        <div className="max-w-3xl mx-auto px-4 py-3.5 flex items-center gap-3">
+          <div className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shrink-0 ring-1 ring-white/30">
             <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
             </svg>
           </div>
           <div>
-            <h1 className="text-base font-bold text-gray-900">
+            <h1 className="text-base font-bold text-white leading-tight">
               松下モータース DX投稿・業務効率化システム
             </h1>
-            <p className="text-xs text-gray-500">社内専用 — 車両情報 / マルチAIアシスタント</p>
+            <p className="text-xs text-blue-100">社内専用 — 車両情報 / マルチAIアシスタント</p>
+          </div>
+          <div className="ml-auto">
+            <span className="text-[11px] bg-white/20 text-white border border-white/30 rounded-full px-3 py-1 font-medium">社内専用</span>
           </div>
         </div>
       </header>
@@ -944,39 +949,37 @@ export default function Home() {
       <main className={`mx-auto px-4 py-8 space-y-6 ${mode === 'photo' ? 'max-w-5xl' : 'max-w-3xl'}`}>
         {/* Mode selector */}
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1">業務モードを選択</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">業務モードを選択</p>
           {MODES.map(m => (
             <button
               key={m.id}
               onClick={() => selectMode(m.id)}
-              className={`w-full text-left p-4 rounded-xl border-2 transition-all cursor-pointer ${
+              className={`w-full text-left p-4 rounded-2xl transition-all duration-150 cursor-pointer flex items-start gap-3.5 ${
                 mode === m.id
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/20'
+                  : 'bg-white border border-gray-100 hover:border-blue-200 hover:shadow-md shadow-sm'
               }`}
             >
-              <div className="flex items-start gap-3">
-                <span className="text-xl mt-0.5">{m.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${mode === m.id ? 'text-blue-700' : 'text-gray-900'}`}>
-                    {m.label}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5">{m.desc}</p>
-                </div>
-                {mode === m.id && (
-                  <div className="shrink-0 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center mt-0.5">
-                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                    </svg>
-                  </div>
-                )}
+              <span className="text-xl shrink-0 mt-0.5">{m.icon}</span>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-semibold ${mode === m.id ? 'text-white' : 'text-gray-900'}`}>
+                  {m.label}
+                </p>
+                <p className={`text-xs mt-0.5 ${mode === m.id ? 'text-blue-100' : 'text-gray-500'}`}>{m.desc}</p>
               </div>
+              {mode === m.id && (
+                <div className="shrink-0 w-5 h-5 bg-white/25 rounded-full flex items-center justify-center mt-0.5">
+                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
             </button>
           ))}
         </div>
 
         {/* Input form */}
-        <div className={`bg-white rounded-2xl border border-gray-200 shadow-sm ${mode === 'photo' ? 'p-5' : 'p-6'}`}>
+        <div className={`bg-white rounded-2xl shadow-md border border-gray-100 ${mode === 'photo' ? 'p-5' : 'p-6'}`}>
           {mode !== 'photo' && (
             <h2 className="text-base font-semibold text-gray-900 mb-5">
               {mode === 'reply' ? 'お客様の問い合わせ内容を入力' : '車両情報を入力'}
@@ -1000,8 +1003,8 @@ export default function Home() {
                     onDragLeave={() => setDragOver(false)}
                     onDrop={e => { e.preventDefault(); setDragOver(false); addPhotoFiles(e.dataTransfer.files); }}
                     onClick={() => fileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors select-none ${
-                      dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/40'
+                    className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all select-none ${
+                      dragOver ? 'border-blue-400 bg-blue-50 shadow-inner' : 'border-gray-200 bg-slate-50 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-sm'
                     }`}
                   >
                     <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden"
@@ -1055,10 +1058,10 @@ export default function Home() {
                         checklistTab === 'carsensor' ? getCheckedEquipmentText() : getGoonetCheckedEquipmentText(),
                         'equip-list',
                       )}
-                      className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                      className={`flex-1 py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
                         copied === 'equip-list'
-                          ? 'bg-green-50 border-green-300 text-green-700'
-                          : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                          : 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100'
                       }`}
                     >
                       {copied === 'equip-list' ? '✓ コピー済み' : `${checklistTab === 'carsensor' ? 'カーセンサー' : 'グーネット'}装備をコピー`}
@@ -1069,14 +1072,14 @@ export default function Home() {
                         if (checklistTab === 'carsensor') { setEquipmentChecked(new Set()); setAiDetected(new Set()); }
                         else { setGoonetChecked(new Set()); setGoonetAiDetected(new Set()); }
                       }}
-                      className="px-3 py-2 rounded-lg text-xs text-gray-400 border border-gray-200 hover:border-gray-300 hover:text-gray-600 transition-colors cursor-pointer"
+                      className="px-3 py-2 rounded-xl text-xs text-gray-400 border border-gray-200 hover:border-gray-300 hover:text-gray-600 transition-all cursor-pointer"
                     >
                       リセット
                     </button>
                   </div>
                 </div>
 
-                <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-xs text-amber-700">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-700">
                   <span className="font-semibold">【開発中】</span> 写真をアップロードして「解析する」を押すと装備が自動検出されます。
                 </div>
               </div>
@@ -1092,7 +1095,7 @@ export default function Home() {
                       value={maker}
                       onChange={e => { setMaker(e.target.value); setModel(''); setGrade(''); }}
                       style={{ color: maker ? '#111827' : '#9ca3af' }}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white transition-colors"
                     >
                       <option value="">メーカーを選択</option>
                       {CAR_DATA.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
@@ -1107,7 +1110,7 @@ export default function Home() {
                       onChange={e => { setModel(e.target.value); setGrade(''); }}
                       disabled={!maker}
                       style={{ color: model ? '#111827' : '#9ca3af' }}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white disabled:bg-gray-50 disabled:text-gray-400"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white disabled:bg-gray-50 disabled:text-gray-400 transition-colors"
                     >
                       <option value="">車種を選択</option>
                       {currentModels.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
@@ -1127,7 +1130,7 @@ export default function Home() {
                       placeholder="グレードを選択または直接入力"
                       disabled={!model}
                       style={{ color: '#111827' }}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-400"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400 transition-colors"
                     />
                     <datalist id="grade-list">
                       {currentGrades.map(g => <option key={g} value={g} />)}
@@ -1139,7 +1142,7 @@ export default function Home() {
                       value={year}
                       onChange={e => setYear(e.target.value)}
                       style={{ color: year ? '#111827' : '#9ca3af' }}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white transition-colors"
                     >
                       <option value="">年式を選択</option>
                       {YEARS.map(y => <option key={y} value={`${y}年式`}>{y}年式</option>)}
@@ -1154,7 +1157,7 @@ export default function Home() {
                     value={color}
                     onChange={e => setColor(e.target.value)}
                     style={{ color: color ? '#111827' : '#9ca3af' }}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white"
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white transition-colors"
                   >
                     <option value="">カラーを選択</option>
                     {COLORS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -1169,7 +1172,7 @@ export default function Home() {
                       value={seating}
                       onChange={e => setSeating(e.target.value)}
                       style={{ color: seating ? '#111827' : '#9ca3af' }}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white transition-colors"
                     >
                       <option value="">選択してください</option>
                       {['2人乗り','4人乗り','5人乗り','6人乗り','7人乗り','8人乗り'].map(s => (
@@ -1183,7 +1186,7 @@ export default function Home() {
                       value={carStatus}
                       onChange={e => setCarStatus(e.target.value)}
                       style={{ color: carStatus ? '#111827' : '#9ca3af' }}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white transition-colors"
                     >
                       <option value="">選択してください</option>
                       <option value="新車">新車</option>
@@ -1208,10 +1211,10 @@ export default function Home() {
                                 key={item}
                                 type="button"
                                 onClick={() => toggleOption(item)}
-                                className={`text-xs px-3 py-1.5 rounded-full border transition-colors cursor-pointer select-none ${
+                                className={`text-xs px-3 py-1.5 rounded-full border transition-all cursor-pointer select-none ${
                                   checked
-                                    ? 'bg-blue-600 border-blue-600 text-white font-medium'
-                                    : 'bg-white border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600'
+                                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 border-blue-600 text-white font-medium shadow-sm'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50'
                                 }`}
                               >
                                 {checked && '✓ '}{item}
@@ -1235,13 +1238,13 @@ export default function Home() {
                   placeholder="お客様からのメール文・LINEメッセージなどをそのまま貼り付けてください"
                   rows={8}
                   style={{ color: '#111827' }}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent resize-y"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-y transition-colors"
                 />
               </div>
             )}
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+              <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-sm text-red-700 flex items-center gap-2">
                 {error}
               </div>
             )}
@@ -1249,7 +1252,7 @@ export default function Home() {
             <button
               type="submit"
               disabled={loading || !canSubmit}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white font-semibold py-3.5 rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 disabled:shadow-none disabled:translate-y-0"
             >
               {loading ? (
                 <>
@@ -1282,8 +1285,8 @@ export default function Home() {
           {result && result.mode === 'photo'  && renderPhoto(result)}
         </div>
 
-        <p className="text-center text-xs text-gray-400 pb-4">
-          松下モータース 社内専用 · 車両情報/マルチAIアシスタント · 利用制限なし
+        <p className="text-center text-xs text-gray-400 pb-6 pt-2">
+          松下モータース 社内専用 &nbsp;·&nbsp; 車両情報/マルチAIアシスタント &nbsp;·&nbsp; 利用制限なし
         </p>
       </main>
     </div>
@@ -1292,13 +1295,13 @@ export default function Home() {
 
 function ResultHeader({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shrink-0">
-        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="flex items-center gap-2.5">
+      <div className="w-6 h-6 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/30">
+        <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
         </svg>
       </div>
-      <h2 className="text-base font-semibold text-gray-900">{label}</h2>
+      <h2 className="text-base font-bold text-gray-900">{label}</h2>
     </div>
   );
 }
