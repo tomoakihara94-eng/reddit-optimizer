@@ -188,6 +188,123 @@ const EQUIPMENT_KEYWORDS: Record<string, string[]> = {
   'エアバッグ：カーテン':            ['カーテンエアバッグ', 'カーテンシールドエアバッグ'],
 };
 
+// ── グーネット 装備チェック項目 ─────────────────────────────────────────────
+const GOONET_CATEGORIES = [
+  {
+    id: 'gn-equipment',
+    label: '装備',
+    color: 'red',
+    items: [
+      'エアバッグ：運転席/助手席/サイド', 'スライドドア', 'サンルーフ',
+      'ABS', 'エアコン', 'Wエアコン', 'リフトアップ', 'ダウンヒルアシストコントロール',
+      'パワーステアリング', 'パワーウィンドウ', '盗難防止システム', 'アイドリングストップ',
+      'ドライブレコーダー', 'USB入力端子', 'Bluetooth接続', '100V電源',
+      'クリーンディーゼル', 'センターデフロック', 'レンタカーアップ', '展示・試乗車', '電動格納ミラー',
+    ],
+  },
+  {
+    id: 'gn-adas',
+    label: '運転支援',
+    color: 'orange',
+    items: [
+      'オートクルーズコントロール', 'レーンアシスト', '自動駐車システム', 'パークアシスト',
+    ],
+  },
+  {
+    id: 'gn-safety',
+    label: '安全装備エリア',
+    color: 'rose',
+    items: [
+      '横滑り防止装置', '衝突安全ボディ', '衝突被害軽減システム', 'クリアランスソナー',
+      'オートマチックハイビーム', '頸部衝撃緩和ヘッドレスト', 'オートライト',
+    ],
+  },
+  {
+    id: 'gn-exterior',
+    label: '外装・内装',
+    color: 'teal',
+    items: [
+      'カーナビ', 'TV', 'オーディオ', 'ビジュアル', 'アルミホイール', 'ヘッドライトウォッシャー',
+      '革シート', 'ハーフレザーシート', 'キーレス', 'LEDヘッドランプ', 'HID(キセノンライト)',
+      'ポータブルナビ', 'バックカメラ', 'ETC', 'エアロ', 'スマートキー', 'ローダウン',
+      'ランフラットタイヤ', 'パワーシート', '3列シート', 'ベンチシート', 'フルフラットシート',
+      'チップアップシート', 'オットマン', '電動格納サードシート', 'シートヒーター', 'ウォークスルー',
+      '後席モニター', '電動リアゲート', 'フロントカメラ', 'シートエアコン',
+      '全周囲カメラ', 'サイドカメラ', 'ルーフレール', 'エアサスペンション',
+    ],
+  },
+] as const;
+
+const GOONET_KEYWORDS: Record<string, string[]> = {
+  'エアバッグ：運転席/助手席/サイド': ['エアバッグ', 'airbag'],
+  'スライドドア':                     ['スライドドア', '電動スライド'],
+  'サンルーフ':                       ['サンルーフ', 'ガラスルーフ', 'ムーンルーフ'],
+  'ABS':                              ['ABS'],
+  'エアコン':                         ['エアコン', 'クーラー'],
+  'Wエアコン':                        ['Wエアコン', 'デュアルエアコン', 'リアエアコン'],
+  'ダウンヒルアシストコントロール':    ['ヒルディセント', 'ダウンヒル'],
+  'パワーステアリング':               ['パワーステアリング', 'パワステ', '電動パワステ'],
+  'パワーウィンドウ':                 ['パワーウインドウ', 'パワーウィンドウ'],
+  '盗難防止システム':                 ['盗難防止', 'イモビライザー', 'セキュリティ'],
+  'アイドリングストップ':             ['アイドリングストップ', 'アイスト'],
+  'ドライブレコーダー':               ['ドライブレコーダー', 'ドラレコ'],
+  'USB入力端子':                      ['USB'],
+  'Bluetooth接続':                    ['Bluetooth', 'ブルートゥース'],
+  '100V電源':                         ['100V', '1500W', 'コンセント'],
+  'オートクルーズコントロール':       ['クルーズコントロール', 'ACC', 'アダプティブクルーズ'],
+  'レーンアシスト':                   ['レーンキープ', 'レーンアシスト', 'LKA', 'レーン逸脱'],
+  '横滑り防止装置':                   ['横滑り防止', 'VSC', 'ESC', 'スタビリティ'],
+  '衝突被害軽減システム':             ['衝突軽減', '自動ブレーキ', 'プリクラッシュ', 'AEBS'],
+  'クリアランスソナー':               ['クリアランスソナー', 'コーナーセンサー', '障害物センサー', 'ソナー'],
+  'オートマチックハイビーム':         ['オートハイビーム', 'AHB'],
+  '頸部衝撃緩和ヘッドレスト':        ['頸部衝撃', 'ヘッドレスト'],
+  'オートライト':                     ['オートライト', '自動点灯'],
+  'カーナビ':                         ['カーナビ', 'ナビ', 'ナビゲーション'],
+  'TV':                               ['TV', 'テレビ', 'フルセグ'],
+  'アルミホイール':                   ['アルミホイール', 'アルミ'],
+  '革シート':                         ['本革', 'レザーシート', '革シート'],
+  'ハーフレザーシート':               ['ハーフレザー'],
+  'キーレス':                         ['キーレス'],
+  'LEDヘッドランプ':                  ['LED', 'LEDヘッドライト', 'LEDヘッドランプ'],
+  'バックカメラ':                     ['バックカメラ', 'リアカメラ', 'バックモニター'],
+  'ETC':                              ['ETC'],
+  'エアロ':                           ['エアロ', 'フルエアロ'],
+  'スマートキー':                     ['スマートキー', 'インテリジェントキー', 'プッシュスタート'],
+  'パワーシート':                     ['電動シート', 'パワーシート'],
+  '3列シート':                        ['3列シート', '7人乗り', '8人乗り'],
+  'フルフラットシート':               ['フルフラット'],
+  'シートヒーター':                   ['シートヒーター', 'シートウォーマー'],
+  'ウォークスルー':                   ['ウォークスルー'],
+  '後席モニター':                     ['後席モニター', 'リアモニター'],
+  '電動リアゲート':                   ['電動リアゲート', 'パワーバックドア'],
+  'フロントカメラ':                   ['フロントカメラ'],
+  'シートエアコン':                   ['シートエアコン', 'シートベンチレーション'],
+  '全周囲カメラ':                     ['全周囲カメラ', 'パノラミックビュー', '360度カメラ', '全方位カメラ'],
+  'サイドカメラ':                     ['サイドカメラ'],
+  'ルーフレール':                     ['ルーフレール'],
+  'エアサスペンション':               ['エアサスペンション'],
+};
+
+const GOONET_DEMO_DETECTED = new Set([
+  'スマートキー', 'パワーウィンドウ', 'シートヒーター', '3列シート',
+  'LEDヘッドランプ', 'アルミホイール',
+  'エアコン', 'ETC', 'ドライブレコーダー',
+  'ABS', '衝突被害軽減システム', 'オートクルーズコントロール', 'レーンアシスト',
+  '全周囲カメラ', 'バックカメラ', '横滑り防止装置',
+  'アイドリングストップ', '盗難防止システム', 'パワーステアリング',
+  'エアバッグ：運転席/助手席/サイド',
+]);
+
+const CAT_COLORS: Record<string, string> = {
+  blue:   'bg-blue-600 text-white',
+  green:  'bg-green-600 text-white',
+  purple: 'bg-purple-600 text-white',
+  red:    'bg-red-600 text-white',
+  orange: 'bg-orange-500 text-white',
+  rose:   'bg-rose-700 text-white',
+  teal:   'bg-teal-600 text-white',
+};
+
 // ── Sub-components ─────────────────────────────────────────────────────
 function CopyBtn({
   text, id, copied, onCopy,
@@ -259,6 +376,9 @@ export default function Home() {
   const [dragOver, setDragOver]           = useState(false);
   const [equipmentChecked, setEquipmentChecked] = useState<Set<string>>(new Set(DEMO_DETECTED));
   const [aiDetected, setAiDetected]       = useState<Set<string>>(new Set(DEMO_DETECTED));
+  const [goonetChecked, setGoonetChecked] = useState<Set<string>>(new Set(GOONET_DEMO_DETECTED));
+  const [goonetAiDetected, setGoonetAiDetected] = useState<Set<string>>(new Set(GOONET_DEMO_DETECTED));
+  const [checklistTab, setChecklistTab]   = useState<'carsensor' | 'goonet'>('carsensor');
   const fileInputRef                      = useRef<HTMLInputElement>(null);
   const resultRef                         = useRef<HTMLDivElement>(null);
 
@@ -319,6 +439,136 @@ export default function Home() {
       if (checked.length === 0) return null;
       return `【${cat.label}】\n${checked.map(i => `・${i}`).join('\n')}`;
     }).filter(Boolean).join('\n\n');
+  }
+
+  function matchEquipmentToGoonetChecklist(aiEquipment: string[]): Set<string> {
+    const result = new Set<string>();
+    const allItems = GOONET_CATEGORIES.flatMap(c => c.items);
+    for (const detected of aiEquipment) {
+      const d = detected.replace('（推測）', '').trim();
+      for (const item of allItems) {
+        const keywords = GOONET_KEYWORDS[item] ?? [item];
+        if (keywords.some(kw => d.includes(kw) || kw.includes(d))) {
+          result.add(item);
+        }
+      }
+    }
+    return result;
+  }
+
+  function toggleGoonetEquipment(item: string) {
+    setGoonetChecked(prev => {
+      const next = new Set(prev);
+      next.has(item) ? next.delete(item) : next.add(item);
+      return next;
+    });
+  }
+
+  function getGoonetCheckedEquipmentText(): string {
+    return GOONET_CATEGORIES.map(cat => {
+      const checked = cat.items.filter(i => goonetChecked.has(i));
+      if (checked.length === 0) return null;
+      return `【${cat.label}】\n${checked.map(i => `・${i}`).join('\n')}`;
+    }).filter(Boolean).join('\n\n');
+  }
+
+  // チップ共通レンダラー（カーセンサー/グーネット両用）
+  function renderChips(
+    items: readonly string[],
+    checked: Set<string>,
+    ai: Set<string>,
+    onToggle: (item: string) => void,
+  ) {
+    return items.map(item => {
+      const isAI      = ai.has(item);
+      const isChecked = checked.has(item);
+      return (
+        <button
+          key={item}
+          type="button"
+          onClick={() => onToggle(item)}
+          className={`text-[11px] px-2 py-1 rounded border transition-all cursor-pointer select-none ${
+            isChecked && isAI
+              ? 'bg-orange-50 border-orange-400 text-orange-800 font-semibold ring-1 ring-orange-300'
+              : isChecked
+              ? 'bg-blue-50 border-blue-400 text-blue-800 font-semibold ring-1 ring-blue-300'
+              : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700'
+          }`}
+        >
+          {isChecked && <span className="mr-0.5">✓</span>}{item}
+        </button>
+      );
+    });
+  }
+
+  function renderCategoryChecklist(
+    categories: readonly { id: string; label: string; color: string; items: readonly string[] }[],
+    checked: Set<string>,
+    ai: Set<string>,
+    onToggle: (item: string) => void,
+  ) {
+    return categories.map(cat => {
+      const checkedCount = cat.items.filter(i => checked.has(i)).length;
+      return (
+        <div key={cat.id}>
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${CAT_COLORS[cat.color] ?? 'bg-gray-600 text-white'}`}>
+              {cat.label}
+            </span>
+            {checkedCount > 0 && <span className="text-[10px] text-gray-400">{checkedCount}項目</span>}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {renderChips(cat.items, checked, ai, onToggle)}
+          </div>
+        </div>
+      );
+    });
+  }
+
+  // タブヘッダー共通レンダラー
+  function renderChecklistTabHeader(
+    totalCheckedCS: number,
+    totalCheckedGN: number,
+    aiCS: number,
+    aiGN: number,
+  ) {
+    return (
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setChecklistTab('carsensor')}
+            className={`px-3 py-1.5 transition-colors cursor-pointer ${
+              checklistTab === 'carsensor'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            カーセンサー {totalCheckedCS > 0 && <span className="ml-1 opacity-80">{totalCheckedCS}</span>}
+          </button>
+          <button
+            type="button"
+            onClick={() => setChecklistTab('goonet')}
+            className={`px-3 py-1.5 transition-colors cursor-pointer border-l border-gray-200 ${
+              checklistTab === 'goonet'
+                ? 'bg-red-600 text-white'
+                : 'bg-white text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            グーネット {totalCheckedGN > 0 && <span className="ml-1 opacity-80">{totalCheckedGN}</span>}
+          </button>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {(checklistTab === 'carsensor' ? aiCS : aiGN) > 0 && (
+            <span className="text-[10px] bg-orange-100 text-orange-700 border border-orange-300 rounded px-1.5 py-0.5 font-medium">
+              AI {checklistTab === 'carsensor' ? aiCS : aiGN}件検出
+            </span>
+          )}
+          <span className="text-[10px] bg-orange-50 text-orange-700 border border-orange-300 rounded px-1.5 py-0.5">■ AI</span>
+          <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-300 rounded px-1.5 py-0.5">■ 手動</span>
+        </div>
+      </div>
+    );
   }
 
   async function resizeImage(file: File): Promise<{ base64: string; mediaType: string }> {
@@ -388,9 +638,13 @@ export default function Home() {
       setResult(data);
       if (data.mode === 'multi') setActiveTab('carsensor');
       if (data.mode === 'photo' && Array.isArray(data.equipment)) {
-        const detected = matchEquipmentToChecklist(data.equipment as string[]);
-        setAiDetected(detected);
-        setEquipmentChecked(prev => new Set([...prev, ...detected]));
+        const eq = data.equipment as string[];
+        const csDetected = matchEquipmentToChecklist(eq);
+        const gnDetected = matchEquipmentToGoonetChecklist(eq);
+        setAiDetected(csDetected);
+        setEquipmentChecked(prev => new Set([...prev, ...csDetected]));
+        setGoonetAiDetected(gnDetected);
+        setGoonetChecked(prev => new Set([...prev, ...gnDetected]));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '文章の生成に失敗しました');
@@ -523,10 +777,12 @@ export default function Home() {
       { label: '年式',         value: r.year,          id: 'ph-year'    },
       { label: 'グレード',     value: r.grade,         id: 'ph-grade'   },
     ];
-    const filledFields = fields.filter(f => f.value);
-    const idText       = filledFields.map(f => `${f.label}: ${f.value}`).join('\n');
-    const equipText    = getCheckedEquipmentText();
-    const totalChecked = CARSENSOR_CATEGORIES.flatMap(c => c.items).filter(i => equipmentChecked.has(i)).length;
+    const filledFields   = fields.filter(f => f.value);
+    const idText         = filledFields.map(f => `${f.label}: ${f.value}`).join('\n');
+    const equipText      = checklistTab === 'carsensor' ? getCheckedEquipmentText() : getGoonetCheckedEquipmentText();
+    const totalCheckedCS = CARSENSOR_CATEGORIES.flatMap(c => c.items).filter(i => equipmentChecked.has(i)).length;
+    const totalCheckedGN = GOONET_CATEGORIES.flatMap(c => c.items).filter(i => goonetChecked.has(i)).length;
+    const totalChecked   = checklistTab === 'carsensor' ? totalCheckedCS : totalCheckedGN;
 
     return (
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
@@ -564,61 +820,19 @@ export default function Home() {
 
         {/* ── 装備チェックリスト（AI更新済み）────────────────── */}
         <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between bg-gray-50 px-4 py-2.5 border-b border-gray-200">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-gray-900">カーセンサー 装備チェック</span>
-              <span className="text-[11px] bg-orange-100 text-orange-700 border border-orange-300 rounded px-1.5 py-0.5 font-medium">
-                {aiDetected.size}件 AI検出
-              </span>
+          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-bold text-gray-900">装備チェック（AI更新済み）</span>
               <span className="text-[11px] text-gray-400">{totalChecked}項目選択中</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] bg-orange-50 text-orange-700 border border-orange-300 rounded px-1.5 py-0.5">■ AI検出</span>
-              <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-300 rounded px-1.5 py-0.5">■ 手動</span>
-            </div>
+            {renderChecklistTabHeader(totalCheckedCS, totalCheckedGN, aiDetected.size, goonetAiDetected.size)}
           </div>
 
           <div className="p-4 space-y-4">
-            {CARSENSOR_CATEGORIES.map(cat => {
-              const checkedCount = cat.items.filter(i => equipmentChecked.has(i)).length;
-              return (
-                <div key={cat.id}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${
-                      cat.color === 'blue'   ? 'bg-blue-600 text-white' :
-                      cat.color === 'green'  ? 'bg-green-600 text-white' :
-                      cat.color === 'purple' ? 'bg-purple-600 text-white' :
-                      'bg-red-600 text-white'
-                    }`}>{cat.label}</span>
-                    {checkedCount > 0 && (
-                      <span className="text-[10px] text-gray-400">{checkedCount}項目</span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {cat.items.map(item => {
-                      const isAI      = aiDetected.has(item);
-                      const isChecked = equipmentChecked.has(item);
-                      return (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => toggleEquipment(item)}
-                          className={`text-[11px] px-2 py-1 rounded border transition-all cursor-pointer select-none ${
-                            isChecked && isAI
-                              ? 'bg-orange-50 border-orange-400 text-orange-800 font-semibold ring-1 ring-orange-300'
-                              : isChecked
-                              ? 'bg-blue-50 border-blue-400 text-blue-800 font-semibold ring-1 ring-blue-300'
-                              : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700'
-                          }`}
-                        >
-                          {isChecked && <span className="mr-0.5">✓</span>}{item}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+            {checklistTab === 'carsensor'
+              ? renderCategoryChecklist(CARSENSOR_CATEGORIES, equipmentChecked, aiDetected, toggleEquipment)
+              : renderCategoryChecklist(GOONET_CATEGORIES, goonetChecked, goonetAiDetected, toggleGoonetEquipment)
+            }
           </div>
         </div>
 
@@ -639,7 +853,9 @@ export default function Home() {
                 : 'border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}
           >
-            {copied === 'photo-equip' ? '✓ 装備リストをコピー済み' : '装備チェックリストをコピー'}
+            {copied === 'photo-equip'
+              ? '✓ 装備リストをコピー済み'
+              : `${checklistTab === 'carsensor' ? 'カーセンサー' : 'グーネット'}装備をコピー`}
           </button>
           <button
             onClick={() => onCopy(`${idText}\n\n${equipText}`, 'photo-all')}
@@ -766,79 +982,43 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* ── カーセンサー 装備チェックリスト ─────────────── */}
+                {/* ── 装備チェックリスト（カーセンサー / グーネット タブ）── */}
                 <div className="border-t border-gray-100 pt-5 space-y-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-sm font-bold text-gray-900">カーセンサー 装備チェック</h2>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] bg-orange-100 text-orange-700 border border-orange-300 rounded px-1.5 py-0.5 font-medium">■ AI検出</span>
-                      <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-300 rounded px-1.5 py-0.5 font-medium">■ 手動選択</span>
-                    </div>
-                  </div>
+                  <h2 className="text-sm font-bold text-gray-900">装備チェック</h2>
 
-                  {CARSENSOR_CATEGORIES.map(cat => {
-                    const checkedCount = cat.items.filter(i => equipmentChecked.has(i)).length;
-                    return (
-                      <div key={cat.id}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${
-                            cat.color === 'blue'   ? 'bg-blue-600 text-white' :
-                            cat.color === 'green'  ? 'bg-green-600 text-white' :
-                            cat.color === 'purple' ? 'bg-purple-600 text-white' :
-                            'bg-red-600 text-white'
-                          }`}>{cat.label}</span>
-                          {checkedCount > 0 && (
-                            <span className="text-[10px] text-gray-400">{checkedCount}項目選択中</span>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {cat.items.map(item => {
-                            const isAI      = aiDetected.has(item);
-                            const isChecked = equipmentChecked.has(item);
-                            return (
-                              <button
-                                key={item}
-                                type="button"
-                                onClick={() => toggleEquipment(item)}
-                                className={`text-[11px] px-2 py-1 rounded border transition-all cursor-pointer select-none ${
-                                  isChecked && isAI
-                                    ? 'bg-orange-50 border-orange-400 text-orange-800 font-semibold ring-1 ring-orange-300'
-                                    : isChecked
-                                    ? 'bg-blue-50 border-blue-400 text-blue-800 font-semibold ring-1 ring-blue-300'
-                                    : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700'
-                                }`}
-                              >
-                                {isChecked && <span className="mr-0.5">✓</span>}{item}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {renderChecklistTabHeader(
+                    CARSENSOR_CATEGORIES.flatMap(c => c.items).filter(i => equipmentChecked.has(i)).length,
+                    GOONET_CATEGORIES.flatMap(c => c.items).filter(i => goonetChecked.has(i)).length,
+                    aiDetected.size,
+                    goonetAiDetected.size,
+                  )}
 
-                  {/* 装備コピーボタン */}
+                  {checklistTab === 'carsensor'
+                    ? renderCategoryChecklist(CARSENSOR_CATEGORIES, equipmentChecked, aiDetected, toggleEquipment)
+                    : renderCategoryChecklist(GOONET_CATEGORIES, goonetChecked, goonetAiDetected, toggleGoonetEquipment)
+                  }
+
+                  {/* コピー＆リセット */}
                   <div className="flex gap-2 pt-1">
                     <button
                       type="button"
-                      onClick={() => {
-                        const checkedCount = CARSENSOR_CATEGORIES.flatMap(c => c.items).filter(i => equipmentChecked.has(i)).length;
-                        if (checkedCount === 0) return;
-                        onCopy(getCheckedEquipmentText(), 'equip-list');
-                      }}
+                      onClick={() => onCopy(
+                        checklistTab === 'carsensor' ? getCheckedEquipmentText() : getGoonetCheckedEquipmentText(),
+                        'equip-list',
+                      )}
                       className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                         copied === 'equip-list'
                           ? 'bg-green-50 border-green-300 text-green-700'
                           : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                       }`}
                     >
-                      {copied === 'equip-list' ? '✓ 装備リストをコピー済み' : '選択中の装備をカテゴリ別コピー'}
+                      {copied === 'equip-list' ? '✓ コピー済み' : `${checklistTab === 'carsensor' ? 'カーセンサー' : 'グーネット'}装備をコピー`}
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        setEquipmentChecked(new Set());
-                        setAiDetected(new Set());
+                        if (checklistTab === 'carsensor') { setEquipmentChecked(new Set()); setAiDetected(new Set()); }
+                        else { setGoonetChecked(new Set()); setGoonetAiDetected(new Set()); }
                       }}
                       className="px-3 py-2 rounded-lg text-xs text-gray-400 border border-gray-200 hover:border-gray-300 hover:text-gray-600 transition-colors cursor-pointer"
                     >
