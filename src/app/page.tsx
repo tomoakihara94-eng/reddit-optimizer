@@ -36,6 +36,8 @@ interface PhotoResult {
   grade: string;
   equipment: string[];
   notes: string;
+  gradeNote: string;
+  appealPoints: string[];
 }
 
 interface PhotoFile {
@@ -779,6 +781,8 @@ export default function Home() {
     ];
     const filledFields   = fields.filter(f => f.value);
     const idText         = filledFields.map(f => `${f.label}: ${f.value}`).join('\n');
+    const gradeSection   = r.gradeNote ? `【グレード補記】\n${r.gradeNote}` : '';
+    const appealsSection = r.appealPoints?.length ? `【アピールポイント】\n${r.appealPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}` : '';
     const equipText      = checklistTab === 'carsensor' ? getCheckedEquipmentText() : getGoonetCheckedEquipmentText();
     const totalCheckedCS = CARSENSOR_CATEGORIES.flatMap(c => c.items).filter(i => equipmentChecked.has(i)).length;
     const totalCheckedGN = GOONET_CATEGORIES.flatMap(c => c.items).filter(i => goonetChecked.has(i)).length;
@@ -836,6 +840,51 @@ export default function Home() {
           </div>
         </div>
 
+        {/* ── グレード補記 ──────────────────────────────────── */}
+        {r.gradeNote && (
+          <div className="bg-gray-50 rounded-xl p-4">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">グレード補記（カーセンサー 100文字枠）</span>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-medium tabular-nums ${
+                  r.gradeNote.length > 100 ? 'text-red-500' :
+                  r.gradeNote.length > 85  ? 'text-yellow-600' : 'text-gray-400'
+                }`}>{r.gradeNote.length}/100文字</span>
+                <CopyBtn text={r.gradeNote} id="ph-grade-note" copied={copied} onCopy={onCopy} />
+              </div>
+            </div>
+            <p className="text-gray-900 text-sm leading-relaxed whitespace-pre-wrap">{r.gradeNote}</p>
+            {r.gradeNote.length > 100 && (
+              <p className="text-xs text-red-500 mt-2">⚠ 100文字を超えています。入力時は調整してください。</p>
+            )}
+          </div>
+        )}
+
+        {/* ── アピール提案 ───────────────────────────────────── */}
+        {r.appealPoints && r.appealPoints.length > 0 && (
+          <div className="bg-gray-50 rounded-xl p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">アピールポイント</span>
+              <CopyBtn
+                text={r.appealPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}
+                id="ph-appeals"
+                copied={copied}
+                onCopy={onCopy}
+              />
+            </div>
+            <ul className="space-y-2">
+              {r.appealPoints.map((point, i) => (
+                <li key={i} className="flex gap-2.5 text-sm text-gray-900">
+                  <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                    {i + 1}
+                  </span>
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* ── 備考 ───────────────────────────────────────────── */}
         {r.notes && (
           <div className="bg-gray-50 rounded-xl px-4 py-3">
@@ -858,7 +907,7 @@ export default function Home() {
               : `${checklistTab === 'carsensor' ? 'カーセンサー' : 'グーネット'}装備をコピー`}
           </button>
           <button
-            onClick={() => onCopy(`${idText}\n\n${equipText}`, 'photo-all')}
+            onClick={() => onCopy([idText, gradeSection, appealsSection, equipText].filter(Boolean).join('\n\n'), 'photo-all')}
             className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
               copied === 'photo-all'
                 ? 'bg-green-50 border-green-200 text-green-700'
