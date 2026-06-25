@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { CAR_DATA, COLORS, OPTION_GROUPS } from '@/lib/car-data';
 
 // ── Types ──────────────────────────────────────────────────────────────
-type Mode = 'multi' | 'grade' | 'reply' | 'photo';
+type Mode = 'reply' | 'photo';
 
 interface MultiResult {
   mode: 'multi';
@@ -38,6 +38,10 @@ interface PhotoResult {
   notes: string;
   gradeNote: string;
   appealPoints: string[];
+  instagram: string;
+  instagramHashtags: string;
+  blogTitle: string;
+  blog: string;
 }
 
 interface PhotoFile {
@@ -53,21 +57,9 @@ type Result = MultiResult | GradeResult | ReplyResult | PhotoResult;
 const MODES: { id: Mode; label: string; desc: string; icon: string }[] = [
   {
     id: 'photo',
-    label: '写真を撮るだけ → カーセンサー / グーネット 登録まで一括完結',
-    desc: 'コーションプレート・内装・外観を撮るだけ。AI が全項目を自動入力し、その場でコピーして登録完了',
+    label: '写真を撮るだけ → 全部完結',
+    desc: 'カーセンサー/グーネット登録 ＋ Instagram投稿 ＋ ブログ記事をまとめて自動生成',
     icon: '📸',
-  },
-  {
-    id: 'multi',
-    label: 'Instagram ＋ 自社ブログ 投稿文生成',
-    desc: 'バズる Instagram 投稿文＋SEO最適化ブログ記事を1入力で同時生成',
-    icon: '📢',
-  },
-  {
-    id: 'grade',
-    label: 'カーセンサー グレード補記・アピール提案',
-    desc: '検索に引っかかりやすいオプション・限定装備の魅力を抽出',
-    icon: '🔍',
   },
   {
     id: 'reply',
@@ -387,13 +379,12 @@ export default function Home() {
   const [goonetChecked, setGoonetChecked] = useState<Set<string>>(new Set(GOONET_DEMO_DETECTED));
   const [goonetAiDetected, setGoonetAiDetected] = useState<Set<string>>(new Set(GOONET_DEMO_DETECTED));
   const [checklistTab, setChecklistTab]   = useState<'carsensor' | 'goonet'>('carsensor');
+  const [photoTab, setPhotoTab]           = useState<'carsensor' | 'instagram' | 'blog'>('carsensor');
   const fileInputRef                      = useRef<HTMLInputElement>(null);
   const resultRef                         = useRef<HTMLDivElement>(null);
 
-  const isVehicleMode = mode === 'multi' || mode === 'grade';
   const canSubmit =
-    mode === 'photo'   ? photoFiles.length > 0 :
-    isVehicleMode      ? (maker !== '' && model !== '') :
+    mode === 'photo' ? photoFiles.length > 0 :
     inquiry.trim() !== '';
 
   const currentModels = CAR_DATA.find(m => m.name === maker)?.models ?? [];
@@ -627,13 +618,9 @@ export default function Home() {
     setResult(null);
 
     try {
-      const carName = [maker, model].filter(Boolean).join(' ');
-      const equipment = [color, ...selectedOptions].filter(Boolean).join('・');
       const body =
         mode === 'photo'
           ? { mode, images: photoFiles.map(f => ({ base64: f.base64, mediaType: f.mediaType })) }
-          : isVehicleMode
-          ? { mode, carName, grade, year, seating, carStatus, equipment }
           : { mode, inquiry };
 
       const res = await fetch('/api/optimize', {
@@ -644,7 +631,7 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '生成に失敗しました');
       setResult(data);
-      if (data.mode === 'multi') setActiveTab('carsensor');
+      setPhotoTab('carsensor');
       if (data.mode === 'photo' && Array.isArray(data.equipment)) {
         const eq = data.equipment as string[];
         const csDetected = matchEquipmentToChecklist(eq);
@@ -857,78 +844,161 @@ export default function Home() {
           </p>
         )}
 
-        {/* ── AI生テキストサマリー ─────────────────────────────── */}
-        {r.equipment.length > 0 && (
-          <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
-            <p className="text-[11px] font-bold text-orange-700 mb-1.5">
-              ✓ AIが検出した装備 {r.equipment.length}件（下のチェックリストに自動反映済み）
-            </p>
-            <p className="text-xs text-orange-600 leading-relaxed">{r.equipment.join(' ／ ')}</p>
-          </div>
-        )}
-
-        {/* ── 装備チェックリスト（AI更新済み）────────────────── */}
+        {/* ── 結果タブ ─────────────────────────────────────────── */}
         <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-          <div className="bg-slate-50 px-4 py-3 border-b border-gray-100 space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-bold text-gray-900">装備チェック（AI更新済み）</span>
-              <span className="text-[11px] text-gray-400">{totalChecked}項目選択中</span>
-            </div>
-            {renderChecklistTabHeader(totalCheckedCS, totalCheckedGN, aiDetected.size, goonetAiDetected.size)}
+          {/* タブヘッダー */}
+          <div className="flex bg-slate-50/80 border-b border-gray-100">
+            {([
+              { id: 'carsensor', label: 'カーセンサー / グーネット', icon: '🗂️' },
+              { id: 'instagram', label: 'Instagram',                 icon: '📱' },
+              { id: 'blog',      label: '自社ブログ',                icon: '📝' },
+            ] as const).map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setPhotoTab(tab.id)}
+                className={`flex-1 py-3 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  photoTab === tab.id
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-white'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-white/60'
+                }`}
+              >
+                <span>{tab.icon}</span>
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.label.split('/')[0].trim()}</span>
+              </button>
+            ))}
           </div>
 
-          <div className="p-4 space-y-4">
-            {checklistTab === 'carsensor'
-              ? renderCategoryChecklist(CARSENSOR_CATEGORIES, equipmentChecked, aiDetected, toggleEquipment)
-              : renderCategoryChecklist(GOONET_CATEGORIES, goonetChecked, goonetAiDetected, toggleGoonetEquipment)
-            }
-          </div>
-        </div>
+          <div className="p-4">
 
-        {/* ── グレード補記 ──────────────────────────────────── */}
-        {r.gradeNote && (
-          <div className="bg-slate-50 rounded-xl p-4 border-l-4 border-blue-500">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">グレード補記（カーセンサー 100文字枠）</span>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-medium tabular-nums ${
-                  r.gradeNote.length > 100 ? 'text-red-500' :
-                  r.gradeNote.length > 85  ? 'text-yellow-600' : 'text-gray-400'
-                }`}>{r.gradeNote.length}/100文字</span>
-                <CopyBtn text={r.gradeNote} id="ph-grade-note" copied={copied} onCopy={onCopy} />
+            {/* ── カーセンサー / グーネット タブ ─── */}
+            {photoTab === 'carsensor' && (
+              <div className="space-y-4">
+                {r.equipment.length > 0 && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5">
+                    <p className="text-[11px] font-bold text-orange-700 mb-1">✓ AIが検出した装備 {r.equipment.length}件（チェックリストに自動反映済み）</p>
+                    <p className="text-xs text-orange-600 leading-relaxed">{r.equipment.join(' ／ ')}</p>
+                  </div>
+                )}
+
+                {/* 装備チェックリスト */}
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-xs font-bold text-gray-700">装備チェック</span>
+                    <span className="text-[11px] text-gray-400">{totalChecked}項目選択中</span>
+                  </div>
+                  {renderChecklistTabHeader(totalCheckedCS, totalCheckedGN, aiDetected.size, goonetAiDetected.size)}
+                  <div className="mt-3 space-y-4">
+                    {checklistTab === 'carsensor'
+                      ? renderCategoryChecklist(CARSENSOR_CATEGORIES, equipmentChecked, aiDetected, toggleEquipment)
+                      : renderCategoryChecklist(GOONET_CATEGORIES, goonetChecked, goonetAiDetected, toggleGoonetEquipment)
+                    }
+                  </div>
+                </div>
+
+                {/* グレード補記 */}
+                {r.gradeNote && (
+                  <div className="bg-slate-50 rounded-xl p-4 border-l-4 border-blue-500">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">グレード補記（100文字枠）</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-medium tabular-nums ${r.gradeNote.length > 100 ? 'text-red-500' : r.gradeNote.length > 85 ? 'text-yellow-600' : 'text-gray-400'}`}>
+                          {r.gradeNote.length}/100
+                        </span>
+                        <CopyBtn text={r.gradeNote} id="ph-grade-note" copied={copied} onCopy={onCopy} />
+                      </div>
+                    </div>
+                    <p className="text-gray-900 text-sm leading-relaxed whitespace-pre-wrap">{r.gradeNote}</p>
+                    {r.gradeNote.length > 100 && <p className="text-xs text-red-500 mt-2">⚠ 100文字超。カーセンサー入力時に調整してください。</p>}
+                  </div>
+                )}
+
+                {/* アピールポイント */}
+                {r.appealPoints?.length > 0 && (
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">アピールポイント</span>
+                      <CopyBtn text={r.appealPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')} id="ph-appeals" copied={copied} onCopy={onCopy} />
+                    </div>
+                    <ul className="space-y-2">
+                      {r.appealPoints.map((point, i) => (
+                        <li key={i} className="flex gap-2.5 text-sm text-gray-800">
+                          <span className="w-5 h-5 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">{i + 1}</span>
+                          <span>{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* 登録シート一括コピー */}
+                <button
+                  onClick={() => onCopy(registrationSheet, 'photo-all')}
+                  className={`w-full py-3.5 rounded-2xl text-sm font-bold border-2 transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    copied === 'photo-all'
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 border-transparent text-white shadow-lg shadow-blue-500/20 hover:-translate-y-0.5'
+                  }`}
+                >
+                  {copied === 'photo-all' ? '✓ コピー済み — カーセンサーに貼り付けてください' : '登録シートを一括コピー（識別情報 ＋ グレード補記 ＋ アピール ＋ 装備）'}
+                </button>
+                <button
+                  onClick={() => onCopy(equipText, 'photo-equip')}
+                  className={`w-full py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
+                    copied === 'photo-equip' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {copied === 'photo-equip' ? '✓ コピー済み' : `${checklistTab === 'carsensor' ? 'カーセンサー' : 'グーネット'}装備チェックのみをコピー`}
+                </button>
               </div>
-            </div>
-            <p className="text-gray-900 text-sm leading-relaxed whitespace-pre-wrap">{r.gradeNote}</p>
-            {r.gradeNote.length > 100 && (
-              <p className="text-xs text-red-500 mt-2">⚠ 100文字を超えています。入力時は調整してください。</p>
+            )}
+
+            {/* ── Instagram タブ ─── */}
+            {photoTab === 'instagram' && (
+              <div className="space-y-4">
+                {r.instagram ? (
+                  <>
+                    <TextBlock label="Instagram 投稿文" text={r.instagram} id="ph-ig-post" copied={copied} onCopy={onCopy} />
+                    <TextBlock label="ハッシュタグ" text={r.instagramHashtags} id="ph-ig-hash" copied={copied} onCopy={onCopy} />
+                    <button
+                      onClick={() => onCopy(`${r.instagram}\n\n${r.instagramHashtags}`, 'ph-ig-all')}
+                      className={`w-full py-2.5 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
+                        copied === 'ph-ig-all' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100'
+                      }`}
+                    >
+                      {copied === 'ph-ig-all' ? '✓ コピー済み' : '投稿文 ＋ ハッシュタグをコピー'}
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-center text-sm text-gray-400 py-6">Instagram投稿文を生成中です...</p>
+                )}
+              </div>
+            )}
+
+            {/* ── ブログ タブ ─── */}
+            {photoTab === 'blog' && (
+              <div className="space-y-4">
+                {r.blog ? (
+                  <>
+                    <TextBlock label="ブログ 記事タイトル" text={r.blogTitle} id="ph-bl-title" copied={copied} onCopy={onCopy} />
+                    <TextBlock label="ブログ 本文" text={r.blog} id="ph-bl-body" copied={copied} onCopy={onCopy} />
+                    <button
+                      onClick={() => onCopy(`${r.blogTitle}\n\n${r.blog}`, 'ph-bl-all')}
+                      className={`w-full py-2.5 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
+                        copied === 'ph-bl-all' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100'
+                      }`}
+                    >
+                      {copied === 'ph-bl-all' ? '✓ コピー済み' : 'タイトル ＋ 本文をコピー'}
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-center text-sm text-gray-400 py-6">ブログ記事を生成中です...</p>
+                )}
+              </div>
             )}
           </div>
-        )}
-
-        {/* ── アピール提案 ───────────────────────────────────── */}
-        {r.appealPoints && r.appealPoints.length > 0 && (
-          <div className="bg-slate-50 rounded-xl p-4">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">アピールポイント</span>
-              <CopyBtn
-                text={r.appealPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}
-                id="ph-appeals"
-                copied={copied}
-                onCopy={onCopy}
-              />
-            </div>
-            <ul className="space-y-2">
-              {r.appealPoints.map((point, i) => (
-                <li key={i} className="flex gap-2.5 text-sm text-gray-800">
-                  <span className="w-5 h-5 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
-                    {i + 1}
-                  </span>
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        </div>
 
         {/* ── 備考 ───────────────────────────────────────────── */}
         {r.notes && (
@@ -936,48 +1006,6 @@ export default function Home() {
             <p className="text-xs text-gray-500 leading-relaxed">{r.notes}</p>
           </div>
         )}
-
-        {/* ── コピーボタン ──────────────────────────────────── */}
-        <div className="space-y-2">
-          {/* 主アクション: 登録シート一括コピー */}
-          <button
-            onClick={() => onCopy(registrationSheet, 'photo-all')}
-            className={`w-full py-4 rounded-2xl text-sm font-bold border-2 transition-all cursor-pointer flex items-center justify-center gap-2 ${
-              copied === 'photo-all'
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                : 'bg-gradient-to-r from-blue-600 to-indigo-600 border-transparent text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5'
-            }`}
-          >
-            {copied === 'photo-all' ? (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-                登録シートをコピーしました — カーセンサーに貼り付けてください
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                登録シートを一括コピー（識別情報 ＋ グレード補記 ＋ アピール ＋ 装備）
-              </>
-            )}
-          </button>
-          {/* サブ: 装備のみ */}
-          <button
-            onClick={() => onCopy(equipText, 'photo-equip')}
-            className={`w-full py-2.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
-              copied === 'photo-equip'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'
-            }`}
-          >
-            {copied === 'photo-equip'
-              ? '✓ 装備リストをコピー済み'
-              : `${checklistTab === 'carsensor' ? 'カーセンサー' : 'グーネット'}装備チェックのみをコピー`}
-          </button>
-        </div>
       </div>
     );
   }
@@ -1157,11 +1185,8 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-700">
-                  <span className="font-semibold">【開発中】</span> 写真をアップロードして「解析する」を押すと装備が自動検出されます。
-                </div>
               </div>
-            ) : isVehicleMode ? (
+            ) : false ? (
               <>
                 {/* メーカー・車種 */}
                 <div className="grid grid-cols-2 gap-3">
@@ -1345,9 +1370,8 @@ export default function Home() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  {mode === 'multi'  ? '4媒体分を一括生成する'
-                    : mode === 'grade' ? 'グレード補記・アピールを生成する'
-                    : mode === 'photo' ? `${photoFiles.length}枚を解析して登録シートを作成する`
+                  {mode === 'photo'
+                    ? `${photoFiles.length}枚を解析 → カーセンサー登録 ＋ Instagram ＋ ブログを一括生成`
                     : '返信メールを下書きする'}
                 </>
               )}
@@ -1357,8 +1381,6 @@ export default function Home() {
 
         {/* Results */}
         <div ref={resultRef}>
-          {result && result.mode === 'multi'  && renderMulti(result)}
-          {result && result.mode === 'grade'  && renderGrade(result)}
           {result && result.mode === 'reply'  && renderReply(result)}
           {result && result.mode === 'photo'  && renderPhoto(result)}
         </div>

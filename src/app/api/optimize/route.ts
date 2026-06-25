@@ -190,54 +190,97 @@ async function handlePhoto(body: Record<string, unknown>) {
   const provider  = getOcrProvider();
   const ocrResult = await provider.analyzeVehicleImages(images);
 
-  // ② OCR結果をもとにグレード補記・アピール提案を同時生成
   const vehicleDesc = [
-    ocrResult.year      ? `年式: ${ocrResult.year}`         : null,
-    ocrResult.grade     ? `グレード: ${ocrResult.grade}`     : null,
-    ocrResult.modelCode ? `型式: ${ocrResult.modelCode}`     : null,
-    ocrResult.colorCode ? `カラーコード: ${ocrResult.colorCode}` : null,
+    ocrResult.year      ? `年式: ${ocrResult.year}`                    : null,
+    ocrResult.grade     ? `グレード: ${ocrResult.grade}`                : null,
+    ocrResult.modelCode ? `型式: ${ocrResult.modelCode}`                : null,
+    ocrResult.colorCode ? `カラーコード: ${ocrResult.colorCode}`        : null,
     ocrResult.equipment.length > 0
       ? `検出装備: ${ocrResult.equipment.join('・')}`
       : null,
   ].filter(Boolean).join('\n') || '（コーションプレートなし。外観・内装から推測）';
 
+  // ② グレード補記・アピール と Instagram/ブログ を並列生成
   const gradePrompt = `あなたは中古車・未使用車販売店「松下モータース」のDXサポートAIです。
 以下の車両情報（写真AIによる解析結果）をもとに、カーセンサー向けのグレード補記とアピールポイントを生成してください。
 
 【車両情報（写真解析より）】
 ${vehicleDesc}
 
-【出力要件】
+■ グレード補記（100文字以内厳守）
+フォーマット：「{排気量・駆動・グレード略称}　{乗車定員} {装備1} {装備2}…　（{カラー名}）」
+- 装備はスペース区切り・検索キーワード優先
+- 不足情報は推測で補完し（推測）と付記
 
-■ グレード補記（カーセンサーのグレード補記入力フィールド用・100文字以内厳守）
-フォーマット：「{エンジン型式・グレード略称}　{乗車定員} {車両状態} {装備1} {装備2}…　（{カラー名}）」
-ルール：
-- 冒頭はエンジン排気量・駆動方式・グレード名の略称
-- 装備はスペース区切り（読点なし）、検索されやすいキーワードを優先
-- カラー名は末尾に全角括弧
-- 合計100文字以内に厳密に収める
-- 解析情報が不足する場合は推測で補完し（推測）と付記
+■ アピールポイント: 5〜7つ（各30〜60文字）
 
-■ アピールポイント: 購買意欲を高める具体的なポイントを5〜7つ（各30〜60文字）
+JSON形式のみで回答（マークダウン不使用）：
+{"gradeNote":"...","appealPoints":["...","...","..."]}`;
 
-以下のJSON形式のみで回答してください（マークダウン・コードブロック不使用）：
-{
-  "gradeNote": "グレード補記テキスト",
-  "appealPoints": ["アピール1", "アピール2", "アピール3", "アピール4", "アピール5"]
-}`;
+  const multiPrompt = `あなたは中古車・未使用車販売店「松下モータース」のSNS担当AIです。
+以下の車両情報（写真AI解析結果）をもとに、InstagramとSEOブログ記事を生成してください。
+
+【車両情報（写真解析より）】
+${vehicleDesc}
+
+■ Instagram投稿文（250〜350文字）
+- 冒頭フックで思わず読みたくなる一行
+- 絵文字でテンポよく、生活シーンを想起させる
+- CTA: 「DMしてね」「プロフのリンクから」を自然に
+
+■ Instagramハッシュタグ（20〜25個）
+- 車種・メーカー・地域（#静岡中古車 #浜松中古車）・松下モータース固有タグ
+
+■ ブログ記事タイトル（32〜38文字、SEO最適化）
+
+■ ブログ本文（1000〜1500文字）
+- H2/H3見出し3〜4個、静岡・浜松のローカルSEOキーワードを自然に散りばめる
+- 末尾にCTA（来店・問い合わせ促進）
+
+JSON形式のみで回答（マークダウン不使用・改行は\\nでエスケープ）：
+{"instagram":"...","instagramHashtags":"...","blogTitle":"...","blog":"..."}`;
+
+  const [gradeResult, multiResult] = await Promise.allSettled([
+    callClaude(gradePrompt, 1024),
+    callClaude(multiPrompt, 4096),
+  ]);
 
   let gradeNote    = '';
   let appealPoints: string[] = [];
-  try {
-    const gradeText = await callClaude(gradePrompt, 1024);
-    const gradeData = parseJSON(gradeText) as { gradeNote?: string; appealPoints?: string[] };
-    gradeNote    = gradeData.gradeNote    ?? '';
-    appealPoints = gradeData.appealPoints ?? [];
-  } catch {
-    // グレード生成に失敗してもOCR結果は返す
+  if (gradeResult.status === 'fulfilled') {
+    try {
+      const d = parseJSON(gradeResult.value) as { gradeNote?: string; appealPoints?: string[] };
+      gradeNote    = d.gradeNote    ?? '';
+      appealPoints = d.appealPoints ?? [];
+    } catch { /* ignore */ }
   }
 
-  return NextResponse.json({ mode: 'photo', ...ocrResult, gradeNote, appealPoints });
+  let instagram         = '';
+  let instagramHashtags = '';
+  let blogTitle         = '';
+  let blog              = '';
+  if (multiResult.status === 'fulfilled') {
+    try {
+      const d = parseJSON(multiResult.value) as {
+        instagram?: string; instagramHashtags?: string; blogTitle?: string; blog?: string;
+      };
+      instagram         = d.instagram         ?? '';
+      instagramHashtags = d.instagramHashtags ?? '';
+      blogTitle         = d.blogTitle         ?? '';
+      blog              = d.blog              ?? '';
+    } catch { /* ignore */ }
+  }
+
+  return NextResponse.json({
+    mode: 'photo',
+    ...ocrResult,
+    gradeNote,
+    appealPoints,
+    instagram,
+    instagramHashtags,
+    blogTitle,
+    blog,
+  });
 }
 
 // ── Entry point ────────────────────────────────────────────────────────
