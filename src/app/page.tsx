@@ -52,6 +52,12 @@ type Result = MultiResult | GradeResult | ReplyResult | PhotoResult;
 // ── Constants ──────────────────────────────────────────────────────────
 const MODES: { id: Mode; label: string; desc: string; icon: string }[] = [
   {
+    id: 'photo',
+    label: '写真を撮るだけ → カーセンサー / グーネット 登録まで一括完結',
+    desc: 'コーションプレート・内装・外観を撮るだけ。AI が全項目を自動入力し、その場でコピーして登録完了',
+    icon: '📸',
+  },
+  {
     id: 'multi',
     label: 'Instagram ＋ 自社ブログ 投稿文生成',
     desc: 'バズる Instagram 投稿文＋SEO最適化ブログ記事を1入力で同時生成',
@@ -68,12 +74,6 @@ const MODES: { id: Mode; label: string; desc: string; icon: string }[] = [
     label: '問い合わせ返信メール 自動下書き',
     desc: 'お客様の質問文を貼り付けると最適な返答文案を作成',
     icon: '✉️',
-  },
-  {
-    id: 'photo',
-    label: '④【開発中】写真から車両情報・装備を自動抽出',
-    desc: 'コーションプレート・内装・外観写真をAIが解析し、車台番号・グレード・装備を自動読み取り',
-    icon: '📷',
   },
 ];
 
@@ -360,7 +360,7 @@ function TextBlock({
 
 // ── Main ───────────────────────────────────────────────────────────────
 export default function Home() {
-  const [mode, setMode]         = useState<Mode>('multi');
+  const [mode, setMode]         = useState<Mode>('photo');
   const [maker, setMaker]       = useState('');
   const [model, setModel]       = useState('');
   const [grade, setGrade]       = useState('');
@@ -378,6 +378,10 @@ export default function Home() {
 
   const [photoFiles, setPhotoFiles]       = useState<PhotoFile[]>([]);
   const [dragOver, setDragOver]           = useState(false);
+  const [editableFields, setEditableFields] = useState<{
+    chassisNumber: string; modelCode: string; colorCode: string;
+    trimCode: string; year: string; grade: string;
+  } | null>(null);
   const [equipmentChecked, setEquipmentChecked] = useState<Set<string>>(new Set(DEMO_DETECTED));
   const [aiDetected, setAiDetected]       = useState<Set<string>>(new Set(DEMO_DETECTED));
   const [goonetChecked, setGoonetChecked] = useState<Set<string>>(new Set(GOONET_DEMO_DETECTED));
@@ -649,6 +653,14 @@ export default function Home() {
         setEquipmentChecked(prev => new Set([...prev, ...csDetected]));
         setGoonetAiDetected(gnDetected);
         setGoonetChecked(prev => new Set([...prev, ...gnDetected]));
+        setEditableFields({
+          chassisNumber: data.chassisNumber as string ?? '',
+          modelCode:     data.modelCode     as string ?? '',
+          colorCode:     data.colorCode     as string ?? '',
+          trimCode:      data.trimCode      as string ?? '',
+          year:          data.year          as string ?? '',
+          grade:         data.grade         as string ?? '',
+        });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '文章の生成に失敗しました');
@@ -773,43 +785,74 @@ export default function Home() {
   }
 
   function renderPhoto(r: PhotoResult) {
-    const fields: { label: string; value: string; id: string }[] = [
-      { label: '車台番号',     value: r.chassisNumber, id: 'ph-chassis' },
-      { label: '型式',         value: r.modelCode,     id: 'ph-model'   },
-      { label: 'カラーコード', value: r.colorCode,     id: 'ph-color'   },
-      { label: 'トリムコード', value: r.trimCode,      id: 'ph-trim'    },
-      { label: '年式',         value: r.year,          id: 'ph-year'    },
-      { label: 'グレード',     value: r.grade,         id: 'ph-grade'   },
+    type EFKey = 'chassisNumber' | 'modelCode' | 'colorCode' | 'trimCode' | 'year' | 'grade';
+    const ef = editableFields;
+    const idFieldDefs: { label: string; key: EFKey }[] = [
+      { label: '車台番号',     key: 'chassisNumber' },
+      { label: '型式',         key: 'modelCode'     },
+      { label: 'カラーコード', key: 'colorCode'     },
+      { label: 'トリムコード', key: 'trimCode'      },
+      { label: '年式',         key: 'year'          },
+      { label: 'グレード',     key: 'grade'         },
     ];
-    const filledFields   = fields.filter(f => f.value);
-    const idText         = filledFields.map(f => `${f.label}: ${f.value}`).join('\n');
-    const gradeSection   = r.gradeNote ? `【グレード補記】\n${r.gradeNote}` : '';
-    const appealsSection = r.appealPoints?.length ? `【アピールポイント】\n${r.appealPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}` : '';
+    const filledIdDefs = ef ? idFieldDefs.filter(d => ef[d.key]) : [];
+    const idText = filledIdDefs.map(d => `■ ${d.label}: ${ef![d.key]}`).join('\n');
+
+    const gradeSection   = r.gradeNote ? `\n■ グレード補記（100字枠）:\n${r.gradeNote}` : '';
+    const appealsSection = r.appealPoints?.length
+      ? `\n■ アピールポイント:\n${r.appealPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}`
+      : '';
     const equipText      = checklistTab === 'carsensor' ? getCheckedEquipmentText() : getGoonetCheckedEquipmentText();
+    const equipHeader    = checklistTab === 'carsensor' ? '\n■ カーセンサー装備チェック:' : '\n■ グーネット装備チェック:';
     const totalCheckedCS = CARSENSOR_CATEGORIES.flatMap(c => c.items).filter(i => equipmentChecked.has(i)).length;
     const totalCheckedGN = GOONET_CATEGORIES.flatMap(c => c.items).filter(i => goonetChecked.has(i)).length;
     const totalChecked   = checklistTab === 'carsensor' ? totalCheckedCS : totalCheckedGN;
 
+    const registrationSheet = [
+      '━━━━ カーセンサー登録シート ━━━━',
+      idText,
+      gradeSection,
+      appealsSection,
+      equipText ? `${equipHeader}\n${equipText}` : '',
+    ].filter(Boolean).join('\n');
+
     return (
       <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 space-y-5">
-        <ResultHeader label="AI解析完了 — 車両識別情報 ＋ 装備チェック" />
 
-        {/* ── 識別情報 ─────────────────────────────────────────── */}
-        {filledFields.length > 0 ? (
-          <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">車両識別情報</p>
-            {filledFields.map(f => (
-              <div key={f.id} className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-xs text-gray-400 w-24 shrink-0">{f.label}</span>
-                  <span className="text-sm font-mono font-semibold text-gray-900 truncate">{f.value}</span>
-                </div>
-                <CopyBtn text={f.value} id={f.id} copied={copied} onCopy={onCopy} />
+        {/* ── 完了バナー ────────────────────────────────────────── */}
+        <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-4 text-white">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-xl shrink-0">✅</div>
+            <div>
+              <p className="font-bold text-base">カーセンサー登録シートが完成しました</p>
+              <p className="text-sm text-emerald-100 mt-0.5">下の「登録シート一括コピー」を押してカーセンサーに貼り付けるだけ</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 識別情報（編集可） ─────────────────────────────────── */}
+        {ef ? (
+          <div className="bg-slate-50 rounded-xl p-4 space-y-2.5">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">車両識別情報</p>
+              <span className="text-[10px] text-gray-400 bg-white border border-gray-200 rounded-full px-2 py-0.5">クリックして修正できます</span>
+            </div>
+            {idFieldDefs.map(d => (
+              <div key={d.key} className="flex items-center gap-2.5">
+                <span className="text-xs text-gray-400 w-24 shrink-0">{d.label}</span>
+                <input
+                  type="text"
+                  value={ef[d.key]}
+                  onChange={e => setEditableFields(prev => prev ? { ...prev, [d.key]: e.target.value } : prev)}
+                  placeholder="—"
+                  className="flex-1 text-sm font-mono font-semibold text-gray-900 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-colors"
+                />
+                {ef[d.key] && <CopyBtn text={ef[d.key]} id={`ph-${d.key}`} copied={copied} onCopy={onCopy} />}
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-gray-400 text-center py-2 bg-gray-50 rounded-xl">
+          <p className="text-xs text-gray-400 text-center py-3 bg-gray-50 rounded-xl">
             コーションプレートを含む写真を追加すると車台番号・型式を読み取れます
           </p>
         )}
@@ -895,28 +938,44 @@ export default function Home() {
         )}
 
         {/* ── コピーボタン ──────────────────────────────────── */}
-        <div className="flex gap-2">
+        <div className="space-y-2">
+          {/* 主アクション: 登録シート一括コピー */}
+          <button
+            onClick={() => onCopy(registrationSheet, 'photo-all')}
+            className={`w-full py-4 rounded-2xl text-sm font-bold border-2 transition-all cursor-pointer flex items-center justify-center gap-2 ${
+              copied === 'photo-all'
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                : 'bg-gradient-to-r from-blue-600 to-indigo-600 border-transparent text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5'
+            }`}
+          >
+            {copied === 'photo-all' ? (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                登録シートをコピーしました — カーセンサーに貼り付けてください
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                登録シートを一括コピー（識別情報 ＋ グレード補記 ＋ アピール ＋ 装備）
+              </>
+            )}
+          </button>
+          {/* サブ: 装備のみ */}
           <button
             onClick={() => onCopy(equipText, 'photo-equip')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
+            className={`w-full py-2.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
               copied === 'photo-equip'
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'
             }`}
           >
             {copied === 'photo-equip'
               ? '✓ 装備リストをコピー済み'
-              : `${checklistTab === 'carsensor' ? 'カーセンサー' : 'グーネット'}装備をコピー`}
-          </button>
-          <button
-            onClick={() => onCopy([idText, gradeSection, appealsSection, equipText].filter(Boolean).join('\n\n'), 'photo-all')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
-              copied === 'photo-all'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                : 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-            }`}
-          >
-            {copied === 'photo-all' ? '✓ 全データをコピー済み' : '識別情報 ＋ 装備を一括コピー'}
+              : `${checklistTab === 'carsensor' ? 'カーセンサー' : 'グーネット'}装備チェックのみをコピー`}
           </button>
         </div>
       </div>
@@ -990,10 +1049,28 @@ export default function Home() {
             {mode === 'photo' ? (
               <div className="space-y-5">
 
+                {/* ── ステップ表示 ──────────────────────────────────── */}
+                <div className="flex items-center gap-1 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-[11px] shadow-sm">1</span>
+                    <span className="font-semibold text-gray-700">写真アップロード</span>
+                  </div>
+                  <div className="flex-1 h-px bg-gray-200 mx-1" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-6 h-6 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center font-bold text-[11px]">2</span>
+                    <span className="text-gray-400">AI 解析</span>
+                  </div>
+                  <div className="flex-1 h-px bg-gray-200 mx-1" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-6 h-6 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center font-bold text-[11px]">3</span>
+                    <span className="text-gray-400">確認・コピーして登録</span>
+                  </div>
+                </div>
+
                 {/* ── 写真アップロード ─────────────────────────────── */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-gray-900">📷 車両写真</h2>
+                    <h2 className="text-sm font-bold text-gray-900">車両写真</h2>
                     <span className="text-xs text-gray-400">{photoFiles.length} / 80枚</span>
                   </div>
 
@@ -1009,8 +1086,9 @@ export default function Home() {
                   >
                     <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden"
                       onChange={e => { if (e.target.files) addPhotoFiles(e.target.files); e.target.value = ''; }} />
-                    <p className="text-sm font-medium text-gray-600">ドラッグ＆ドロップ、またはクリックして選択</p>
-                    <p className="text-xs text-gray-400 mt-0.5">コーションプレート・内装・外観 最大80枚 / JPG・PNG</p>
+                    <div className="text-2xl mb-1.5">📷</div>
+                    <p className="text-sm font-semibold text-gray-700">ドラッグ＆ドロップ、またはクリックして選択</p>
+                    <p className="text-xs text-gray-400 mt-1">コーションプレート・内装・外観 — 最大80枚 / JPG・PNG</p>
                   </div>
 
                   {/* Photo grid */}
@@ -1269,7 +1347,7 @@ export default function Home() {
                   </svg>
                   {mode === 'multi'  ? '4媒体分を一括生成する'
                     : mode === 'grade' ? 'グレード補記・アピールを生成する'
-                    : mode === 'photo' ? `${photoFiles.length}枚の写真を解析する`
+                    : mode === 'photo' ? `${photoFiles.length}枚を解析して登録シートを作成する`
                     : '返信メールを下書きする'}
                 </>
               )}
