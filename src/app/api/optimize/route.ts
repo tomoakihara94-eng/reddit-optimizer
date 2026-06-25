@@ -37,6 +37,72 @@ function buildVehicleInfo(body: Record<string, string>): string {
   ].filter(Boolean).join('\n');
 }
 
+// ── Shared prompt builders ─────────────────────────────────────────────
+
+function buildGradePrompt(vehicleDesc: string): string {
+  return `あなたは中古車・未使用車販売店「松下モータース」のDXサポートAIです。
+以下の車両情報（写真AIによる解析結果）をもとに、カーセンサー向けのグレード補記とアピールポイントを生成してください。
+
+【車両情報（写真解析より）】
+${vehicleDesc}
+
+■ グレード補記（100文字以内厳守）
+フォーマット：「{排気量・駆動・グレード略称}　{乗車定員} {装備1} {装備2}…　（{カラー名}）」
+- 装備はスペース区切り・検索キーワード優先
+- 不足情報は推測で補完し（推測）と付記
+
+■ アピールポイント: 5〜7つ（各30〜60文字）
+
+JSON形式のみで回答（マークダウン不使用）：
+{"gradeNote":"...","appealPoints":["...","...","..."]}`;
+}
+
+function buildMultiPrompt(vehicleDesc: string): string {
+  return `あなたは中古車・未使用車販売店「松下モータース」のSNS担当AIです。
+以下の車両情報（写真AI解析結果）をもとに、InstagramとSEOブログ記事を生成してください。
+
+【車両情報（写真解析より）】
+${vehicleDesc}
+
+■ Instagram投稿文（250〜350文字）
+- 冒頭フックで思わず読みたくなる一行
+- 絵文字でテンポよく、生活シーンを想起させる
+- CTA: 「DMしてね」「プロフのリンクから」を自然に
+
+■ Instagramハッシュタグ（20〜25個）
+- 車種・メーカー・地域（#静岡中古車 #浜松中古車）・松下モータース固有タグ
+
+■ ブログ記事タイトル（32〜38文字、SEO最適化）
+
+■ ブログ本文（1000〜1500文字）
+- H2/H3見出し3〜4個、静岡・浜松のローカルSEOキーワードを自然に散りばめる
+- 末尾にCTA（来店・問い合わせ促進）
+
+JSON形式のみで回答（マークダウン不使用・改行は\\nでエスケープ）：
+{"instagram":"...","instagramHashtags":"...","blogTitle":"...","blog":"..."}`;
+}
+
+function parseGradeResult(result: PromiseSettledResult<string>) {
+  if (result.status !== 'fulfilled') return { gradeNote: '', appealPoints: [] as string[] };
+  try {
+    const d = parseJSON(result.value) as { gradeNote?: string; appealPoints?: string[] };
+    return { gradeNote: d.gradeNote ?? '', appealPoints: d.appealPoints ?? [] };
+  } catch { return { gradeNote: '', appealPoints: [] as string[] }; }
+}
+
+function parseMultiResult(result: PromiseSettledResult<string>) {
+  if (result.status !== 'fulfilled') return { instagram: '', instagramHashtags: '', blogTitle: '', blog: '' };
+  try {
+    const d = parseJSON(result.value) as { instagram?: string; instagramHashtags?: string; blogTitle?: string; blog?: string };
+    return {
+      instagram:         d.instagram         ?? '',
+      instagramHashtags: d.instagramHashtags ?? '',
+      blogTitle:         d.blogTitle         ?? '',
+      blog:              d.blog              ?? '',
+    };
+  } catch { return { instagram: '', instagramHashtags: '', blogTitle: '', blog: '' }; }
+}
+
 // ── Mode handlers ──────────────────────────────────────────────────────
 
 async function handleMulti(body: Record<string, string>) {
@@ -181,6 +247,20 @@ ${body.inquiry}
 }
 
 async function handlePhoto(body: Record<string, unknown>) {
+  // 再生成モード: OCR をスキップして文章生成だけ実行
+  if (body.regenerate) {
+    const vehicleDesc = (body.vehicleDesc as string) || '（車両情報不明）';
+    const [gradeResult, multiResult] = await Promise.allSettled([
+      callClaude(buildGradePrompt(vehicleDesc), 1024),
+      callClaude(buildMultiPrompt(vehicleDesc), 4096),
+    ]);
+    return NextResponse.json({
+      mode: 'photo_regenerate',
+      ...parseGradeResult(gradeResult),
+      ...parseMultiResult(multiResult),
+    });
+  }
+
   const images = body.images as OcrImage[] | undefined;
   if (!images || images.length === 0) {
     return NextResponse.json({ error: '画像を1枚以上アップロードしてください' }, { status: 400 });
@@ -201,85 +281,16 @@ async function handlePhoto(body: Record<string, unknown>) {
   ].filter(Boolean).join('\n') || '（コーションプレートなし。外観・内装から推測）';
 
   // ② グレード補記・アピール と Instagram/ブログ を並列生成
-  const gradePrompt = `あなたは中古車・未使用車販売店「松下モータース」のDXサポートAIです。
-以下の車両情報（写真AIによる解析結果）をもとに、カーセンサー向けのグレード補記とアピールポイントを生成してください。
-
-【車両情報（写真解析より）】
-${vehicleDesc}
-
-■ グレード補記（100文字以内厳守）
-フォーマット：「{排気量・駆動・グレード略称}　{乗車定員} {装備1} {装備2}…　（{カラー名}）」
-- 装備はスペース区切り・検索キーワード優先
-- 不足情報は推測で補完し（推測）と付記
-
-■ アピールポイント: 5〜7つ（各30〜60文字）
-
-JSON形式のみで回答（マークダウン不使用）：
-{"gradeNote":"...","appealPoints":["...","...","..."]}`;
-
-  const multiPrompt = `あなたは中古車・未使用車販売店「松下モータース」のSNS担当AIです。
-以下の車両情報（写真AI解析結果）をもとに、InstagramとSEOブログ記事を生成してください。
-
-【車両情報（写真解析より）】
-${vehicleDesc}
-
-■ Instagram投稿文（250〜350文字）
-- 冒頭フックで思わず読みたくなる一行
-- 絵文字でテンポよく、生活シーンを想起させる
-- CTA: 「DMしてね」「プロフのリンクから」を自然に
-
-■ Instagramハッシュタグ（20〜25個）
-- 車種・メーカー・地域（#静岡中古車 #浜松中古車）・松下モータース固有タグ
-
-■ ブログ記事タイトル（32〜38文字、SEO最適化）
-
-■ ブログ本文（1000〜1500文字）
-- H2/H3見出し3〜4個、静岡・浜松のローカルSEOキーワードを自然に散りばめる
-- 末尾にCTA（来店・問い合わせ促進）
-
-JSON形式のみで回答（マークダウン不使用・改行は\\nでエスケープ）：
-{"instagram":"...","instagramHashtags":"...","blogTitle":"...","blog":"..."}`;
-
   const [gradeResult, multiResult] = await Promise.allSettled([
-    callClaude(gradePrompt, 1024),
-    callClaude(multiPrompt, 4096),
+    callClaude(buildGradePrompt(vehicleDesc), 1024),
+    callClaude(buildMultiPrompt(vehicleDesc), 4096),
   ]);
-
-  let gradeNote    = '';
-  let appealPoints: string[] = [];
-  if (gradeResult.status === 'fulfilled') {
-    try {
-      const d = parseJSON(gradeResult.value) as { gradeNote?: string; appealPoints?: string[] };
-      gradeNote    = d.gradeNote    ?? '';
-      appealPoints = d.appealPoints ?? [];
-    } catch { /* ignore */ }
-  }
-
-  let instagram         = '';
-  let instagramHashtags = '';
-  let blogTitle         = '';
-  let blog              = '';
-  if (multiResult.status === 'fulfilled') {
-    try {
-      const d = parseJSON(multiResult.value) as {
-        instagram?: string; instagramHashtags?: string; blogTitle?: string; blog?: string;
-      };
-      instagram         = d.instagram         ?? '';
-      instagramHashtags = d.instagramHashtags ?? '';
-      blogTitle         = d.blogTitle         ?? '';
-      blog              = d.blog              ?? '';
-    } catch { /* ignore */ }
-  }
 
   return NextResponse.json({
     mode: 'photo',
     ...ocrResult,
-    gradeNote,
-    appealPoints,
-    instagram,
-    instagramHashtags,
-    blogTitle,
-    blog,
+    ...parseGradeResult(gradeResult),
+    ...parseMultiResult(multiResult),
   });
 }
 

@@ -411,6 +411,7 @@ export default function Home() {
   const [goonetAiDetected, setGoonetAiDetected] = useState<Set<string>>(new Set());
   const [checklistTab, setChecklistTab]   = useState<'carsensor' | 'goonet'>('carsensor');
   const [photoTab, setPhotoTab]           = useState<'carsensor' | 'instagram' | 'blog'>('carsensor');
+  const [regenerating, setRegenerating]   = useState(false);
   const fileInputRef                      = useRef<HTMLInputElement>(null);
   const resultRef                         = useRef<HTMLDivElement>(null);
 
@@ -687,6 +688,46 @@ export default function Home() {
     }
   }
 
+  async function handleRegenerate() {
+    if (!editableFields || !result || result.mode !== 'photo') return;
+    const r = result as PhotoResult;
+    setRegenerating(true);
+    setError('');
+    const ef = editableFields;
+    const vehicleDesc = [
+      ef.year      ? `年式: ${ef.year}`          : null,
+      ef.grade     ? `グレード: ${ef.grade}`      : null,
+      ef.modelCode ? `型式: ${ef.modelCode}`      : null,
+      ef.colorCode ? `カラーコード: ${ef.colorCode}` : null,
+      r.equipment.length > 0 ? `検出装備: ${r.equipment.join('・')}` : null,
+    ].filter(Boolean).join('\n') || '（車両情報不明）';
+    try {
+      const res = await fetch('/api/optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'photo', regenerate: true, vehicleDesc }),
+      });
+      const data = await res.json() as {
+        gradeNote?: string; appealPoints?: string[];
+        instagram?: string; instagramHashtags?: string; blogTitle?: string; blog?: string;
+      };
+      if (!res.ok) throw new Error('再生成に失敗しました');
+      setResult(prev => prev && prev.mode === 'photo' ? {
+        ...prev,
+        gradeNote:         data.gradeNote         ?? (prev as PhotoResult).gradeNote,
+        appealPoints:      data.appealPoints       ?? (prev as PhotoResult).appealPoints,
+        instagram:         data.instagram         ?? (prev as PhotoResult).instagram,
+        instagramHashtags: data.instagramHashtags ?? (prev as PhotoResult).instagramHashtags,
+        blogTitle:         data.blogTitle         ?? (prev as PhotoResult).blogTitle,
+        blog:              data.blog              ?? (prev as PhotoResult).blog,
+      } : prev);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '再生成に失敗しました');
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
   // ── Result renderers ───────────────────────────────────────────────
   function renderMulti(r: MultiResult) {
     type TabId = 'instagram' | 'blog';
@@ -873,6 +914,37 @@ export default function Home() {
           <p className="text-xs text-gray-400 text-center py-3 bg-gray-50 rounded-xl">
             コーションプレートを含む写真を追加すると車台番号・型式を読み取れます
           </p>
+        )}
+
+        {/* ── 再生成ボタン ─────────────────────────────────────── */}
+        {ef && (
+          <button
+            type="button"
+            onClick={handleRegenerate}
+            disabled={regenerating}
+            className={`w-full py-2.5 rounded-xl text-sm font-semibold border-2 border-dashed transition-all cursor-pointer flex items-center justify-center gap-2 ${
+              regenerating
+                ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed'
+                : 'border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400'
+            }`}
+          >
+            {regenerating ? (
+              <>
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Instagram・ブログ・グレード補記を更新中...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                上記の情報でInstagram・ブログ・グレード補記を再生成
+              </>
+            )}
+          </button>
         )}
 
         {/* ── 結果タブ ─────────────────────────────────────────── */}
