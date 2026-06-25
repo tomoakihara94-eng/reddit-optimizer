@@ -441,12 +441,23 @@ export default function Home() {
     }
   }, [result]);
 
+  // オーディオレス時に除外するカーセンサー項目
+  const AUDIOLESS_EXCLUDE_CS = new Set(['カーナビ', 'TV', 'ディスプレイオーディオ', 'ミュージックプレイヤー接続可']);
+  // オーディオレス時に除外するグーネット項目
+  const AUDIOLESS_EXCLUDE_GN = new Set(['カーナビ', 'TV', 'オーディオ', 'ビジュアル', 'ポータブルナビ']);
+
+  function isAudioless(aiEquipment: string[]): boolean {
+    return aiEquipment.some(e => e.includes('オーディオレス') || e.toLowerCase().includes('audio-less') || e.includes('オーディオ無し') || e.includes('ナビレス'));
+  }
+
   function matchEquipmentToChecklist(aiEquipment: string[]): Set<string> {
     const result = new Set<string>();
+    const audioless = isAudioless(aiEquipment);
     const allItems = CARSENSOR_CATEGORIES.flatMap(c => c.items);
     for (const detected of aiEquipment) {
       const d = detected.replace('（推測）', '').trim();
       for (const item of allItems) {
+        if (audioless && AUDIOLESS_EXCLUDE_CS.has(item)) continue;
         const keywords = EQUIPMENT_KEYWORDS[item] ?? [item];
         if (keywords.some(kw => d.includes(kw) || kw.includes(d))) {
           result.add(item);
@@ -474,10 +485,12 @@ export default function Home() {
 
   function matchEquipmentToGoonetChecklist(aiEquipment: string[]): Set<string> {
     const result = new Set<string>();
+    const audioless = isAudioless(aiEquipment);
     const allItems = GOONET_CATEGORIES.flatMap(c => c.items);
     for (const detected of aiEquipment) {
       const d = detected.replace('（推測）', '').trim();
       for (const item of allItems) {
+        if (audioless && AUDIOLESS_EXCLUDE_GN.has(item)) continue;
         const keywords = GOONET_KEYWORDS[item] ?? [item];
         if (keywords.some(kw => d.includes(kw) || kw.includes(d))) {
           result.add(item);
@@ -669,9 +682,23 @@ export default function Home() {
         const csDetected = matchEquipmentToChecklist(eq);
         const gnDetected = matchEquipmentToGoonetChecklist(eq);
         setAiDetected(csDetected);
-        setEquipmentChecked(prev => new Set([...prev, ...csDetected]));
+        // オーディオレス時は既存チェックからも除外
+        if (isAudioless(eq)) {
+          setEquipmentChecked(prev => {
+            const next = new Set([...prev, ...csDetected]);
+            AUDIOLESS_EXCLUDE_CS.forEach(item => next.delete(item));
+            return next;
+          });
+          setGoonetChecked(prev => {
+            const next = new Set([...prev, ...gnDetected]);
+            AUDIOLESS_EXCLUDE_GN.forEach(item => next.delete(item));
+            return next;
+          });
+        } else {
+          setEquipmentChecked(prev => new Set([...prev, ...csDetected]));
+          setGoonetChecked(prev => new Set([...prev, ...gnDetected]));
+        }
         setGoonetAiDetected(gnDetected);
-        setGoonetChecked(prev => new Set([...prev, ...gnDetected]));
         setEditableFields({
           chassisNumber: data.chassisNumber as string ?? '',
           modelCode:     data.modelCode     as string ?? '',
