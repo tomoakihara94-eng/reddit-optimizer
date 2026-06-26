@@ -1,26 +1,57 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #f4f6fb;
+  --foreground: #0f172a;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Geist', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── スクロールバー ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── フェードイン ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fadeUp 0.35s ease both; }
+
+/* ── シマー（スケルトン）── */
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+/* ── グロー ── */
+.glow-blue { box-shadow: 0 0 24px rgba(99,102,241,0.25), 0 4px 16px rgba(99,102,241,0.15); }
+.glow-emerald { box-shadow: 0 0 20px rgba(16,185,129,0.2), 0 4px 12px rgba(16,185,129,0.12); }
+
+/* ── ヘッダー背景パターン ── */
+.header-mesh {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.15) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.12) 0%, transparent 60%),
+    linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+}
+
+/* ── ページ背景 ── */
+.page-bg {
+  background:
+    radial-gradient(ellipse at 10% 20%, rgba(99,102,241,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 80%, rgba(139,92,246,0.04) 0%, transparent 50%),
+    #f4f6fb;
 }

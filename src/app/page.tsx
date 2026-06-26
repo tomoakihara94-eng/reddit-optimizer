@@ -361,26 +361,16 @@ function CopyBtn({
   return (
     <button
       onClick={() => onCopy(text, id)}
-      className={`text-xs font-medium flex items-center gap-1.5 shrink-0 transition-all cursor-pointer px-2.5 py-1 rounded-full ${
+      className={`text-[11px] font-semibold flex items-center gap-1.5 shrink-0 transition-all duration-200 cursor-pointer px-2.5 py-1 rounded-full ${
         done
-          ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200'
-          : 'bg-blue-50 text-blue-600 hover:bg-blue-100 ring-1 ring-blue-100'
+          ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200'
+          : 'bg-white/80 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 ring-1 ring-gray-200 hover:ring-indigo-200'
       }`}
     >
       {done ? (
-        <>
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-          </svg>
-          コピー済み
-        </>
+        <><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>コピー済み</>
       ) : (
-        <>
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          コピー
-        </>
+        <><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>コピー</>
       )}
     </button>
   );
@@ -392,12 +382,14 @@ function TextBlock({
   label: string; text: string; id: string; copied: string | null; onCopy: (t: string, k: string) => void;
 }) {
   return (
-    <div className="bg-slate-50 rounded-xl p-4 border-l-4 border-blue-500">
-      <div className="flex items-center justify-between gap-3 mb-2.5">
-        <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">{label}</span>
+    <div className="rounded-2xl overflow-hidden border border-gray-100">
+      <div className="bg-gradient-to-r from-gray-50 to-slate-50 px-4 py-2.5 flex items-center justify-between border-b border-gray-100">
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
         <CopyBtn text={text} id={id} copied={copied} onCopy={onCopy} />
       </div>
-      <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">{text}</p>
+      <div className="bg-white px-4 py-3.5">
+        <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">{text}</p>
+      </div>
     </div>
   );
 }
@@ -554,15 +546,15 @@ export default function Home() {
           key={item}
           type="button"
           onClick={() => onToggle(item)}
-          className={`text-[11px] px-2 py-1 rounded border transition-all cursor-pointer select-none ${
+          className={`text-[11px] px-2.5 py-1 rounded-full border transition-all duration-150 cursor-pointer select-none font-medium ${
             isChecked && isAI
-              ? 'bg-orange-50 border-orange-400 text-orange-800 font-semibold ring-1 ring-orange-300'
+              ? 'bg-amber-500 border-amber-500 text-white shadow-sm shadow-amber-200'
               : isChecked
-              ? 'bg-blue-50 border-blue-400 text-blue-800 font-semibold ring-1 ring-blue-300'
-              : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700'
+              ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-200'
+              : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50'
           }`}
         >
-          {isChecked && <span className="mr-0.5">✓</span>}{item}
+          {isChecked ? <span className="mr-0.5 opacity-80">✓</span> : null}{item}
         </button>
       );
     });
@@ -579,10 +571,12 @@ export default function Home() {
       return (
         <div key={cat.id}>
           <div className="flex items-center gap-2 mb-2">
-            <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${CAT_COLORS[cat.color] ?? 'bg-gray-600 text-white'}`}>
+            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${CAT_COLORS[cat.color] ?? 'bg-gray-600 text-white'}`}>
               {cat.label}
             </span>
-            {checkedCount > 0 && <span className="text-[10px] text-gray-400">{checkedCount}項目</span>}
+            {checkedCount > 0 && (
+              <span className="text-[10px] text-indigo-500 font-semibold bg-indigo-50 rounded-full px-1.5 py-0.5">{checkedCount}</span>
+            )}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {renderChips(cat.items, checked, ai, onToggle)}
@@ -1009,7 +1003,7 @@ export default function Home() {
     ].filter(Boolean).join('\n');
 
     return (
-      <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 space-y-5">
+      <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-sm border border-gray-100/80 p-6 space-y-5 animate-fade-up">
 
         {/* ── 完了バナー ────────────────────────────────────────── */}
         <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-4 text-white">
@@ -1157,54 +1151,68 @@ export default function Home() {
 
                 {/* グレード補記 */}
                 {r.gradeNote && (
-                  <div className="bg-slate-50 rounded-xl p-4 border-l-4 border-blue-500">
-                    <div className="flex items-center justify-between gap-3 mb-2">
-                      <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">グレード補記（100文字枠）</span>
+                  <div className="rounded-2xl overflow-hidden border border-indigo-100">
+                    <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-4 py-2.5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className={`text-xs font-medium tabular-nums ${r.gradeNote.length > 100 ? 'text-red-500' : r.gradeNote.length > 85 ? 'text-yellow-600' : 'text-gray-400'}`}>
+                        <svg className="w-3.5 h-3.5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+                        <span className="text-[11px] font-bold text-white uppercase tracking-wider">グレード補記（100文字枠）</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[11px] font-bold tabular-nums px-2 py-0.5 rounded-full ${r.gradeNote.length > 100 ? 'bg-red-100 text-red-600' : r.gradeNote.length > 85 ? 'bg-yellow-100 text-yellow-700' : 'bg-white/20 text-white'}`}>
                           {r.gradeNote.length}/100
                         </span>
                         <CopyBtn text={r.gradeNote} id="ph-grade-note" copied={copied} onCopy={onCopy} />
                       </div>
                     </div>
-                    <p className="text-gray-900 text-sm leading-relaxed whitespace-pre-wrap">{r.gradeNote}</p>
-                    {r.gradeNote.length > 100 && <p className="text-xs text-red-500 mt-2">⚠ 100文字超。カーセンサー入力時に調整してください。</p>}
+                    <div className="bg-indigo-50/50 px-4 py-3.5">
+                      <p className="text-gray-900 text-sm leading-relaxed whitespace-pre-wrap font-medium">{r.gradeNote}</p>
+                      {r.gradeNote.length > 100 && <p className="text-xs text-red-500 mt-2 flex items-center gap-1"><span>⚠</span> 100文字超。入力時に調整してください。</p>}
+                    </div>
                   </div>
                 )}
 
                 {/* アピールポイント */}
                 {r.appealPoints?.length > 0 && (
-                  <div className="bg-slate-50 rounded-xl p-4">
-                    <div className="flex items-center justify-between gap-3 mb-3">
-                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">アピールポイント</span>
+                  <div className="rounded-2xl overflow-hidden border border-gray-100">
+                    <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-4 py-2.5 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-3.5 h-3.5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                        <span className="text-[11px] font-bold text-white uppercase tracking-wider">アピールポイント</span>
+                      </div>
                       <CopyBtn text={r.appealPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')} id="ph-appeals" copied={copied} onCopy={onCopy} />
                     </div>
-                    <ul className="space-y-2">
-                      {r.appealPoints.map((point, i) => (
-                        <li key={i} className="flex gap-2.5 text-sm text-gray-800">
-                          <span className="w-5 h-5 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">{i + 1}</span>
-                          <span>{point}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="bg-slate-50/50 px-4 py-3.5">
+                      <ul className="space-y-2">
+                        {r.appealPoints.map((point, i) => (
+                          <li key={i} className="flex gap-2.5 text-sm text-gray-800">
+                            <span className="w-5 h-5 bg-gradient-to-br from-slate-600 to-slate-800 text-white rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">{i + 1}</span>
+                            <span>{point}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
                 )}
 
                 {/* 登録シート一括コピー */}
                 <button
                   onClick={() => onCopy(registrationSheet, 'photo-all')}
-                  className={`w-full py-3.5 rounded-2xl text-sm font-bold border-2 transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  className={`w-full py-4 rounded-2xl text-sm font-bold border-2 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2.5 ${
                     copied === 'photo-all'
-                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 border-transparent text-white shadow-lg shadow-blue-500/20 hover:-translate-y-0.5'
+                      ? 'bg-emerald-500 border-emerald-500 text-white glow-emerald'
+                      : 'bg-gradient-to-r from-indigo-600 to-blue-600 border-transparent text-white shadow-lg shadow-indigo-500/25 glow-blue hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-500/30'
                   }`}
                 >
-                  {copied === 'photo-all' ? '✓ コピー済み — カーセンサーに貼り付けてください' : '登録シートを一括コピー（識別情報 ＋ グレード補記 ＋ アピール ＋ 装備）'}
+                  {copied === 'photo-all' ? (
+                    <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>コピー完了 — カーセンサーに貼り付けてください</>
+                  ) : (
+                    <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>登録シートを一括コピー（識別情報 ＋ グレード補記 ＋ アピール ＋ 装備）</>
+                  )}
                 </button>
                 <button
                   onClick={() => onCopy(equipText, 'photo-equip')}
                   className={`w-full py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
-                    copied === 'photo-equip' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                    copied === 'photo-equip' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600 hover:bg-gray-50'
                   }`}
                 >
                   {copied === 'photo-equip' ? '✓ コピー済み' : `${checklistTab === 'carsensor' ? 'カーセンサー' : 'グーネット'}装備チェックのみをコピー`}
@@ -1286,50 +1294,51 @@ export default function Home() {
 
   // ── Render ─────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 sticky top-0 z-10 shadow-lg">
-        <div className="max-w-3xl mx-auto px-4 py-3.5 flex items-center gap-3">
-          <div className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shrink-0 ring-1 ring-white/30">
+    <div className="min-h-screen page-bg">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <header className="header-mesh sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-5 py-4 flex items-center gap-4">
+          {/* Logo mark */}
+          <div className="w-10 h-10 rounded-2xl bg-white/10 ring-1 ring-white/20 flex items-center justify-center shrink-0 backdrop-blur-sm">
             <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
             </svg>
           </div>
-          <div>
-            <h1 className="text-base font-bold text-white leading-tight">
-              松下モータース DX投稿・業務効率化システム
-            </h1>
-            <p className="text-xs text-blue-100">社内専用 — 車両情報 / マルチAIアシスタント</p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-[15px] font-bold text-white tracking-tight">松下モータース</h1>
+              <span className="text-[10px] font-semibold bg-indigo-500/40 text-indigo-100 border border-indigo-400/30 rounded-full px-2 py-0.5 tracking-wide">DX SYSTEM</span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">写真を撮るだけで登録作業を自動化</p>
           </div>
-          <div className="ml-auto">
-            <span className="text-[11px] bg-white/20 text-white border border-white/30 rounded-full px-3 py-1 font-medium">社内専用</span>
-          </div>
+          <span className="text-[10px] font-semibold text-slate-500 bg-slate-800/60 border border-slate-700/60 rounded-full px-3 py-1 shrink-0">社内専用</span>
         </div>
       </header>
 
-      <main className={`mx-auto px-4 py-8 space-y-6 ${mode === 'photo' ? 'max-w-5xl' : 'max-w-3xl'}`}>
-        {/* Mode selector */}
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">業務モードを選択</p>
+      <main className={`mx-auto px-4 py-7 space-y-5 ${mode === 'photo' ? 'max-w-5xl' : 'max-w-3xl'}`}>
+        {/* ── Mode selector ─────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {MODES.map(m => (
             <button
               key={m.id}
               onClick={() => selectMode(m.id)}
-              className={`w-full text-left p-4 rounded-2xl transition-all duration-150 cursor-pointer flex items-start gap-3.5 ${
+              className={`text-left p-4 rounded-2xl transition-all duration-200 cursor-pointer flex items-start gap-3.5 group ${
                 mode === m.id
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/20'
-                  : 'bg-white border border-gray-100 hover:border-blue-200 hover:shadow-md shadow-sm'
+                  ? 'bg-gradient-to-br from-indigo-600 to-blue-600 shadow-lg shadow-indigo-500/25 glow-blue ring-1 ring-indigo-400/40'
+                  : 'bg-white/80 backdrop-blur-sm border border-gray-200/80 hover:border-indigo-200 hover:shadow-md shadow-sm hover:-translate-y-0.5'
               }`}
             >
-              <span className="text-xl shrink-0 mt-0.5">{m.icon}</span>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 transition-all ${
+                mode === m.id ? 'bg-white/20' : 'bg-indigo-50 group-hover:bg-indigo-100'
+              }`}>
+                {m.icon}
+              </div>
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-semibold ${mode === m.id ? 'text-white' : 'text-gray-900'}`}>
-                  {m.label}
-                </p>
-                <p className={`text-xs mt-0.5 ${mode === m.id ? 'text-blue-100' : 'text-gray-500'}`}>{m.desc}</p>
+                <p className={`text-sm font-bold ${mode === m.id ? 'text-white' : 'text-gray-900'}`}>{m.label}</p>
+                <p className={`text-xs mt-1 leading-snug ${mode === m.id ? 'text-indigo-100' : 'text-gray-400'}`}>{m.desc}</p>
               </div>
               {mode === m.id && (
-                <div className="shrink-0 w-5 h-5 bg-white/25 rounded-full flex items-center justify-center mt-0.5">
+                <div className="w-5 h-5 bg-white/30 rounded-full flex items-center justify-center shrink-0 mt-0.5">
                   <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
@@ -1340,7 +1349,7 @@ export default function Home() {
         </div>
 
         {/* Input form */}
-        <div className={`bg-white rounded-2xl shadow-md border border-gray-100 ${mode === 'photo' ? 'p-5' : 'p-6'}`}>
+        <div className={`bg-white/90 backdrop-blur-sm rounded-3xl shadow-sm border border-gray-100/80 ${mode === 'photo' ? 'p-5' : 'p-6'}`}>
           {mode !== 'photo' && (
             <h2 className="text-base font-semibold text-gray-900 mb-5">
               {mode === 'reply' ? 'お客様の問い合わせ内容を入力' : '車両情報を入力'}
@@ -1382,15 +1391,22 @@ export default function Home() {
                     onDragLeave={() => setDragOver(false)}
                     onDrop={e => { e.preventDefault(); setDragOver(false); addPhotoFiles(e.dataTransfer.files); }}
                     onClick={() => fileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all select-none ${
-                      dragOver ? 'border-blue-400 bg-blue-50 shadow-inner' : 'border-gray-200 bg-slate-50 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-sm'
+                    className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-200 select-none overflow-hidden ${
+                      dragOver
+                        ? 'border-indigo-400 bg-indigo-50 scale-[1.01]'
+                        : 'border-gray-200 bg-gradient-to-b from-slate-50 to-white hover:border-indigo-300 hover:bg-indigo-50/30 hover:shadow-inner'
                     }`}
                   >
                     <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden"
                       onChange={e => { if (e.target.files) addPhotoFiles(e.target.files); e.target.value = ''; }} />
-                    <div className="text-2xl mb-1.5">📷</div>
-                    <p className="text-sm font-semibold text-gray-700">ドラッグ＆ドロップ、またはクリックして選択</p>
-                    <p className="text-xs text-gray-400 mt-1">コーションプレート・内装・外観 — 最大80枚 / JPG・PNG</p>
+                    <div className={`w-14 h-14 mx-auto mb-3 rounded-2xl flex items-center justify-center text-2xl transition-all ${dragOver ? 'bg-indigo-100 scale-110' : 'bg-indigo-50'}`}>📷</div>
+                    <p className="text-sm font-bold text-gray-700">タップまたはドラッグして写真を追加</p>
+                    <p className="text-xs text-gray-400 mt-1.5">コーションプレート・内装・外観を複数枚 ／ 最大80枚</p>
+                    <div className="flex justify-center gap-2 mt-3">
+                      {['コーションプレート', '内装', '外観'].map(tag => (
+                        <span key={tag} className="text-[10px] bg-white border border-gray-200 text-gray-400 rounded-full px-2 py-0.5">{tag}</span>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Photo grid */}
@@ -1695,8 +1711,12 @@ export default function Home() {
           {result && result.mode === 'photo'  && renderPhoto(result)}
         </div>
 
-        <p className="text-center text-xs text-gray-400 pb-6 pt-2">
-          松下モータース 社内専用 &nbsp;·&nbsp; 車両情報/マルチAIアシスタント &nbsp;·&nbsp; 利用制限なし
+        <p className="text-center text-[11px] text-gray-400 pb-8 pt-2 flex items-center justify-center gap-2">
+          <span className="w-1 h-1 bg-gray-300 rounded-full" />
+          松下モータース 社内専用ツール
+          <span className="w-1 h-1 bg-gray-300 rounded-full" />
+          Powered by Claude AI
+          <span className="w-1 h-1 bg-gray-300 rounded-full" />
         </p>
       </main>
     </div>
