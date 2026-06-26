@@ -44,6 +44,20 @@ interface PhotoResult {
   blog: string;
 }
 
+// OCRフェーズ1の返却型（文章生成前）
+interface PhotoOcrResult {
+  mode: 'photo_ocr';
+  chassisNumber: string;
+  modelCode: string;
+  colorCode: string;
+  trimCode: string;
+  year: string;
+  grade: string;
+  equipment: string[];
+  notes: string;
+  vehicleDesc: string;
+}
+
 interface PhotoFile {
   name: string;
   base64: string;
@@ -419,6 +433,8 @@ export default function Home() {
   const [checklistTab, setChecklistTab]   = useState<'carsensor' | 'goonet'>('carsensor');
   const [photoTab, setPhotoTab]           = useState<'carsensor' | 'instagram' | 'blog'>('carsensor');
   const [regenerating, setRegenerating]   = useState(false);
+  const [loadingPhase, setLoadingPhase]   = useState<'ocr' | 'content' | null>(null);
+  const [contentLoading, setContentLoading] = useState(false);
   const fileInputRef                      = useRef<HTMLInputElement>(null);
   const resultRef                         = useRef<HTMLDivElement>(null);
 
@@ -662,63 +678,146 @@ export default function Home() {
     setError('');
   }
 
+  function applyOcrData(data: { chassisNumber: string; modelCode: string; colorCode: string; trimCode: string; year: string; grade: string; equipment: string[] }) {
+    const eq = data.equipment;
+    const csDetected = matchEquipmentToChecklist(eq);
+    const gnDetected = matchEquipmentToGoonetChecklist(eq);
+    setAiDetected(csDetected);
+    setGoonetAiDetected(gnDetected);
+    if (isAudioless(eq)) {
+      setEquipmentChecked(() => {
+        const next = new Set(csDetected);
+        AUDIOLESS_EXCLUDE_CS.forEach(item => next.delete(item));
+        return next;
+      });
+      setGoonetChecked(() => {
+        const next = new Set(gnDetected);
+        AUDIOLESS_EXCLUDE_GN.forEach(item => next.delete(item));
+        return next;
+      });
+    } else {
+      setEquipmentChecked(new Set(csDetected));
+      setGoonetChecked(new Set(gnDetected));
+    }
+    setEditableFields({
+      chassisNumber: data.chassisNumber ?? '',
+      modelCode:     data.modelCode     ?? '',
+      colorCode:     data.colorCode     ?? '',
+      trimCode:      data.trimCode      ?? '',
+      year:          data.year          ?? '',
+      grade:         data.grade         ?? '',
+    });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
-    setLoading(true);
     setError('');
     setResult(null);
+    setEditableFields(null);
+    setEquipmentChecked(new Set());
+    setGoonetChecked(new Set());
+
+    if (mode !== 'photo') {
+      // 返信メールは従来どおり
+      setLoading(true);
+      try {
+        const res = await fetch('/api/optimize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode, inquiry }),
+          signal: AbortSignal.timeout(90_000),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '生成に失敗しました');
+        setResult(data);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '生成に失敗しました';
+        setError(msg.includes('timeout') || msg.includes('abort') ? 'タイムアウトしました。もう一度お試しください。' : msg);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // ── 写真モード: 2フェーズ ──────────────────────────────────────────
+    // フェーズ1: OCR（車両ID・装備）を先に取得して即表示
+    setLoading(true);
+    setLoadingPhase('ocr');
+    let vehicleDesc = '';
+    let ocrData: PhotoOcrResult | null = null;
 
     try {
-      const body =
-        mode === 'photo'
-          ? { mode, images: photoFiles.map(f => ({ base64: f.base64, mediaType: f.mediaType })) }
-          : { mode, inquiry };
-
       const res = await fetch('/api/optimize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ mode: 'photo', images: photoFiles.map(f => ({ base64: f.base64, mediaType: f.mediaType })), ocr_only: true }),
+        signal: AbortSignal.timeout(120_000),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '生成に失敗しました');
-      setResult(data);
+      const data = await res.json() as PhotoOcrResult & { vehicleDesc: string };
+      if (!res.ok) throw new Error((data as unknown as { error: string }).error || 'OCR解析に失敗しました');
+      ocrData = data;
+      vehicleDesc = data.vehicleDesc;
+
+      // OCR結果を即座に表示（仮のPhotoResultとして）
+      setResult({
+        mode: 'photo',
+        chassisNumber:    data.chassisNumber,
+        modelCode:        data.modelCode,
+        colorCode:        data.colorCode,
+        trimCode:         data.trimCode,
+        year:             data.year,
+        grade:            data.grade,
+        equipment:        data.equipment,
+        notes:            data.notes,
+        gradeNote:        '',
+        appealPoints:     [],
+        instagram:        '',
+        instagramHashtags:'',
+        blogTitle:        '',
+        blog:             '',
+      });
       setPhotoTab('carsensor');
-      if (data.mode === 'photo' && Array.isArray(data.equipment)) {
-        const eq = data.equipment as string[];
-        const csDetected = matchEquipmentToChecklist(eq);
-        const gnDetected = matchEquipmentToGoonetChecklist(eq);
-        setAiDetected(csDetected);
-        // オーディオレス時は既存チェックからも除外
-        if (isAudioless(eq)) {
-          setEquipmentChecked(prev => {
-            const next = new Set([...prev, ...csDetected]);
-            AUDIOLESS_EXCLUDE_CS.forEach(item => next.delete(item));
-            return next;
-          });
-          setGoonetChecked(prev => {
-            const next = new Set([...prev, ...gnDetected]);
-            AUDIOLESS_EXCLUDE_GN.forEach(item => next.delete(item));
-            return next;
-          });
-        } else {
-          setEquipmentChecked(prev => new Set([...prev, ...csDetected]));
-          setGoonetChecked(prev => new Set([...prev, ...gnDetected]));
-        }
-        setGoonetAiDetected(gnDetected);
-        setEditableFields({
-          chassisNumber: data.chassisNumber as string ?? '',
-          modelCode:     data.modelCode     as string ?? '',
-          colorCode:     data.colorCode     as string ?? '',
-          trimCode:      data.trimCode      as string ?? '',
-          year:          data.year          as string ?? '',
-          grade:         data.grade         as string ?? '',
-        });
-      }
+      applyOcrData(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '文章の生成に失敗しました');
+      const msg = err instanceof Error ? err.message : 'OCR解析に失敗しました';
+      setError(msg.includes('timeout') || msg.includes('abort') ? '解析がタイムアウトしました。写真枚数を減らしてお試しください。' : msg);
+      setLoading(false);
+      setLoadingPhase(null);
+      return;
     } finally {
       setLoading(false);
+      setLoadingPhase(null);
+    }
+
+    // フェーズ2: 文章生成（バックグラウンドで継続）
+    if (!ocrData) return;
+    setContentLoading(true);
+    try {
+      const res = await fetch('/api/optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'photo', regenerate: true, vehicleDesc }),
+        signal: AbortSignal.timeout(120_000),
+      });
+      const data = await res.json() as { gradeNote?: string; appealPoints?: string[]; instagram?: string; instagramHashtags?: string; blogTitle?: string; blog?: string };
+      if (!res.ok) throw new Error('文章生成に失敗しました');
+      setResult(prev => prev && prev.mode === 'photo' ? {
+        ...prev,
+        gradeNote:         data.gradeNote         ?? '',
+        appealPoints:      data.appealPoints       ?? [],
+        instagram:         data.instagram          ?? '',
+        instagramHashtags: data.instagramHashtags  ?? '',
+        blogTitle:         data.blogTitle          ?? '',
+        blog:              data.blog               ?? '',
+      } : prev);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      if (!msg.includes('abort')) {
+        setError('文章生成に失敗しました。「再生成」ボタンで再試行できます。');
+      }
+    } finally {
+      setContentLoading(false);
     }
   }
 
@@ -916,10 +1015,32 @@ export default function Home() {
         <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-4 text-white">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-xl shrink-0">✅</div>
-            <div>
-              <p className="font-bold text-base">カーセンサー登録シートが完成しました</p>
-              <p className="text-sm text-emerald-100 mt-0.5">下の「登録シート一括コピー」を押してカーセンサーに貼り付けるだけ</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-base">
+                {contentLoading ? 'チェックリスト準備完了 — 文章生成中...' : 'カーセンサー登録シートが完成しました'}
+              </p>
+              <p className="text-sm text-emerald-100 mt-0.5">
+                {contentLoading
+                  ? 'チェックリストを確認しながらInstagram・ブログが生成されます'
+                  : '下の「登録シート一括コピー」を押してカーセンサーに貼り付けるだけ'}
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setResult(null);
+                setPhotoFiles([]);
+                setEditableFields(null);
+                setEquipmentChecked(new Set());
+                setGoonetChecked(new Set());
+                setAiDetected(new Set());
+                setGoonetAiDetected(new Set());
+                setError('');
+              }}
+              className="shrink-0 text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
+            >
+              次の車両
+            </button>
           </div>
         </div>
 
@@ -1108,7 +1229,15 @@ export default function Home() {
                     </button>
                   </>
                 ) : (
-                  <p className="text-center text-sm text-gray-400 py-6">Instagram投稿文を生成中です...</p>
+                  <div className="space-y-3 py-2">
+                    <div className="h-3 bg-gray-100 rounded-full animate-pulse w-1/3" />
+                    <div className="space-y-2">
+                      {[1,0.9,0.8,0.7,0.6].map((w, i) => (
+                        <div key={i} className="h-2.5 bg-gray-100 rounded-full animate-pulse" style={{ width: `${w * 100}%` }} />
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400 text-center pt-1">Instagram投稿文を生成中...</p>
+                  </div>
                 )}
               </div>
             )}
@@ -1130,7 +1259,15 @@ export default function Home() {
                     </button>
                   </>
                 ) : (
-                  <p className="text-center text-sm text-gray-400 py-6">ブログ記事を生成中です...</p>
+                  <div className="space-y-3 py-2">
+                    <div className="h-3 bg-gray-100 rounded-full animate-pulse w-1/3" />
+                    <div className="space-y-2">
+                      {[1,0.85,0.9,0.75,0.8,0.65].map((w, i) => (
+                        <div key={i} className="h-2.5 bg-gray-100 rounded-full animate-pulse" style={{ width: `${w * 100}%` }} />
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400 text-center pt-1">ブログ記事を生成中...</p>
+                  </div>
                 )}
               </div>
             )}
@@ -1489,9 +1626,37 @@ export default function Home() {
               </div>
             )}
 
+            {/* フェーズ別ローディング表示 */}
+            {(loading || contentLoading) && mode === 'photo' && (
+              <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <svg className="animate-spin w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  <span className="text-sm font-semibold text-blue-700">
+                    {loadingPhase === 'ocr' ? '写真を解析中...' : 'Instagram・ブログ・グレード補記を生成中...'}
+                  </span>
+                </div>
+                <div className="flex gap-1.5">
+                  {[
+                    { label: '写真解析', done: !loading && !!result },
+                    { label: '文章生成', done: !contentLoading && !!(result as PhotoResult | null)?.instagram },
+                  ].map((step, i) => (
+                    <div key={i} className={`flex-1 rounded-full h-1.5 transition-all duration-700 ${step.done ? 'bg-emerald-400' : i === 0 && loading ? 'bg-blue-400 animate-pulse' : i === 1 && contentLoading ? 'bg-blue-400 animate-pulse' : 'bg-blue-100'}`} />
+                  ))}
+                </div>
+                <p className="text-xs text-blue-500">
+                  {loadingPhase === 'ocr'
+                    ? '車台番号・装備・グレードを読み取っています（15〜20秒）'
+                    : 'チェックリストを確認しながらお待ちください（10〜20秒）'}
+                </p>
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={loading || !canSubmit}
+              disabled={loading || contentLoading || !canSubmit}
               className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white font-semibold py-3.5 rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 disabled:shadow-none disabled:translate-y-0"
             >
               {loading ? (
@@ -1500,7 +1665,15 @@ export default function Home() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
-                  AIが生成中...
+                  写真解析中...
+                </>
+              ) : contentLoading ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  文章生成中...
                 </>
               ) : (
                 <>

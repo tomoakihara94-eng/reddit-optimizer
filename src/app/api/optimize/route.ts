@@ -246,8 +246,20 @@ ${body.inquiry}
   return NextResponse.json(parseJSON(text));
 }
 
+function buildVehicleDesc(ocrResult: { year: string; grade: string; modelCode: string; colorCode: string; equipment: string[] }): string {
+  return [
+    ocrResult.year      ? `年式: ${ocrResult.year}`              : null,
+    ocrResult.grade     ? `グレード: ${ocrResult.grade}`          : null,
+    ocrResult.modelCode ? `型式: ${ocrResult.modelCode}`          : null,
+    ocrResult.colorCode ? `カラーコード: ${ocrResult.colorCode}`  : null,
+    ocrResult.equipment.length > 0
+      ? `検出装備: ${ocrResult.equipment.join('・')}`
+      : null,
+  ].filter(Boolean).join('\n') || '（コーションプレートなし。外観・内装から推測）';
+}
+
 async function handlePhoto(body: Record<string, unknown>) {
-  // 再生成モード: OCR をスキップして文章生成だけ実行
+  // ── 文章再生成モード（OCRスキップ） ──────────────────────────────────
   if (body.regenerate) {
     const vehicleDesc = (body.vehicleDesc as string) || '（車両情報不明）';
     const [gradeResult, multiResult] = await Promise.allSettled([
@@ -266,21 +278,22 @@ async function handlePhoto(body: Record<string, unknown>) {
     return NextResponse.json({ error: '画像を1枚以上アップロードしてください' }, { status: 400 });
   }
 
-  // ① 画像解析（OCR）
+  // ── OCRのみモード（フェーズ1: 車両ID・装備を先に返す） ────────────────
+  if (body.ocr_only) {
+    const provider  = getOcrProvider();
+    const ocrResult = await provider.analyzeVehicleImages(images);
+    return NextResponse.json({
+      mode: 'photo_ocr',
+      ...ocrResult,
+      vehicleDesc: buildVehicleDesc(ocrResult),
+    });
+  }
+
+  // ── 通常モード（OCR + 文章生成を一括） ──────────────────────────────
   const provider  = getOcrProvider();
   const ocrResult = await provider.analyzeVehicleImages(images);
+  const vehicleDesc = buildVehicleDesc(ocrResult);
 
-  const vehicleDesc = [
-    ocrResult.year      ? `年式: ${ocrResult.year}`                    : null,
-    ocrResult.grade     ? `グレード: ${ocrResult.grade}`                : null,
-    ocrResult.modelCode ? `型式: ${ocrResult.modelCode}`                : null,
-    ocrResult.colorCode ? `カラーコード: ${ocrResult.colorCode}`        : null,
-    ocrResult.equipment.length > 0
-      ? `検出装備: ${ocrResult.equipment.join('・')}`
-      : null,
-  ].filter(Boolean).join('\n') || '（コーションプレートなし。外観・内装から推測）';
-
-  // ② グレード補記・アピール と Instagram/ブログ を並列生成
   const [gradeResult, multiResult] = await Promise.allSettled([
     callClaude(buildGradePrompt(vehicleDesc), 1024),
     callClaude(buildMultiPrompt(vehicleDesc), 4096),
