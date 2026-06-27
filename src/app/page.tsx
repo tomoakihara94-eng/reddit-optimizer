@@ -685,7 +685,7 @@ export default function Home() {
       return { base64, mediaType: 'image/jpeg', preview: canvas.toDataURL('image/jpeg', 0.35) };
     } catch { /* 次へ */ }
 
-    // ③ heic2any (WASM)
+    // ③ heic2any (WASM — next.config.ts の asyncWebAssembly:true で有効化)
     try {
       const mod = await import('heic2any');
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -697,8 +697,22 @@ export default function Home() {
       return { base64, mediaType, preview: URL.createObjectURL(jpegFile) };
     } catch { /* 次へ */ }
 
-    // 全手段失敗 → エラーを投げてファイルをスキップ（生 HEIC 送信でサーバー破綻を防ぐ）
-    throw new Error(`HEICの変換に失敗しました: ${file.name}\nSafari または Chrome(最新版)で試してください`);
+    // ④ サーバー側 Sharp 変換 (FormData で送るため base64 膨張なし、4MB以下なら確実)
+    if (file.size < 4 * 1024 * 1024) {
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/convert-heic', { method: 'POST', body: fd });
+        if (res.ok) {
+          const { base64, mediaType } = await res.json() as { base64: string; mediaType: string };
+          const preview = `data:image/jpeg;base64,${base64.slice(0, 2000)}`; // 小さいプレビュー
+          return { base64, mediaType, preview };
+        }
+      } catch { /* 次へ */ }
+    }
+
+    // 全手段失敗
+    throw new Error(`HEICの変換に失敗しました: ${file.name}`);
   }
 
   async function addPhotoFiles(files: FileList | File[]) {
