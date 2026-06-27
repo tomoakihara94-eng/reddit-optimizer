@@ -660,28 +660,39 @@ export default function Home() {
     return ext === 'heic' || ext === 'heif';
   }
 
-  async function toImageFile(file: File): Promise<File> {
-    if (!isHeic(file)) return file;
-    const { default: heic2any } = await import('heic2any');
-    const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
-    // heic2any returns Blob | Blob[] depending on input
-    const blob = Array.isArray(result) ? result[0] : result;
-    return new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+  // HEIC は変換せず base64 のままサーバーに送る（Sharp がサーバー側で変換）
+  async function readHeicAsBase64(file: File): Promise<{ base64: string; mediaType: string }> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve({ base64: result.split(',')[1], mediaType: 'image/heic' });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   async function addPhotoFiles(files: FileList | File[]) {
-    // Accept image/* types AND HEIC/HEIF by extension (MIME type is unreliable for HEIC on some browsers)
     const arr = Array.from(files).filter(f =>
       f.type.startsWith('image/') || isHeic(f)
     ).slice(0, 80);
+
     const results = await Promise.allSettled(arr.map(async file => {
-      const converted = await toImageFile(file);
-      const { base64, mediaType } = await resizeImage(converted);
-      return { name: file.name, base64, mediaType, preview: URL.createObjectURL(converted) };
+      if (isHeic(file)) {
+        // HEIC: サーバー側で変換するためそのまま base64 送信
+        const { base64, mediaType } = await readHeicAsBase64(file);
+        // プレビューはカメラアイコンの代わりに空文字（表示は名前のみ）
+        return { name: file.name, base64, mediaType, preview: '' };
+      }
+      // 通常画像: リサイズして JPEG 変換
+      const { base64, mediaType } = await resizeImage(file);
+      return { name: file.name, base64, mediaType, preview: URL.createObjectURL(file) };
     }));
+
     const processed = results.flatMap(r => r.status === 'fulfilled' ? [r.value] : []);
     const failed = results.filter(r => r.status === 'rejected').length;
-    if (failed > 0) setError(`${failed}枚の読み込みに失敗しました。対応形式: JPEG / PNG / HEIC`);
+    if (failed > 0) setError(`${failed}枚の読み込みに失敗しました`);
     setPhotoFiles(prev => [...prev, ...processed].slice(0, 80));
   }
 
@@ -1412,7 +1423,15 @@ export default function Home() {
                   <div
                     onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                     onDragLeave={() => setDragOver(false)}
-                    onDrop={e => { e.preventDefault(); setDragOver(false); addPhotoFiles(e.dataTransfer.files); }}
+                    onDrop={e => {
+                      e.preventDefault(); setDragOver(false);
+                      // items API のほうが HEIC など非標準 MIME でも確実にファイルを取得できる
+                      const files = Array.from(e.dataTransfer.items ?? [])
+                        .filter(i => i.kind === 'file')
+                        .map(i => i.getAsFile())
+                        .filter((f): f is File => f !== null);
+                      addPhotoFiles(files.length > 0 ? files : Array.from(e.dataTransfer.files));
+                    }}
                     onClick={() => fileInputRef.current?.click()}
                     className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-200 select-none overflow-hidden ${
                       dragOver
@@ -1438,8 +1457,15 @@ export default function Home() {
                       <div className="grid grid-cols-6 sm:grid-cols-10 gap-1.5">
                         {photoFiles.map((f, i) => (
                           <div key={i} className="relative group rounded overflow-hidden border border-gray-200 aspect-square bg-gray-100">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={f.preview} alt={f.name} className="w-full h-full object-cover" />
+                            {f.preview ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={f.preview} alt={f.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center gap-0.5">
+                                <span className="text-lg">📷</span>
+                                <span className="text-[8px] text-gray-400 text-center px-0.5 leading-tight break-all">{f.name}</span>
+                              </div>
+                            )}
                             <button type="button" onClick={e => { e.stopPropagation(); removePhoto(i); }}
                               className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 hover:bg-red-500 text-white rounded-full text-[9px] items-center justify-center hidden group-hover:flex transition-colors cursor-pointer">✕</button>
                           </div>

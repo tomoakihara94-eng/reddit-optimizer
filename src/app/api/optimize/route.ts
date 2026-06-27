@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import { getOcrProvider } from '@/lib/ocr/factory';
 import type { OcrImage } from '@/lib/ocr/types';
+import sharp from 'sharp';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -273,10 +274,20 @@ async function handlePhoto(body: Record<string, unknown>) {
     });
   }
 
-  const images = body.images as OcrImage[] | undefined;
-  if (!images || images.length === 0) {
+  const rawImages = body.images as OcrImage[] | undefined;
+  if (!rawImages || rawImages.length === 0) {
     return NextResponse.json({ error: '画像を1枚以上アップロードしてください' }, { status: 400 });
   }
+
+  // HEIC/HEIF はサーバー側で Sharp を使って JPEG に変換する
+  const images = await Promise.all(rawImages.map(async (img) => {
+    if (img.mediaType === 'image/heic' || img.mediaType === 'image/heif') {
+      const buf = Buffer.from(img.base64, 'base64');
+      const jpeg = await sharp(buf).jpeg({ quality: 88 }).toBuffer();
+      return { base64: jpeg.toString('base64'), mediaType: 'image/jpeg' } as OcrImage;
+    }
+    return img;
+  }));
 
   // ── OCRのみモード（フェーズ1: 車両ID・装備を先に返す） ────────────────
   if (body.ocr_only) {
