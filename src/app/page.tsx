@@ -653,11 +653,27 @@ export default function Home() {
     });
   }
 
+  function isHeic(file: File): boolean {
+    if (file.type === 'image/heic' || file.type === 'image/heif') return true;
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    return ext === 'heic' || ext === 'heif';
+  }
+
+  async function toImageFile(file: File): Promise<File> {
+    if (!isHeic(file)) return file;
+    const { default: heic2any } = await import('heic2any');
+    const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 }) as Blob;
+    return new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+  }
+
   async function addPhotoFiles(files: FileList | File[]) {
-    const arr = Array.from(files).filter(f => f.type.startsWith('image/')).slice(0, 80);
+    const arr = Array.from(files).filter(f =>
+      f.type.startsWith('image/') || isHeic(f)
+    ).slice(0, 80);
     const processed = await Promise.all(arr.map(async file => {
-      const { base64, mediaType } = await resizeImage(file);
-      return { name: file.name, base64, mediaType, preview: URL.createObjectURL(file) };
+      const converted = await toImageFile(file);
+      const { base64, mediaType } = await resizeImage(converted);
+      return { name: file.name, base64, mediaType, preview: URL.createObjectURL(converted) };
     }));
     setPhotoFiles(prev => [...prev, ...processed].slice(0, 80));
   }
