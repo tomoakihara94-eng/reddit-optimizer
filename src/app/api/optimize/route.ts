@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getOcrProvider } from '@/lib/ocr/factory';
 import type { OcrImage } from '@/lib/ocr/types';
 import sharp from 'sharp';
+import { findVehicleByModelCode } from '@/lib/model-code-map';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -293,6 +294,21 @@ async function handlePhoto(body: Record<string, unknown>) {
   if (body.ocr_only) {
     const provider  = getOcrProvider();
     const ocrResult = await provider.analyzeVehicleImages(images);
+
+    // 型式照合: OCRが返した modelCode からメーカー・車種を確定してnotesに補記
+    const modelMatch = findVehicleByModelCode(ocrResult.modelCode ?? '');
+    if (modelMatch) {
+      const confirmed = `${modelMatch.maker} ${modelMatch.vehicleName}`;
+      // notes に型式照合結果を付記（フロントで表示される）
+      ocrResult.notes = ocrResult.notes
+        ? `${ocrResult.notes} ／ 型式照合: ${confirmed}`
+        : `型式照合: ${confirmed}`;
+      // grade が空欄で vehicleName が grade フィールドに紛れ込んでいたら補正
+      if (!ocrResult.grade && ocrResult.modelCode) {
+        ocrResult.grade = '（装備確認要）';
+      }
+    }
+
     return NextResponse.json({
       mode: 'photo_ocr',
       ...ocrResult,

@@ -1,9 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { OcrProvider, OcrImage, VehicleOcrResult } from '../types';
 import { buildGradeReferenceText } from '@/lib/vehicle-grades';
+import { buildModelCodeTable } from '@/lib/model-code-map';
 
-// グレードリファレンスはモジュールロード時に1回だけ生成（静的なので毎回生成不要）
+// 静的テキストはモジュールロード時に1回だけ生成
 const GRADE_REFERENCE = buildGradeReferenceText();
+const MODEL_CODE_TABLE = buildModelCodeTable();
 
 const VEHICLE_ANALYSIS_PROMPT = `あなたはカーセンサー・グーネットへの車両登録を専門とするAIスペシャリストです。
 日本全メーカー（トヨタ・ホンダ・日産・マツダ・スバル・三菱・スズキ・ダイハツ・レクサス・イスズ等）の
@@ -16,12 +18,18 @@ JSONのみで出力してください（マークダウン・コードブロッ�
 ## 解析項目
 ━━━━━━━━━━━━━━━━━━━━━━
 
-### A. コーションプレート
+### A. コーションプレート ＋ 型式照合（最優先）
 エンジンルーム・ドア開口部・車内のシールから読み取る：
 - 車台番号: 例 ZRR80-1234567 / MXPB10-0001234 / 3DA-CV1W
 - 型式: 例 3BA-ZRR80W / 5AA-MXPB10 / 6AA-ZYX15
 - カラーコード: 2〜4桁英数字（例 040、6X3、8V5）
 - トリムコード: 内装色コード（例 FJ010、GB410、FA020）
+
+【型式が読めた場合の必須手順】
+下記テーブルでハイフン以降のコード（例: 3BA-MXPK10 → MXPK10）を前方一致で照合し、
+vehicleDesc の車名・メーカーを確定すること。外観判断より型式照合を常に優先する。
+
+${MODEL_CODE_TABLE}
 
 ### B. 外観解析
 - ヘッドライト: LED（チップ列が見える）/ HID/キセノン（青白い単一光）/ ハロゲン（電球色）
