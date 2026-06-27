@@ -660,12 +660,17 @@ export default function Home() {
     return ext === 'heic' || ext === 'heif';
   }
 
-  // HEIC をキャンバスで JPEG 変換・リサイズ（macOS Safari/Chrome は OS デコーダーで対応可能）
+  // HEIC → JPEG 変換（3段階フォールバック）
   async function heicToResizedJpeg(file: File): Promise<{ base64: string; mediaType: string; preview: string }> {
-    const MAX = 1120;
-
-    // ① createImageBitmap — macOS Safari・Chrome は OS の HEIC デコーダーを使うので動く
+    // ① <img> 経由リサイズ — macOS Safari/Chrome は OS HEIC デコーダーで img.onload が発火する
     try {
+      const { base64, mediaType } = await resizeImage(file);
+      return { base64, mediaType, preview: URL.createObjectURL(file) };
+    } catch { /* 次へ */ }
+
+    // ② createImageBitmap
+    try {
+      const MAX = 1120;
       const bitmap = await createImageBitmap(file);
       let { width, height } = bitmap;
       if (width > MAX || height > MAX) {
@@ -677,30 +682,23 @@ export default function Home() {
       canvas.getContext('2d')!.drawImage(bitmap, 0, 0, width, height);
       bitmap.close();
       const base64 = canvas.toDataURL('image/jpeg', 0.88).split(',')[1];
-      return { base64, mediaType: 'image/jpeg', preview: canvas.toDataURL('image/jpeg', 0.4) };
-    } catch { /* 次の手段へ */ }
+      return { base64, mediaType: 'image/jpeg', preview: canvas.toDataURL('image/jpeg', 0.35) };
+    } catch { /* 次へ */ }
 
-    // ② heic2any — WASM ベース変換（Chrome Windows 等でも動作）
+    // ③ heic2any (WASM)
     try {
-      const { default: heic2any } = await import('heic2any');
-      const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.88 });
+      const mod = await import('heic2any');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const convert: (o: unknown) => Promise<Blob | Blob[]> = (mod as any).default ?? mod;
+      const result = await convert({ blob: file, toType: 'image/jpeg', quality: 0.88 });
       const blob = Array.isArray(result) ? result[0] : result;
       const jpegFile = new File([blob], file.name, { type: 'image/jpeg' });
       const { base64, mediaType } = await resizeImage(jpegFile);
       return { base64, mediaType, preview: URL.createObjectURL(jpegFile) };
-    } catch { /* 次の手段へ */ }
+    } catch { /* 次へ */ }
 
-    // ③ 最終手段: サーバー側 Sharp に委ねる（ファイルが小さい場合のみ成功）
-    const { base64, mediaType } = await resizeImage(file).catch(async () => {
-      const reader = new FileReader();
-      const b64 = await new Promise<string>((res, rej) => {
-        reader.onload = () => res((reader.result as string).split(',')[1]);
-        reader.onerror = rej;
-        reader.readAsDataURL(file);
-      });
-      return { base64: b64, mediaType: 'image/heic' };
-    });
-    return { base64, mediaType, preview: '' };
+    // 全手段失敗 → エラーを投げてファイルをスキップ（生 HEIC 送信でサーバー破綻を防ぐ）
+    throw new Error(`HEICの変換に失敗しました: ${file.name}\nSafari または Chrome(最新版)で試してください`);
   }
 
   async function addPhotoFiles(files: FileList | File[]) {
@@ -809,8 +807,14 @@ export default function Home() {
         body: JSON.stringify({ mode: 'photo', images: photoFiles.map(f => ({ base64: f.base64, mediaType: f.mediaType })), ocr_only: true }),
         signal: AbortSignal.timeout(120_000),
       });
-      const data = await res.json() as PhotoOcrResult & { vehicleDesc: string };
-      if (!res.ok) throw new Error((data as unknown as { error: string }).error || 'OCR解析に失敗しました');
+      const rawText = await res.text();
+      if (!res.ok) {
+        let msg = `サーバーエラー (${res.status})`;
+        if (res.status === 413) msg = '画像データが大きすぎます。枚数を減らすか、解像度を下げてください。';
+        else { try { msg = (JSON.parse(rawText) as { error: string }).error || msg; } catch { /* use default */ } }
+        throw new Error(msg);
+      }
+      const data = JSON.parse(rawText) as PhotoOcrResult & { vehicleDesc: string };
       ocrData = data;
       vehicleDesc = data.vehicleDesc;
 
@@ -855,8 +859,9 @@ export default function Home() {
         body: JSON.stringify({ mode: 'photo', regenerate: true, vehicleDesc }),
         signal: AbortSignal.timeout(120_000),
       });
-      const data = await res.json() as { gradeNote?: string; appealPoints?: string[]; instagram?: string; instagramHashtags?: string; blogTitle?: string; blog?: string };
+      const rawText2 = await res.text();
       if (!res.ok) throw new Error('文章生成に失敗しました');
+      const data = JSON.parse(rawText2) as { gradeNote?: string; appealPoints?: string[]; instagram?: string; instagramHashtags?: string; blogTitle?: string; blog?: string };
       setResult(prev => prev && prev.mode === 'photo' ? {
         ...prev,
         gradeNote:         data.gradeNote         ?? '',
@@ -895,11 +900,12 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode: 'photo', regenerate: true, vehicleDesc }),
       });
-      const data = await res.json() as {
+      const rawText3 = await res.text();
+      if (!res.ok) throw new Error('再生成に失敗しました');
+      const data = JSON.parse(rawText3) as {
         gradeNote?: string; appealPoints?: string[];
         instagram?: string; instagramHashtags?: string; blogTitle?: string; blog?: string;
       };
-      if (!res.ok) throw new Error('再生成に失敗しました');
       setResult(prev => prev && prev.mode === 'photo' ? {
         ...prev,
         gradeNote:         data.gradeNote         ?? (prev as PhotoResult).gradeNote,
