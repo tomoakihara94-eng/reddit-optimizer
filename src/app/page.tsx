@@ -660,17 +660,47 @@ export default function Home() {
     return ext === 'heic' || ext === 'heif';
   }
 
-  // HEIC は変換せず base64 のままサーバーに送る（Sharp がサーバー側で変換）
-  async function readHeicAsBase64(file: File): Promise<{ base64: string; mediaType: string }> {
-    return new Promise((resolve, reject) => {
+  // HEIC をキャンバスで JPEG 変換・リサイズ（macOS Safari/Chrome は OS デコーダーで対応可能）
+  async function heicToResizedJpeg(file: File): Promise<{ base64: string; mediaType: string; preview: string }> {
+    const MAX = 1120;
+
+    // ① createImageBitmap — macOS Safari・Chrome は OS の HEIC デコーダーを使うので動く
+    try {
+      const bitmap = await createImageBitmap(file);
+      let { width, height } = bitmap;
+      if (width > MAX || height > MAX) {
+        if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+        else { width = Math.round(width * MAX / height); height = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d')!.drawImage(bitmap, 0, 0, width, height);
+      bitmap.close();
+      const base64 = canvas.toDataURL('image/jpeg', 0.88).split(',')[1];
+      return { base64, mediaType: 'image/jpeg', preview: canvas.toDataURL('image/jpeg', 0.4) };
+    } catch { /* 次の手段へ */ }
+
+    // ② heic2any — WASM ベース変換（Chrome Windows 等でも動作）
+    try {
+      const { default: heic2any } = await import('heic2any');
+      const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.88 });
+      const blob = Array.isArray(result) ? result[0] : result;
+      const jpegFile = new File([blob], file.name, { type: 'image/jpeg' });
+      const { base64, mediaType } = await resizeImage(jpegFile);
+      return { base64, mediaType, preview: URL.createObjectURL(jpegFile) };
+    } catch { /* 次の手段へ */ }
+
+    // ③ 最終手段: サーバー側 Sharp に委ねる（ファイルが小さい場合のみ成功）
+    const { base64, mediaType } = await resizeImage(file).catch(async () => {
       const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        resolve({ base64: result.split(',')[1], mediaType: 'image/heic' });
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+      const b64 = await new Promise<string>((res, rej) => {
+        reader.onload = () => res((reader.result as string).split(',')[1]);
+        reader.onerror = rej;
+        reader.readAsDataURL(file);
+      });
+      return { base64: b64, mediaType: 'image/heic' };
     });
+    return { base64, mediaType, preview: '' };
   }
 
   async function addPhotoFiles(files: FileList | File[]) {
@@ -680,12 +710,9 @@ export default function Home() {
 
     const results = await Promise.allSettled(arr.map(async file => {
       if (isHeic(file)) {
-        // HEIC: サーバー側で変換するためそのまま base64 送信
-        const { base64, mediaType } = await readHeicAsBase64(file);
-        // プレビューはカメラアイコンの代わりに空文字（表示は名前のみ）
-        return { name: file.name, base64, mediaType, preview: '' };
+        const { base64, mediaType, preview } = await heicToResizedJpeg(file);
+        return { name: file.name, base64, mediaType, preview };
       }
-      // 通常画像: リサイズして JPEG 変換
       const { base64, mediaType } = await resizeImage(file);
       return { name: file.name, base64, mediaType, preview: URL.createObjectURL(file) };
     }));
