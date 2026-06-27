@@ -633,7 +633,7 @@ export default function Home() {
   }
 
   async function resizeImage(file: File): Promise<{ base64: string; mediaType: string }> {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       const img = new Image();
       const url = URL.createObjectURL(file);
       img.onload = () => {
@@ -649,6 +649,7 @@ export default function Home() {
         URL.revokeObjectURL(url);
         resolve({ base64: canvas.toDataURL('image/jpeg', 0.88).split(',')[1], mediaType: 'image/jpeg' });
       };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`画像読み込み失敗: ${file.name}`)); };
       img.src = url;
     });
   }
@@ -662,19 +663,25 @@ export default function Home() {
   async function toImageFile(file: File): Promise<File> {
     if (!isHeic(file)) return file;
     const { default: heic2any } = await import('heic2any');
-    const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 }) as Blob;
+    const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+    // heic2any returns Blob | Blob[] depending on input
+    const blob = Array.isArray(result) ? result[0] : result;
     return new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
   }
 
   async function addPhotoFiles(files: FileList | File[]) {
+    // Accept image/* types AND HEIC/HEIF by extension (MIME type is unreliable for HEIC on some browsers)
     const arr = Array.from(files).filter(f =>
       f.type.startsWith('image/') || isHeic(f)
     ).slice(0, 80);
-    const processed = await Promise.all(arr.map(async file => {
+    const results = await Promise.allSettled(arr.map(async file => {
       const converted = await toImageFile(file);
       const { base64, mediaType } = await resizeImage(converted);
       return { name: file.name, base64, mediaType, preview: URL.createObjectURL(converted) };
     }));
+    const processed = results.flatMap(r => r.status === 'fulfilled' ? [r.value] : []);
+    const failed = results.filter(r => r.status === 'rejected').length;
+    if (failed > 0) setError(`${failed}枚の読み込みに失敗しました。対応形式: JPEG / PNG / HEIC`);
     setPhotoFiles(prev => [...prev, ...processed].slice(0, 80));
   }
 
