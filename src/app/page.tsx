@@ -445,15 +445,16 @@ export default function Home() {
 
   const saveToCmatch = useCallback(() => {
     if (!editableFields) return;
-    // 短いキー名でコンパクトなJSONを生成（c=車台番号, g=グレード補記, e=装備リスト）
     const data = {
       c: editableFields.chassisNumber,
       g: (result as PhotoResult | null)?.gradeNote ?? '',
       e: Array.from(equipmentChecked),
     };
-    navigator.clipboard.writeText(JSON.stringify(data)).then(() => {
+    // データを埋め込んだ完全なスクリプトを生成 → DevToolsコンソールに貼るだけで動く
+    const script = `(function(){var d=${JSON.stringify(data)};var eq=d.e||[];var n=0;document.querySelectorAll('label').forEach(function(l){var lt=l.textContent.trim().replace(/[：:（）()・\\/]/g,'');eq.forEach(function(e){var ek=e.replace(/[：:（）()・\\/]/g,'');if(lt.length>2&&ek.length>2&&(lt.includes(ek)||ek.includes(lt))){var id=l.htmlFor;var inp=id?document.getElementById(id):null;if(!inp)inp=l.querySelector('input[type=checkbox]');if(inp&&inp.type==='checkbox'&&!inp.checked){inp.checked=true;inp.dispatchEvent(new Event('change',{bubbles:true}));n++;}}});});function fill(kw,v){if(!v)return;document.querySelectorAll('label').forEach(function(l){if(!l.textContent.includes(kw))return;var id=l.htmlFor;var inp=id?document.getElementById(id):null;if(!inp)inp=l.querySelector('input:not([type=checkbox]),textarea');if(!inp){var nx=l.nextElementSibling;if(nx&&/^(INPUT|TEXTAREA)$/.test(nx.tagName))inp=nx;}if(inp){inp.value=v;['input','change'].forEach(function(ev){inp.dispatchEvent(new Event(ev,{bubbles:true}));});}});}fill('車台番号',d.c);fill('グレード補記',d.g);alert('転記完了！装備'+n+'件チェック済');})();`;
+    navigator.clipboard.writeText(script).then(() => {
       setCmatchSaved(true);
-      setTimeout(() => setCmatchSaved(false), 5000);
+      setTimeout(() => setCmatchSaved(false), 8000);
     });
   }, [editableFields, result, equipmentChecked]);
 
@@ -1322,7 +1323,7 @@ export default function Home() {
                 <div className="border-t border-gray-100 pt-3 mt-1">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5">C-MATCH連携</span>
-                    <span className="text-[10px] text-gray-400">ブックマークレットを事前に設定してください</span>
+                    <span className="text-[10px] text-gray-400">F12 → Console に貼るだけ</span>
                   </div>
                   <button
                     type="button"
@@ -1336,21 +1337,22 @@ export default function Home() {
                     {cmatchSaved ? (
                       <>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                        コピー完了 — C-MATCHでブックマークをクリック → Cmd+V → OK
+                        コピー完了 — C-MATCHで F12 → Console → Cmd+V → Enter
                       </>
                     ) : (
                       <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                        C-MATCH転記テキストをコピー
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        C-MATCH転記コードをコピー
                       </>
                     )}
                   </button>
                   {cmatchSaved && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mt-1.5 space-y-1">
-                      <p className="text-[11px] text-orange-700 font-semibold">次の手順:</p>
-                      <p className="text-[11px] text-orange-600">① C-MATCHの新規物件登録ページを開く</p>
-                      <p className="text-[11px] text-orange-600">② ブックマークの「C-MATCH転記」をクリック</p>
-                      <p className="text-[11px] text-orange-600">③ ダイアログが出たら <b>Cmd+V</b>（貼り付け）→ <b>OK</b></p>
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2.5 mt-1.5 space-y-1.5">
+                      <p className="text-[11px] text-orange-700 font-bold">C-MATCHの新規物件登録ページで：</p>
+                      <p className="text-[11px] text-orange-600">① <kbd className="bg-white border border-orange-300 rounded px-1 font-mono text-[10px]">F12</kbd> キーを押す（DevToolsが開く）</p>
+                      <p className="text-[11px] text-orange-600">② 上部タブの <b>「Console」</b> をクリック</p>
+                      <p className="text-[11px] text-orange-600">③ <kbd className="bg-white border border-orange-300 rounded px-1 font-mono text-[10px]">Cmd+V</kbd> で貼り付け → <kbd className="bg-white border border-orange-300 rounded px-1 font-mono text-[10px]">Enter</kbd></p>
+                      <p className="text-[11px] text-orange-600">④ 「転記完了！」のアラートが出れば成功</p>
                     </div>
                   )}
                 </div>
@@ -1863,30 +1865,18 @@ export default function Home() {
           {result && result.mode === 'photo'  && renderPhoto(result)}
         </div>
 
-        {/* ── C-MATCHブックマークレット設置ガイド ── */}
+        {/* ── C-MATCH連携ガイド ── */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-orange-200 p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold bg-orange-500 text-white rounded-full px-2.5 py-0.5">C-MATCH連携 設定</span>
-            <span className="text-xs font-semibold text-gray-700">ブックマークレットを一度だけ登録してください</span>
+            <span className="text-[10px] font-bold bg-orange-500 text-white rounded-full px-2.5 py-0.5">C-MATCH連携</span>
+            <span className="text-xs font-semibold text-gray-700">DevToolsコンソールで確実に動きます</span>
           </div>
           <ol className="text-xs text-gray-600 space-y-1.5 pl-1">
-            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">1</span><span>下のボタンをブラウザの<b>ブックマークバー</b>にドラッグ（初回のみ）</span></li>
-            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">2</span><span>解析後「<b>C-MATCH転記テキストをコピー</b>」を押す</span></li>
-            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">3</span><span>C-MATCHの登録ページで「C-MATCH転記」ブックマークをクリック → ダイアログに <b>Cmd+V → OK</b></span></li>
+            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">1</span><span>解析後「<b>C-MATCH転記コードをコピー</b>」を押す</span></li>
+            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">2</span><span>C-MATCHの新規物件登録ページを開く</span></li>
+            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">3</span><span><kbd className="bg-gray-100 border border-gray-300 rounded px-1 font-mono text-[10px]">F12</kbd> → <b>Console</b> タブ → <kbd className="bg-gray-100 border border-gray-300 rounded px-1 font-mono text-[10px]">Cmd+V</kbd> → <kbd className="bg-gray-100 border border-gray-300 rounded px-1 font-mono text-[10px]">Enter</kbd></span></li>
           </ol>
-          <div className="flex items-center gap-3 pt-1">
-            <a
-              href={CMATCH_BOOKMARKLET}
-              onClick={e => e.preventDefault()}
-              draggable
-              className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm shadow-orange-300 transition-colors cursor-grab active:cursor-grabbing select-none"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
-              C-MATCH転記
-            </a>
-            <span className="text-[11px] text-gray-400">← このボタンをブックマークバーにドラッグ</span>
-          </div>
-          <p className="text-[10px] text-gray-400">※ 自動入力される項目：車台番号・グレード補記・装備チェック50項目。価格・走行距離・車検・修復歴は手入力が必要です。</p>
+          <p className="text-[10px] text-gray-400">※ 自動入力：車台番号・グレード補記・装備チェック最大50項目　手入力：価格・走行距離・車検・修復歴・保証</p>
         </div>
 
         <p className="text-center text-[11px] text-gray-400 pb-8 pt-2 flex items-center justify-center gap-2">
