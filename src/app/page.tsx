@@ -341,8 +341,8 @@ const GOONET_DEMO_DETECTED = new Set([
   'エアバッグ：運転席/助手席/サイド',
 ]);
 
-// C-MATCH bookmarklet: reads window.name (set when opening C-MATCH via DX system button)
-const CMATCH_BOOKMARKLET = "javascript:(function(){var raw=window.name||'';var d=null;if(raw.startsWith('cs:')){try{d=JSON.parse(raw.slice(3));}catch(e){}}if(!d){alert('DXシステムの「C-MATCHで開く」ボタンから開いてください。\n（通常のブラウザ操作で開いたページには転記できません）');return;}var M={'パワーウインドウ':'パワーウィンドウ','エアバッグ：運転席':'運転席エアバッグ','エアバッグ：助手席':'助手席エアバッグ','エアバッグ：サイド':'サイドエアバッグ','エアバッグ：カーテン':'カーテンエアバッグ','カメラ：バック':'バックカメラ','カメラ：フロント':'フロントカメラ','カメラ：サイド':'サイドカメラ','サンルーフ・ガラスルーフ':'サンルーフ','スライドドア：両側(電動)':'スライドドア','ヘッドライト：LED':'HID','寒冷地仕様':'寒冷地仕様車','誤発進防止装置':'踏み間違い','アダプティブクルーズコントロール':'クルーズコントロール','カーナビ':'ナビ'};var toCheck=new Set();(d.equipment||[]).forEach(function(e){toCheck.add(M[e]||e);});var n=0;document.querySelectorAll('label').forEach(function(l){var t=l.textContent.trim();toCheck.forEach(function(k){if(t.includes(k)){var inp=document.getElementById(l.htmlFor)||l.querySelector('input[type=checkbox]');if(inp&&inp.type==='checkbox'&&!inp.checked){inp.checked=true;inp.dispatchEvent(new Event('change',{bubbles:true}));n++;}}});});function fill(kw,val){if(!val)return;document.querySelectorAll('label').forEach(function(l){if(!l.textContent.includes(kw))return;var inp=l.htmlFor?document.getElementById(l.htmlFor):null;if(!inp)inp=l.querySelector('input:not([type=checkbox]),textarea');if(!inp){var nx=l.nextElementSibling;if(nx&&/^(INPUT|TEXTAREA)$/.test(nx.tagName))inp=nx;}if(inp){inp.value=val;['input','change'].forEach(function(ev){inp.dispatchEvent(new Event(ev,{bubbles:true}));});}});}fill('車台番号',d.chassisNumber);fill('グレード補記',d.gradeNote);alert('C-MATCH転記完了！\n✓ 装備 '+n+' 件自動チェック\n✓ 車台番号・グレード補記 入力済\n\n手入力が必要な項目：\n・型式指定番号 → 反映（メーカー・車種・グレード自動入力）\n・価格 ・ 走行距離 ・ 車検 ・ 修復歴 ・ 保証');})();";
+// C-MATCH bookmarklet: reads data from URL hash fragment (#cs=...) set by "C-MATCHで開く" button
+const CMATCH_BOOKMARKLET = "javascript:(function(){var h=location.hash;var d=null;if(h.startsWith('#cs=')){try{d=JSON.parse(decodeURIComponent(h.slice(4)));}catch(e){}}if(!d){alert('DXシステムの「C-MATCHで開く」ボタンから開いてください');return;}var M={'パワーウインドウ':'パワーウィンドウ','エアバッグ：運転席':'運転席エアバッグ','エアバッグ：助手席':'助手席エアバッグ','エアバッグ：サイド':'サイドエアバッグ','エアバッグ：カーテン':'カーテンエアバッグ','カメラ：バック':'バックカメラ','カメラ：フロント':'フロントカメラ','カメラ：サイド':'サイドカメラ','サンルーフ・ガラスルーフ':'サンルーフ','スライドドア：両側(電動)':'スライドドア','ヘッドライト：LED':'HID','寒冷地仕様':'寒冷地仕様車','誤発進防止装置':'踏み間違い','アダプティブクルーズコントロール':'クルーズコントロール','カーナビ':'ナビ'};var toCheck=new Set();(d.equipment||[]).forEach(function(e){toCheck.add(M[e]||e);});var n=0;document.querySelectorAll('label').forEach(function(l){var t=l.textContent.trim();toCheck.forEach(function(k){if(t.includes(k)){var inp=document.getElementById(l.htmlFor)||l.querySelector('input[type=checkbox]');if(inp&&inp.type==='checkbox'&&!inp.checked){inp.checked=true;inp.dispatchEvent(new Event('change',{bubbles:true}));n++;}}});});function fill(kw,val){if(!val)return;document.querySelectorAll('label').forEach(function(l){if(!l.textContent.includes(kw))return;var inp=l.htmlFor?document.getElementById(l.htmlFor):null;if(!inp)inp=l.querySelector('input:not([type=checkbox]),textarea');if(!inp){var nx=l.nextElementSibling;if(nx&&/^(INPUT|TEXTAREA)$/.test(nx.tagName))inp=nx;}if(inp){inp.value=val;['input','change'].forEach(function(ev){inp.dispatchEvent(new Event(ev,{bubbles:true}));});}});}fill('車台番号',d.chassisNumber);fill('グレード補記',d.gradeNote);alert('C-MATCH転記完了！\n✓ 装備 '+n+' 件自動チェック\n✓ 車台番号・グレード補記 入力済\n\n手入力が必要な項目：\n・型式指定番号 → 反映（メーカー・車種・グレード自動入力）\n・価格 ・ 走行距離 ・ 車検 ・ 修復歴 ・ 保証');})();";
 
 const CAT_COLORS: Record<string, string> = {
   blue:   'bg-blue-600 text-white',
@@ -452,14 +452,11 @@ export default function Home() {
       gradeNote:     (result as PhotoResult | null)?.gradeNote ?? '',
       equipment:     Array.from(equipmentChecked),
     };
-    const encoded = 'cs:' + JSON.stringify(data);
-    const w = window.open('about:blank', '_blank');
-    if (w) {
-      w.name = encoded;
-      w.location.href = 'https://c-match.carsensor.net/vehicles/registBasicInfo/';
-      setCmatchSaved(true);
-      setTimeout(() => setCmatchSaved(false), 4000);
-    }
+    const fragment = encodeURIComponent(JSON.stringify(data));
+    const url = `https://c-match.carsensor.net/vehicles/registBasicInfo/#cs=${fragment}`;
+    window.open(url, '_blank');
+    setCmatchSaved(true);
+    setTimeout(() => setCmatchSaved(false), 4000);
   }, [editableFields, result, equipmentChecked]);
 
   const onCopy = useCallback((text: string, key: string) => {
