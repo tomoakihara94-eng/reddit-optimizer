@@ -769,6 +769,30 @@ export default function Home() {
     const eq = data.equipment;
     const csDetected = matchEquipmentToChecklist(eq);
     const gnDetected = matchEquipmentToGoonetChecklist(eq);
+
+    // ── 推論ルール: 確実に推定できる装備を自動追加 ──────────────────────
+    // スマートキー → キーレス（内包される）
+    if (csDetected.has('スマートキー')) csDetected.add('キーレス');
+    // 衝突被害軽減ブレーキ → サポカー（同義）
+    if (csDetected.has('衝突被害軽減ブレーキ')) csDetected.add('サポカー');
+
+    // 年式ベースのベースライン（保安基準義務化・普及率に基づく）
+    const yearNum = parseInt((data.year ?? '').replace(/[^0-9]/g, '').slice(0, 4));
+    if (!isNaN(yearNum) && yearNum >= 2000) {
+      // 2000年以降の乗用車：パワステ・ABS・パワーウインドウ・運転席エアバッグは事実上標準
+      ['パワステ', 'ABS', 'パワーウインドウ', 'エアバッグ：運転席'].forEach(i => csDetected.add(i));
+    }
+    if (!isNaN(yearNum) && yearNum >= 2005) {
+      // 2005年以降：助手席エアバッグ・キーレスが標準化
+      csDetected.add('エアバッグ：助手席');
+      csDetected.add('キーレス');
+    }
+    if (!isNaN(yearNum) && yearNum >= 2012) {
+      // 2012年以降：横滑り防止装置が新型車に義務化
+      csDetected.add('横滑り防止装置');
+    }
+    // ────────────────────────────────────────────────────────────────────
+
     setAiDetected(csDetected);
     setGoonetAiDetected(gnDetected);
     if (isAudioless(eq)) {
