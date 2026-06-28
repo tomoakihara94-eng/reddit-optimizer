@@ -52,8 +52,9 @@ export class CarDocOcrProvider implements OcrProvider {
         trimCode:      'GB010（モック）',
         year:          '2022年式（モック）',
         grade:         'X（モック）',
-        equipment:     ['バックモニター（モック）', 'ETC（モック）', 'スマートキー（モック）'],
-        notes:         [
+        equipment:       ['バックモニター（モック）', 'ETC（モック）', 'スマートキー（モック）'],
+        possibleOptions: [],
+        notes:           [
           '【モック返却中】CAR_DOC_OCR_ENDPOINT または CAR_DOC_OCR_API_KEY が未設定です。',
           'Vercel 環境変数に両方を設定し、',
           'OCR_PROVIDER=car_doc を追加すると本番APIに切り替わります。',
@@ -93,8 +94,9 @@ export class CarDocOcrProvider implements OcrProvider {
       trimCode:      data.trimCode           ?? '',
       year:          data.registrationYear   ?? '',
       grade:         data.grade              ?? '',
-      equipment:     data.equipment          ?? [],
-      notes:         data.rawText
+      equipment:       data.equipment          ?? [],
+      possibleOptions: [],
+      notes:           data.rawText
                        ? `OCR 生テキスト（先頭300字）:\n${data.rawText.slice(0, 300)}`
                        : '',
       provider: this.name,

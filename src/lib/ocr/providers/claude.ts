@@ -236,8 +236,13 @@ ${GRADE_REFERENCE}
   "year": "年式（コーションプレートまたは外観から推定。例: 2022年式）",
   "grade": "グレード（バッジ・ロゴ・装備水準から判断。例: Si W×B III / Z / HYBRID Z）",
   "equipment": [
-    "カーセンサー・グーネット公式名称の装備を列挙",
-    "写真で確認できたものを確定として、不確かなものは末尾に（推測）"
+    "写真から視覚的に確認できた装備のみ列挙（カーセンサー・グーネット公式名称）",
+    "目視確認できないものは equipment に含めず possibleOptions へ分類すること"
+  ],
+  "possibleOptions": [
+    "このグレード・年式で有料メーカーオプションとして設定可能だが写真では確認できなかった装備を最大8個",
+    "カーセンサー公式名称で列挙。不明・該当なしの場合は空配列",
+    "例: ブラインドスポットモニター、パノラマモニター、アダプティブハイビームシステム"
   ],
   "notes": "読み取り精度・不明点・追加写真が必要な箇所の説明"
 }`;
@@ -290,8 +295,9 @@ export class ClaudeOcrProvider implements OcrProvider {
       trimCode:      String(parsed.trimCode ?? ''),
       year:          String(parsed.year ?? ''),
       grade:         String(parsed.grade ?? ''),
-      equipment:     Array.isArray(parsed.equipment) ? parsed.equipment.map(String) : [],
-      notes:         String(parsed.notes ?? ''),
+      equipment:       Array.isArray(parsed.equipment)       ? parsed.equipment.map(String)       : [],
+      possibleOptions: Array.isArray(parsed.possibleOptions) ? parsed.possibleOptions.map(String) : [],
+      notes:           String(parsed.notes ?? ''),
       provider:      this.name,
     };
   }

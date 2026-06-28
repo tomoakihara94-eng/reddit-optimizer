@@ -35,6 +35,7 @@ interface PhotoResult {
   year: string;
   grade: string;
   equipment: string[];
+  possibleOptions: string[];
   notes: string;
   gradeNote: string;
   appealPoints: string[];
@@ -54,6 +55,7 @@ interface PhotoOcrResult {
   year: string;
   grade: string;
   equipment: string[];
+  possibleOptions: string[];
   notes: string;
   vehicleDesc: string;
 }
@@ -444,6 +446,7 @@ export default function Home() {
   const [aiDetected, setAiDetected]       = useState<Set<string>>(new Set());
   const [goonetChecked, setGoonetChecked] = useState<Set<string>>(new Set());
   const [goonetAiDetected, setGoonetAiDetected] = useState<Set<string>>(new Set());
+  const [possibleOptions, setPossibleOptions] = useState<string[]>([]);
   const [checklistTab, setChecklistTab]   = useState<'carsensor' | 'goonet'>('carsensor');
   const [photoTab, setPhotoTab]           = useState<'carsensor' | 'instagram' | 'blog'>('carsensor');
   const [regenerating, setRegenerating]   = useState(false);
@@ -787,7 +790,7 @@ export default function Home() {
     setError('');
   }
 
-  function applyOcrData(data: { chassisNumber: string; modelCode: string; colorCode: string; trimCode: string; year: string; grade: string; equipment: string[] }) {
+  function applyOcrData(data: { chassisNumber: string; modelCode: string; colorCode: string; trimCode: string; year: string; grade: string; equipment: string[]; possibleOptions?: string[] }) {
     const eq = data.equipment;
     const csDetected = matchEquipmentToChecklist(eq);
     const gnDetected = matchEquipmentToGoonetChecklist(eq);
@@ -814,6 +817,10 @@ export default function Home() {
       csDetected.add('横滑り防止装置');
     }
     // ────────────────────────────────────────────────────────────────────
+
+    // possibleOptions: AIが検出済みのものは除外して「要確認」として提示
+    const opts = (data.possibleOptions ?? []).filter(o => !csDetected.has(o));
+    setPossibleOptions(opts);
 
     setAiDetected(csDetected);
     setGoonetAiDetected(gnDetected);
@@ -850,6 +857,7 @@ export default function Home() {
     setEditableFields(null);
     setEquipmentChecked(new Set());
     setGoonetChecked(new Set());
+    setPossibleOptions([]);
 
     if (mode !== 'photo') {
       // 返信メールは従来どおり
@@ -908,6 +916,7 @@ export default function Home() {
         year:             data.year,
         grade:            data.grade,
         equipment:        data.equipment,
+        possibleOptions:  data.possibleOptions ?? [],
         notes:            data.notes,
         gradeNote:        '',
         appealPoints:     [],
@@ -1278,6 +1287,34 @@ export default function Home() {
                   <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5">
                     <p className="text-[11px] font-bold text-orange-700 mb-1">✓ AIが検出した装備 {r.equipment.length}件（チェックリストに自動反映済み）</p>
                     <p className="text-xs text-orange-600 leading-relaxed">{r.equipment.join(' ／ ')}</p>
+                  </div>
+                )}
+
+                {/* メーカーオプション確認 */}
+                {possibleOptions.length > 0 && (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-3">
+                    <div className="flex items-start gap-2 mb-2">
+                      <span className="text-amber-600 text-sm font-bold shrink-0">⚠️ メーカーオプション確認</span>
+                      <span className="text-amber-600 text-xs leading-snug">このグレードで追加設定可能なオプションです。付いていたら選択してください</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {possibleOptions.map(opt => {
+                        const checked = equipmentChecked.has(opt);
+                        return (
+                          <button
+                            key={opt}
+                            onClick={() => toggleEquipment(opt)}
+                            className={`px-3 py-1 rounded-full text-xs border transition-all ${
+                              checked
+                                ? 'bg-amber-400 border-amber-500 text-white font-bold'
+                                : 'bg-white border-amber-300 text-amber-700 hover:bg-amber-100'
+                            }`}
+                          >
+                            {checked ? '✓ ' : '+ '}{opt}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
