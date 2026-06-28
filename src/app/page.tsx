@@ -341,8 +341,9 @@ const GOONET_DEMO_DETECTED = new Set([
   'エアバッグ：運転席/助手席/サイド',
 ]);
 
-// C-MATCH bookmarklet: reads data from URL hash fragment (#cs=...) set by "C-MATCHで開く" button
-const CMATCH_BOOKMARKLET = "javascript:(function(){var h=location.hash;var d=null;if(h.startsWith('#cs=')){try{d=JSON.parse(decodeURIComponent(h.slice(4)));}catch(e){}}if(!d){alert('DXシステムの「C-MATCHで開く」ボタンから開いてください');return;}var M={'パワーウインドウ':'パワーウィンドウ','エアバッグ：運転席':'運転席エアバッグ','エアバッグ：助手席':'助手席エアバッグ','エアバッグ：サイド':'サイドエアバッグ','エアバッグ：カーテン':'カーテンエアバッグ','カメラ：バック':'バックカメラ','カメラ：フロント':'フロントカメラ','カメラ：サイド':'サイドカメラ','サンルーフ・ガラスルーフ':'サンルーフ','スライドドア：両側(電動)':'スライドドア','ヘッドライト：LED':'HID','寒冷地仕様':'寒冷地仕様車','誤発進防止装置':'踏み間違い','アダプティブクルーズコントロール':'クルーズコントロール','カーナビ':'ナビ'};var toCheck=new Set();(d.equipment||[]).forEach(function(e){toCheck.add(M[e]||e);});var n=0;document.querySelectorAll('label').forEach(function(l){var t=l.textContent.trim();toCheck.forEach(function(k){if(t.includes(k)){var inp=document.getElementById(l.htmlFor)||l.querySelector('input[type=checkbox]');if(inp&&inp.type==='checkbox'&&!inp.checked){inp.checked=true;inp.dispatchEvent(new Event('change',{bubbles:true}));n++;}}});});function fill(kw,val){if(!val)return;document.querySelectorAll('label').forEach(function(l){if(!l.textContent.includes(kw))return;var inp=l.htmlFor?document.getElementById(l.htmlFor):null;if(!inp)inp=l.querySelector('input:not([type=checkbox]),textarea');if(!inp){var nx=l.nextElementSibling;if(nx&&/^(INPUT|TEXTAREA)$/.test(nx.tagName))inp=nx;}if(inp){inp.value=val;['input','change'].forEach(function(ev){inp.dispatchEvent(new Event(ev,{bubbles:true}));});}});}fill('車台番号',d.chassisNumber);fill('グレード補記',d.gradeNote);alert('C-MATCH転記完了！\n✓ 装備 '+n+' 件自動チェック\n✓ 車台番号・グレード補記 入力済\n\n手入力が必要な項目：\n・型式指定番号 → 反映（メーカー・車種・グレード自動入力）\n・価格 ・ 走行距離 ・ 車検 ・ 修復歴 ・ 保証');})();";
+// C-MATCH bookmarklet: prompt()でデータを受け取りフォームを自動入力
+// prompt()はCSPに関係なく常に動作するブラウザネイティブのUI
+const CMATCH_BOOKMARKLET = "javascript:(function(){var s=prompt('DXシステムで「C-MATCH転記テキストをコピー」を押した後、ここにCmd+V（貼り付け）→ OK','');if(!s)return;var d;try{d=JSON.parse(s);}catch(e){alert('データ形式が正しくありません。もう一度コピーしてお試しください');return;}var eq=d.e||[];var n=0;document.querySelectorAll('label').forEach(function(l){var lt=l.textContent.trim().replace(/[：:（）()・\\/]/g,'');eq.forEach(function(e){var ek=e.replace(/[：:（）()・\\/]/g,'');if(lt.length>2&&ek.length>2&&(lt.includes(ek)||ek.includes(lt))){var inp=l.htmlFor?document.getElementById(l.htmlFor):null;if(!inp)inp=l.querySelector('input[type=checkbox]');if(inp&&inp.type==='checkbox'&&!inp.checked){inp.checked=true;inp.dispatchEvent(new Event('change',{bubbles:true}));n++;}}});});function fill(kw,v){if(!v)return;document.querySelectorAll('label').forEach(function(l){if(!l.textContent.includes(kw))return;var inp=l.htmlFor?document.getElementById(l.htmlFor):null;if(!inp)inp=l.querySelector('input:not([type=checkbox]),textarea');if(!inp){var nx=l.nextElementSibling;if(nx&&/^(INPUT|TEXTAREA)$/.test(nx.tagName))inp=nx;}if(inp){inp.value=v;['input','change'].forEach(function(ev){inp.dispatchEvent(new Event(ev,{bubbles:true}));});}});}fill('車台番号',d.c);fill('グレード補記',d.g);alert('転記完了！\\n装備 '+n+' 件チェック済\\n車台番号・グレード補記 入力済');})();";
 
 const CAT_COLORS: Record<string, string> = {
   blue:   'bg-blue-600 text-white',
@@ -444,19 +445,16 @@ export default function Home() {
 
   const saveToCmatch = useCallback(() => {
     if (!editableFields) return;
+    // 短いキー名でコンパクトなJSONを生成（c=車台番号, g=グレード補記, e=装備リスト）
     const data = {
-      chassisNumber: editableFields.chassisNumber,
-      modelCode:     editableFields.modelCode,
-      year:          editableFields.year,
-      grade:         editableFields.grade,
-      gradeNote:     (result as PhotoResult | null)?.gradeNote ?? '',
-      equipment:     Array.from(equipmentChecked),
+      c: editableFields.chassisNumber,
+      g: (result as PhotoResult | null)?.gradeNote ?? '',
+      e: Array.from(equipmentChecked),
     };
-    const fragment = encodeURIComponent(JSON.stringify(data));
-    const url = `https://c-match.carsensor.net/vehicles/registBasicInfo/#cs=${fragment}`;
-    window.open(url, '_blank');
-    setCmatchSaved(true);
-    setTimeout(() => setCmatchSaved(false), 4000);
+    navigator.clipboard.writeText(JSON.stringify(data)).then(() => {
+      setCmatchSaved(true);
+      setTimeout(() => setCmatchSaved(false), 5000);
+    });
   }, [editableFields, result, equipmentChecked]);
 
   const onCopy = useCallback((text: string, key: string) => {
@@ -1338,19 +1336,22 @@ export default function Home() {
                     {cmatchSaved ? (
                       <>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                        C-MATCHを開きました — ブックマークバーの「C-MATCH転記」をクリック
+                        コピー完了 — C-MATCHでブックマークをクリック → Cmd+V → OK
                       </>
                     ) : (
                       <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                        C-MATCHで開く（新規物件登録ページへ）
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        C-MATCH転記テキストをコピー
                       </>
                     )}
                   </button>
                   {cmatchSaved && (
-                    <p className="text-[11px] text-orange-600 text-center mt-1.5">
-                      開いたC-MATCHのページで、ブックマークバーの「C-MATCH転記」をクリックしてください
-                    </p>
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mt-1.5 space-y-1">
+                      <p className="text-[11px] text-orange-700 font-semibold">次の手順:</p>
+                      <p className="text-[11px] text-orange-600">① C-MATCHの新規物件登録ページを開く</p>
+                      <p className="text-[11px] text-orange-600">② ブックマークの「C-MATCH転記」をクリック</p>
+                      <p className="text-[11px] text-orange-600">③ ダイアログが出たら <b>Cmd+V</b>（貼り付け）→ <b>OK</b></p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1869,9 +1870,9 @@ export default function Home() {
             <span className="text-xs font-semibold text-gray-700">ブックマークレットを一度だけ登録してください</span>
           </div>
           <ol className="text-xs text-gray-600 space-y-1.5 pl-1">
-            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">1</span><span>下のリンクをブラウザの<b>ブックマークバー</b>にドラッグ＆ドロップ（初回のみ）</span></li>
-            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">2</span><span>写真解析後、「<b>C-MATCHで開く</b>」ボタンを押す → 新しいタブでC-MATCHが自動で開く</span></li>
-            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">3</span><span>開いたC-MATCHのページで、ブックマークバーの「<b>C-MATCH転記</b>」をクリック</span></li>
+            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">1</span><span>下のボタンをブラウザの<b>ブックマークバー</b>にドラッグ（初回のみ）</span></li>
+            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">2</span><span>解析後「<b>C-MATCH転記テキストをコピー</b>」を押す</span></li>
+            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">3</span><span>C-MATCHの登録ページで「C-MATCH転記」ブックマークをクリック → ダイアログに <b>Cmd+V → OK</b></span></li>
           </ol>
           <div className="flex items-center gap-3 pt-1">
             <a
