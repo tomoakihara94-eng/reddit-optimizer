@@ -341,6 +341,9 @@ const GOONET_DEMO_DETECTED = new Set([
   'エアバッグ：運転席/助手席/サイド',
 ]);
 
+// C-MATCH bookmarklet: reads localStorage['cs_cmatch_data'] and fills the registration form
+const CMATCH_BOOKMARKLET = "javascript:(function(){var d=JSON.parse(localStorage.getItem('cs_cmatch_data')||'null');if(!d){alert('DXシステムで「C-MATCH転記」ボタンを押してから使用してください');return;}var M={'パワーウインドウ':'パワーウィンドウ','エアバッグ：運転席':'運転席エアバッグ','エアバッグ：助手席':'助手席エアバッグ','エアバッグ：サイド':'サイドエアバッグ','エアバッグ：カーテン':'カーテンエアバッグ','カメラ：バック':'バックカメラ','カメラ：フロント':'フロントカメラ','カメラ：サイド':'サイドカメラ','サンルーフ・ガラスルーフ':'サンルーフ','スライドドア：両側(電動)':'スライドドア','ヘッドライト：LED':'HID','寒冷地仕様':'寒冷地仕様車','誤発進防止装置':'踏み間違い','アダプティブクルーズコントロール':'クルーズコントロール','カーナビ':'ナビ'};var toCheck=new Set();(d.equipment||[]).forEach(function(e){toCheck.add(M[e]||e);});var n=0;document.querySelectorAll('label').forEach(function(l){var t=l.textContent.trim();toCheck.forEach(function(k){if(t.includes(k)){var inp=document.getElementById(l.htmlFor)||l.querySelector('input[type=checkbox]');if(inp&&inp.type==='checkbox'&&!inp.checked){inp.checked=true;inp.dispatchEvent(new Event('change',{bubbles:true}));n++;}}});});function fill(kw,val){if(!val)return;document.querySelectorAll('label').forEach(function(l){if(!l.textContent.includes(kw))return;var inp=l.htmlFor?document.getElementById(l.htmlFor):null;if(!inp)inp=l.querySelector('input:not([type=checkbox]),textarea');if(!inp){var nx=l.nextElementSibling;if(nx&&/^(INPUT|TEXTAREA)$/.test(nx.tagName))inp=nx;}if(inp){inp.value=val;['input','change'].forEach(function(ev){inp.dispatchEvent(new Event(ev,{bubbles:true}));});}});}fill('車台番号',d.chassisNumber);fill('グレード補記',d.gradeNote);alert('C-MATCH転記完了！\n✓ 装備 '+n+' 件自動チェック\n✓ 車台番号・グレード補記 入力済\n\n手入力が必要な項目：\n・型式指定番号 → 反映（メーカー・車種・グレード自動入力）\n・価格 ・ 走行距離 ・ 車検 ・ 修復歴 ・ 保証');})();";
+
 const CAT_COLORS: Record<string, string> = {
   blue:   'bg-blue-600 text-white',
   green:  'bg-green-600 text-white',
@@ -425,6 +428,7 @@ export default function Home() {
   const [checklistTab, setChecklistTab]   = useState<'carsensor' | 'goonet'>('carsensor');
   const [photoTab, setPhotoTab]           = useState<'carsensor' | 'instagram' | 'blog'>('carsensor');
   const [regenerating, setRegenerating]   = useState(false);
+  const [cmatchSaved, setCmatchSaved]     = useState(false);
   const [loadingPhase, setLoadingPhase]   = useState<'ocr' | 'content' | null>(null);
   const [contentLoading, setContentLoading] = useState(false);
   const fileInputRef                      = useRef<HTMLInputElement>(null);
@@ -437,6 +441,21 @@ export default function Home() {
   const currentModels = CAR_DATA.find(m => m.name === maker)?.models ?? [];
   const currentGrades = currentModels.find(m => m.name === model)?.grades ?? [];
   const YEARS = Array.from({ length: 27 }, (_, i) => 2026 - i);
+
+  const saveToCmatch = useCallback(() => {
+    if (!editableFields) return;
+    const data = {
+      chassisNumber: editableFields.chassisNumber,
+      modelCode:     editableFields.modelCode,
+      year:          editableFields.year,
+      grade:         editableFields.grade,
+      gradeNote:     (result as PhotoResult | null)?.gradeNote ?? '',
+      equipment:     Array.from(equipmentChecked),
+    };
+    localStorage.setItem('cs_cmatch_data', JSON.stringify(data));
+    setCmatchSaved(true);
+    setTimeout(() => setCmatchSaved(false), 3000);
+  }, [editableFields, result, equipmentChecked]);
 
   const onCopy = useCallback((text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -1298,6 +1317,40 @@ export default function Home() {
                 >
                   {copied === 'photo-equip' ? '✓ コピー済み' : `${checklistTab === 'carsensor' ? 'カーセンサー' : 'グーネット'}装備チェックのみをコピー`}
                 </button>
+
+                {/* C-MATCH自動転記ボタン */}
+                <div className="border-t border-gray-100 pt-3 mt-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5">C-MATCH連携</span>
+                    <span className="text-[10px] text-gray-400">ブックマークレットを事前に設定してください</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={saveToCmatch}
+                    className={`w-full py-3 rounded-xl text-sm font-bold border-2 transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                      cmatchSaved
+                        ? 'bg-orange-500 border-orange-500 text-white'
+                        : 'border-orange-400 text-orange-600 bg-orange-50 hover:bg-orange-100 hover:border-orange-500'
+                    }`}
+                  >
+                    {cmatchSaved ? (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                        転記データを保存しました — C-MATCHでブックマークをクリック
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                        C-MATCH転記（データを保存）
+                      </>
+                    )}
+                  </button>
+                  {cmatchSaved && (
+                    <p className="text-[11px] text-orange-600 text-center mt-1.5">
+                      次に C-MATCH の新規物件登録ページを開き、ブックマークバーの「C-MATCH転記」をクリック
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1805,6 +1858,32 @@ export default function Home() {
         <div ref={resultRef}>
           {result && result.mode === 'reply'  && renderReply(result)}
           {result && result.mode === 'photo'  && renderPhoto(result)}
+        </div>
+
+        {/* ── C-MATCHブックマークレット設置ガイド ── */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-orange-200 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold bg-orange-500 text-white rounded-full px-2.5 py-0.5">C-MATCH連携 設定</span>
+            <span className="text-xs font-semibold text-gray-700">ブックマークレットを一度だけ登録してください</span>
+          </div>
+          <ol className="text-xs text-gray-600 space-y-1.5 pl-1">
+            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">1</span><span>下のリンクをブラウザの<b>ブックマークバー</b>にドラッグ＆ドロップ</span></li>
+            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">2</span><span>このDXシステムで解析後、「<b>C-MATCH転記</b>」ボタンを押す</span></li>
+            <li className="flex gap-2"><span className="w-4 h-4 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">3</span><span>C-MATCHの新規物件登録ページを開き、ブックマークの「<b>C-MATCH転記</b>」をクリック</span></li>
+          </ol>
+          <div className="flex items-center gap-3 pt-1">
+            <a
+              href={CMATCH_BOOKMARKLET}
+              onClick={e => e.preventDefault()}
+              draggable
+              className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm shadow-orange-300 transition-colors cursor-grab active:cursor-grabbing select-none"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+              C-MATCH転記
+            </a>
+            <span className="text-[11px] text-gray-400">← このボタンをブックマークバーにドラッグ</span>
+          </div>
+          <p className="text-[10px] text-gray-400">※ 自動入力される項目：車台番号・グレード補記・装備チェック50項目。価格・走行距離・車検・修復歴は手入力が必要です。</p>
         </div>
 
         <p className="text-center text-[11px] text-gray-400 pb-8 pt-2 flex items-center justify-center gap-2">
