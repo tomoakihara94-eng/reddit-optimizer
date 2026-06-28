@@ -54,7 +54,7 @@ function parseVisionResponse(data: VisionAnnotateResponse, providerName: string)
     year:          '',
     grade:         '',
     equipment:       [],
-    possibleOptions: [],
+    makerOptions: [], dealerOptions: [],
     notes:           `Google Cloud Vision で解析しました。テキスト全文:\n${allText.slice(0, 300)}`,
     provider:        providerName,
   };
@@ -76,7 +76,7 @@ export class GoogleVisionProvider implements OcrProvider {
         year:          '2021年式（モック）',
         grade:         'Si W×B III（モック）',
         equipment:       ['純正ナビ（モック）', '両側パワースライドドア（モック）'],
-        possibleOptions: [],
+        makerOptions: [], dealerOptions: [],
         notes:           [
           '【モック返却中】GOOGLE_VISION_API_KEY が未設定です。',
           'Vercel 環境変数に GOOGLE_VISION_API_KEY を追加し、',

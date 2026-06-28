@@ -53,7 +53,7 @@ export class CarDocOcrProvider implements OcrProvider {
         year:          '2022年式（モック）',
         grade:         'X（モック）',
         equipment:       ['バックモニター（モック）', 'ETC（モック）', 'スマートキー（モック）'],
-        possibleOptions: [],
+        makerOptions: [], dealerOptions: [],
         notes:           [
           '【モック返却中】CAR_DOC_OCR_ENDPOINT または CAR_DOC_OCR_API_KEY が未設定です。',
           'Vercel 環境変数に両方を設定し、',
@@ -95,7 +95,7 @@ export class CarDocOcrProvider implements OcrProvider {
       year:          data.registrationYear   ?? '',
       grade:         data.grade              ?? '',
       equipment:       data.equipment          ?? [],
-      possibleOptions: [],
+      makerOptions: [], dealerOptions: [],
       notes:           data.rawText
                        ? `OCR 生テキスト（先頭300字）:\n${data.rawText.slice(0, 300)}`
                        : '',

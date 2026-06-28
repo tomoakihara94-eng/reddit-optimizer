@@ -237,12 +237,16 @@ ${GRADE_REFERENCE}
   "grade": "グレード（バッジ・ロゴ・装備水準から判断。例: Si W×B III / Z / HYBRID Z）",
   "equipment": [
     "写真から視覚的に確認できた装備のみ列挙（カーセンサー・グーネット公式名称）",
-    "目視確認できないものは equipment に含めず possibleOptions へ分類すること"
+    "標準装備でも視覚確認できたものは含めてよい。不確かなものは末尾に（推測）"
   ],
-  "possibleOptions": [
-    "このグレード・年式で有料メーカーオプションとして設定可能だが写真では確認できなかった装備を最大8個",
-    "カーセンサー公式名称で列挙。不明・該当なしの場合は空配列",
-    "例: ブラインドスポットモニター、パノラマモニター、アダプティブハイビームシステム"
+  "makerOptions": [
+    "このグレードで工場オーダー時に追加できるメーカーオプション（有償）を最大6個",
+    "標準装備は絶対に含めないこと。不明・該当なしの場合は空配列",
+    "例: ブラインドスポットモニター、パノラマモニター（全周囲カメラ）、シートエアコン（ベンチレーション）"
+  ],
+  "dealerOptions": [
+    "販社が後付けするディーラーオプションを最大6個。不明・該当なしは空配列",
+    "例: ETC2.0、ドライブレコーダー（前後）、カーナビ、フロアマット、ドアバイザー"
   ],
   "notes": "読み取り精度・不明点・追加写真が必要な箇所の説明"
 }`;
@@ -295,8 +299,9 @@ export class ClaudeOcrProvider implements OcrProvider {
       trimCode:      String(parsed.trimCode ?? ''),
       year:          String(parsed.year ?? ''),
       grade:         String(parsed.grade ?? ''),
-      equipment:       Array.isArray(parsed.equipment)       ? parsed.equipment.map(String)       : [],
-      possibleOptions: Array.isArray(parsed.possibleOptions) ? parsed.possibleOptions.map(String) : [],
+      equipment:     Array.isArray(parsed.equipment)    ? parsed.equipment.map(String)    : [],
+      makerOptions:  Array.isArray(parsed.makerOptions)  ? parsed.makerOptions.map(String)  : [],
+      dealerOptions: Array.isArray(parsed.dealerOptions) ? parsed.dealerOptions.map(String) : [],
       notes:           String(parsed.notes ?? ''),
       provider:      this.name,
     };

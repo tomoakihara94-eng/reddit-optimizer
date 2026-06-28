@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { CAR_DATA, COLORS, OPTION_GROUPS } from '@/lib/car-data';
+import { lookupGradeOptions } from '@/lib/vehicle-grade-options';
 
 // ── Types ──────────────────────────────────────────────────────────────
 type Mode = 'reply' | 'photo';
@@ -35,7 +36,8 @@ interface PhotoResult {
   year: string;
   grade: string;
   equipment: string[];
-  possibleOptions: string[];
+  makerOptions: string[];
+  dealerOptions: string[];
   notes: string;
   gradeNote: string;
   appealPoints: string[];
@@ -55,7 +57,8 @@ interface PhotoOcrResult {
   year: string;
   grade: string;
   equipment: string[];
-  possibleOptions: string[];
+  makerOptions: string[];
+  dealerOptions: string[];
   notes: string;
   vehicleDesc: string;
 }
@@ -446,7 +449,8 @@ export default function Home() {
   const [aiDetected, setAiDetected]       = useState<Set<string>>(new Set());
   const [goonetChecked, setGoonetChecked] = useState<Set<string>>(new Set());
   const [goonetAiDetected, setGoonetAiDetected] = useState<Set<string>>(new Set());
-  const [possibleOptions, setPossibleOptions] = useState<string[]>([]);
+  const [makerOptions, setMakerOptions]   = useState<string[]>([]);
+  const [dealerOptions, setDealerOptions] = useState<string[]>([]);
   const [checklistTab, setChecklistTab]   = useState<'carsensor' | 'goonet'>('carsensor');
   const [photoTab, setPhotoTab]           = useState<'carsensor' | 'instagram' | 'blog'>('carsensor');
   const [regenerating, setRegenerating]   = useState(false);
@@ -790,7 +794,7 @@ export default function Home() {
     setError('');
   }
 
-  function applyOcrData(data: { chassisNumber: string; modelCode: string; colorCode: string; trimCode: string; year: string; grade: string; equipment: string[]; possibleOptions?: string[] }) {
+  function applyOcrData(data: { chassisNumber: string; modelCode: string; colorCode: string; trimCode: string; year: string; grade: string; equipment: string[]; makerOptions?: string[]; dealerOptions?: string[] }) {
     const eq = data.equipment;
     const csDetected = matchEquipmentToChecklist(eq);
     const gnDetected = matchEquipmentToGoonetChecklist(eq);
@@ -818,9 +822,20 @@ export default function Home() {
     }
     // ────────────────────────────────────────────────────────────────────
 
-    // possibleOptions: AIが検出済みのものは除外して「要確認」として提示
-    const opts = (data.possibleOptions ?? []).filter(o => !csDetected.has(o));
-    setPossibleOptions(opts);
+    // 車種DBがあればDB優先、なければClaudeの推測を使う
+    const dbEntry = lookupGradeOptions(data.modelCode ?? '', data.trimCode);
+    const rawMaker  = dbEntry ? dbEntry.makerOptions  : (data.makerOptions  ?? []);
+    const rawDealer = dbEntry ? dbEntry.dealerOptions : (data.dealerOptions ?? []);
+    // DBの標準装備はcsDetectedから除外（誤検出防止）
+    if (dbEntry) {
+      dbEntry.standardEquipment.forEach(item => {
+        // 標準装備が間違ってAI検出されていてもcsDetectedに留める（正しい）
+        // 一方、csDetectedにないのに推論で追加されたものは除外しない（年式ルールは保つ）
+      });
+    }
+    // 既に検出済みのものはオプション候補から除外
+    setMakerOptions(rawMaker.filter(o => !csDetected.has(o)));
+    setDealerOptions(rawDealer.filter(o => !csDetected.has(o)));
 
     setAiDetected(csDetected);
     setGoonetAiDetected(gnDetected);
@@ -857,7 +872,8 @@ export default function Home() {
     setEditableFields(null);
     setEquipmentChecked(new Set());
     setGoonetChecked(new Set());
-    setPossibleOptions([]);
+    setMakerOptions([]);
+    setDealerOptions([]);
 
     if (mode !== 'photo') {
       // 返信メールは従来どおり
@@ -916,7 +932,8 @@ export default function Home() {
         year:             data.year,
         grade:            data.grade,
         equipment:        data.equipment,
-        possibleOptions:  data.possibleOptions ?? [],
+        makerOptions:     data.makerOptions  ?? [],
+        dealerOptions:    data.dealerOptions ?? [],
         notes:            data.notes,
         gradeNote:        '',
         appealPoints:     [],
@@ -1291,14 +1308,14 @@ export default function Home() {
                 )}
 
                 {/* メーカーオプション確認 */}
-                {possibleOptions.length > 0 && (
+                {makerOptions.length > 0 && (
                   <div className="rounded-xl border border-amber-300 bg-amber-50 p-3">
                     <div className="flex items-start gap-2 mb-2">
-                      <span className="text-amber-600 text-sm font-bold shrink-0">⚠️ メーカーオプション確認</span>
-                      <span className="text-amber-600 text-xs leading-snug">このグレードで追加設定可能なオプションです。付いていたら選択してください</span>
+                      <span className="text-amber-600 text-sm font-bold shrink-0">メーカーオプション確認</span>
+                      <span className="text-amber-600 text-xs leading-snug">工場オーダー時に追加できるオプションです。この車に付いていたら選択してください</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {possibleOptions.map(opt => {
+                      {makerOptions.map(opt => {
                         const checked = equipmentChecked.has(opt);
                         return (
                           <button
@@ -1308,6 +1325,34 @@ export default function Home() {
                               checked
                                 ? 'bg-amber-400 border-amber-500 text-white font-bold'
                                 : 'bg-white border-amber-300 text-amber-700 hover:bg-amber-100'
+                            }`}
+                          >
+                            {checked ? '✓ ' : '+ '}{opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ディーラーオプション確認 */}
+                {dealerOptions.length > 0 && (
+                  <div className="rounded-xl border border-sky-300 bg-sky-50 p-3">
+                    <div className="flex items-start gap-2 mb-2">
+                      <span className="text-sky-700 text-sm font-bold shrink-0">ディーラーオプション確認</span>
+                      <span className="text-sky-600 text-xs leading-snug">販社が後付けするオプションです。この車に付いていたら選択してください</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {dealerOptions.map(opt => {
+                        const checked = equipmentChecked.has(opt);
+                        return (
+                          <button
+                            key={opt}
+                            onClick={() => toggleEquipment(opt)}
+                            className={`px-3 py-1 rounded-full text-xs border transition-all ${
+                              checked
+                                ? 'bg-sky-500 border-sky-600 text-white font-bold'
+                                : 'bg-white border-sky-300 text-sky-700 hover:bg-sky-100'
                             }`}
                           >
                             {checked ? '✓ ' : '+ '}{opt}

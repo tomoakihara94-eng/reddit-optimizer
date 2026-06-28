@@ -14,9 +14,10 @@ export interface VehicleOcrResult {
   trimCode: string;      // トリムコード
   year: string;          // 年式
   grade: string;         // グレード
-  equipment: string[];        // 読み取れた装備リスト（視覚確認済み）
-  possibleOptions: string[];  // グレード推定によるメーカーオプション候補（要確認）
-  notes: string;              // 備考・精度コメント
+  equipment: string[];     // 読み取れた装備リスト（視覚確認済み）
+  makerOptions: string[];  // メーカーオプション候補（要確認）
+  dealerOptions: string[]; // ディーラーオプション候補（要確認）
+  notes: string;           // 備考・精度コメント
   provider: string;      // 使用したプロバイダー名（UI表示用）
 }
 
