@@ -138,6 +138,48 @@ const CAR_TYPES = {
 
 type CarTypeKey = keyof typeof CAR_TYPES;
 
+// ── 在庫おすすめリンク ────────────────────────────────────────────────────────
+const BASE = 'https://www.ecar.co.jp';
+const makerUrl = (maker: string) => `${BASE}/maker_${maker}/model_0/type_0/price_0_1/car.html`;
+
+const RECOMMENDATIONS: Record<CarTypeKey, { name: string; maker: string; url: string }[]> = {
+  'family-minivan': [
+    { name: 'ヴォクシー / ノア',  maker: 'トヨタ',   url: makerUrl('toyota') },
+    { name: 'セレナ',             maker: '日産',     url: makerUrl('nissan') },
+    { name: 'フリード',           maker: 'ホンダ',   url: makerUrl('honda')  },
+  ],
+  'premium-minivan': [
+    { name: 'アルファード / ヴェルファイア', maker: 'トヨタ', url: makerUrl('toyota') },
+    { name: 'エルグランド',       maker: '日産',     url: makerUrl('nissan') },
+    { name: 'オデッセイ',         maker: 'ホンダ',   url: makerUrl('honda')  },
+  ],
+  'suv': [
+    { name: 'RAV4',               maker: 'トヨタ',   url: makerUrl('toyota')  },
+    { name: 'フォレスター',       maker: 'スバル',   url: makerUrl('subaru')  },
+    { name: 'CX-5',               maker: 'マツダ',   url: makerUrl('mazda')   },
+  ],
+  'premium-suv': [
+    { name: 'ハリアー',           maker: 'トヨタ',   url: makerUrl('toyota') },
+    { name: 'CX-60',              maker: 'マツダ',   url: makerUrl('mazda')  },
+    { name: 'アウトバック',       maker: 'スバル',   url: makerUrl('subaru') },
+  ],
+  'eco-hybrid': [
+    { name: 'プリウス / アクア',  maker: 'トヨタ',   url: makerUrl('toyota') },
+    { name: 'ノートe-POWER',      maker: '日産',     url: makerUrl('nissan') },
+    { name: 'フィットe:HEV',      maker: 'ホンダ',   url: makerUrl('honda')  },
+  ],
+  'compact': [
+    { name: 'ヤリス',             maker: 'トヨタ',   url: makerUrl('toyota') },
+    { name: 'フィット',           maker: 'ホンダ',   url: makerUrl('honda')  },
+    { name: 'スイフト',           maker: 'スズキ',   url: makerUrl('suzuki') },
+  ],
+  'light': [
+    { name: 'N-BOX',              maker: 'ホンダ',   url: makerUrl('honda')     },
+    { name: 'タント',             maker: 'ダイハツ', url: makerUrl('daihatsu')  },
+    { name: 'スペーシア',         maker: 'スズキ',   url: makerUrl('suzuki')    },
+  ],
+};
+
 // ── 診断ロジック ──────────────────────────────────────────────────────────────
 function calcCarType(answers: string[]): CarTypeKey {
   const [family, people, weekend, parking, budget, priority] = answers;
@@ -290,6 +332,29 @@ export default function DiagnosisPage() {
             <div className="flex flex-wrap gap-2">
               {carType.models.map(m => (
                 <span key={m} className={`px-3 py-1 rounded-full text-xs font-medium ${carType.badge}`}>{m}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* 在庫へのリンク */}
+          <div className="bg-white rounded-3xl shadow-sm p-6 mb-4">
+            <h3 className="font-bold text-gray-800 mb-0.5">在庫から探す</h3>
+            <p className="text-xs text-gray-400 mb-3">このタイプにおすすめの在庫はこちら</p>
+            <div className="space-y-2">
+              {RECOMMENDATIONS[typeKey!].map((rec, i) => (
+                <a
+                  key={i}
+                  href={rec.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-3.5 rounded-2xl border border-gray-100 hover:border-blue-300 hover:bg-blue-50 active:bg-blue-100 transition-all group"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800 group-hover:text-blue-700">{rec.name}</p>
+                    <p className="text-xs text-gray-400">{rec.maker}</p>
+                  </div>
+                  <span className="text-blue-400 text-lg">›</span>
+                </a>
               ))}
             </div>
           </div>
