@@ -140,43 +140,44 @@ type CarTypeKey = keyof typeof CAR_TYPES;
 
 // ── 在庫おすすめリンク ────────────────────────────────────────────────────────
 const BASE = 'https://www.ecar.co.jp';
-const makerUrl = (maker: string) => `${BASE}/maker_${maker}/model_0/type_0/price_0_1/car.html`;
+const modelUrl = (maker: string, model: string) =>
+  `${BASE}/maker_${maker}/model_${model}/type_0/price_0_1/car.html`;
 
 const RECOMMENDATIONS: Record<CarTypeKey, { name: string; maker: string; url: string }[]> = {
   'family-minivan': [
-    { name: 'ヴォクシー / ノア',  maker: 'トヨタ',   url: makerUrl('toyota') },
-    { name: 'セレナ',             maker: '日産',     url: makerUrl('nissan') },
-    { name: 'フリード',           maker: 'ホンダ',   url: makerUrl('honda')  },
+    { name: 'ヴォクシー',     maker: 'トヨタ',   url: modelUrl('toyota',   'voxy')     },
+    { name: 'セレナ',         maker: '日産',     url: modelUrl('nissan',   'serena')   },
+    { name: 'フリード',       maker: 'ホンダ',   url: modelUrl('honda',    'freed')    },
   ],
   'premium-minivan': [
-    { name: 'アルファード / ヴェルファイア', maker: 'トヨタ', url: makerUrl('toyota') },
-    { name: 'エルグランド',       maker: '日産',     url: makerUrl('nissan') },
-    { name: 'オデッセイ',         maker: 'ホンダ',   url: makerUrl('honda')  },
+    { name: 'アルファード',   maker: 'トヨタ',   url: modelUrl('toyota',   'alphard')  },
+    { name: 'ヴェルファイア', maker: 'トヨタ',   url: modelUrl('toyota',   'vellfire') },
+    { name: 'エルグランド',   maker: '日産',     url: modelUrl('nissan',   'elgrand')  },
   ],
   'suv': [
-    { name: 'RAV4',               maker: 'トヨタ',   url: makerUrl('toyota')  },
-    { name: 'フォレスター',       maker: 'スバル',   url: makerUrl('subaru')  },
-    { name: 'CX-5',               maker: 'マツダ',   url: makerUrl('mazda')   },
+    { name: 'RAV4',           maker: 'トヨタ',   url: modelUrl('toyota',   'rav4')     },
+    { name: 'フォレスター',   maker: 'スバル',   url: modelUrl('subaru',   'forester') },
+    { name: 'CX-5',           maker: 'マツダ',   url: modelUrl('mazda',    'cx5')      },
   ],
   'premium-suv': [
-    { name: 'ハリアー',           maker: 'トヨタ',   url: makerUrl('toyota') },
-    { name: 'CX-60',              maker: 'マツダ',   url: makerUrl('mazda')  },
-    { name: 'アウトバック',       maker: 'スバル',   url: makerUrl('subaru') },
+    { name: 'ハリアー',       maker: 'トヨタ',   url: modelUrl('toyota',   'harrier')  },
+    { name: 'CX-60',          maker: 'マツダ',   url: modelUrl('mazda',    'cx60')     },
+    { name: 'フォレスター',   maker: 'スバル',   url: modelUrl('subaru',   'forester') },
   ],
   'eco-hybrid': [
-    { name: 'プリウス / アクア',  maker: 'トヨタ',   url: makerUrl('toyota') },
-    { name: 'ノートe-POWER',      maker: '日産',     url: makerUrl('nissan') },
-    { name: 'フィットe:HEV',      maker: 'ホンダ',   url: makerUrl('honda')  },
+    { name: 'プリウス',       maker: 'トヨタ',   url: modelUrl('toyota',   'prius')    },
+    { name: 'アクア',         maker: 'トヨタ',   url: modelUrl('toyota',   'aqua')     },
+    { name: 'ノート',         maker: '日産',     url: modelUrl('nissan',   'note')     },
   ],
   'compact': [
-    { name: 'ヤリス',             maker: 'トヨタ',   url: makerUrl('toyota') },
-    { name: 'フィット',           maker: 'ホンダ',   url: makerUrl('honda')  },
-    { name: 'スイフト',           maker: 'スズキ',   url: makerUrl('suzuki') },
+    { name: 'ヤリスクロス',   maker: 'トヨタ',   url: modelUrl('toyota',   'yariscross') },
+    { name: 'フィット',       maker: 'ホンダ',   url: modelUrl('honda',    'fit')        },
+    { name: 'スイフト',       maker: 'スズキ',   url: modelUrl('suzuki',   'swift')      },
   ],
   'light': [
-    { name: 'N-BOX',              maker: 'ホンダ',   url: makerUrl('honda')     },
-    { name: 'タント',             maker: 'ダイハツ', url: makerUrl('daihatsu')  },
-    { name: 'スペーシア',         maker: 'スズキ',   url: makerUrl('suzuki')    },
+    { name: 'N-BOX',          maker: 'ホンダ',   url: modelUrl('honda',    'nbox')     },
+    { name: 'タント',         maker: 'ダイハツ', url: modelUrl('daihatsu', 'tanto')    },
+    { name: 'スペーシア',     maker: 'スズキ',   url: modelUrl('suzuki',   'spacia')   },
   ],
 };
 
