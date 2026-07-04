@@ -6,46 +6,141 @@ export type Axis = 'fs' | 'uo' | 'ep' | 'cw';
 export interface Question {
   axis: Axis;
   question: string;
-  options: [{ label: string; emoji: string }, { label: string; emoji: string }];
+  // 選択肢は 0→A強 / 1→A弱 / 2→B弱 / 3→B強 の順で配置
+  options: { label: string; emoji: string }[];
 }
 
+// ── スコアリング設計 ──────────────────────────────────────────────────────
+// 各選択肢の index がそのままスコア (0〜3)
+// 軸ごとに3問 × 最大3点 = 最大9点
+// 合計 0〜4 → A極 (F/U/E/C) ／ 5〜9 → B極 (S/O/P/W)
+// ──────────────────────────────────────────────────────────────────────────
+
 export const QUESTIONS: Question[] = [
-  { axis: 'fs', question: '家族・同乗者について教えてください',
-    options: [{ label: '子どもや家族と一緒に乗ることが多い', emoji: '👨‍👩‍👧‍👦' },
-              { label: '一人か、パートナーと二人が多い',     emoji: '👤' }] },
-  { axis: 'fs', question: '車内空間に求めることは？',
-    options: [{ label: 'みんながゆったり乗れる広さ', emoji: '🚌' },
-              { label: '自分好みの快適な空間',       emoji: '🎵' }] },
-  { axis: 'fs', question: '乗る人数で選ぶとしたら？',
-    options: [{ label: '3人以上乗れることが必須', emoji: '👪' },
-              { label: '1〜2人乗れれば十分',       emoji: '🙋' }] },
-  { axis: 'uo', question: '週末はどこへ行くことが多い？',
-    options: [{ label: 'ショッピング・外食・街なか',   emoji: '🛒' },
-              { label: 'キャンプ・山・海・アウトドア', emoji: '🏕️' }] },
-  { axis: 'uo', question: 'よく走る道は？',
-    options: [{ label: '市街地・幹線道路がメイン', emoji: '🏙️' },
-              { label: '山道・郊外・田舎道も走る', emoji: '🌲' }] },
-  { axis: 'uo', question: '荷物の積み方について',
-    options: [{ label: '普段の買い物袋が入ればOK', emoji: '🛍️' },
-              { label: 'テントや道具を積みたい',   emoji: '⛺' }] },
-  { axis: 'ep', question: '車にかける予算の考え方は？',
-    options: [{ label: 'コスパ重視・維持費も抑えたい',    emoji: '💴' },
-              { label: 'いい車ならお金をかけてもいい',    emoji: '💎' }] },
-  { axis: 'ep', question: '車のデザインへのこだわりは？',
-    options: [{ label: '実用性があれば見た目は二の次',       emoji: '🔧' },
-              { label: 'デザインも重要、外見にこだわりたい', emoji: '✨' }] },
-  { axis: 'ep', question: '燃費・税金などランニングコストは？',
-    options: [{ label: 'できるだけ安く抑えたい', emoji: '🌿' },
-              { label: 'あまり気にしない',         emoji: '🌟' }] },
-  { axis: 'cw', question: '駐車場の広さは？',
-    options: [{ label: '狭め、小回りが効く車がいい', emoji: '🅿️' },
-              { label: '広め、大型でも問題なし',     emoji: '🏟️' }] },
-  { axis: 'cw', question: '高速道路はよく使いますか？',
-    options: [{ label: 'ほとんど使わない・近場メイン',   emoji: '🏘️' },
-              { label: '長距離ドライブ・高速もよく使う', emoji: '🛣️' }] },
-  { axis: 'cw', question: '車内の広さについて',
-    options: [{ label: 'コンパクトで取り回しやすい方が好き', emoji: '🚗' },
-              { label: 'ゆったりした広い車内がいい',         emoji: '🛋️' }] },
+  // ── F/S 軸 ──────────────────────────────────────────────────────
+  {
+    axis: 'fs',
+    question: '車に同乗する人は主に誰ですか？',
+    options: [
+      { emoji: '👨‍👩‍👧‍👦', label: '子どもを含む家族全員で乗ることが多い' },
+      { emoji: '👪',       label: '家族と乗るが、一人での移動もある' },
+      { emoji: '👫',       label: 'パートナーや友人と二人が中心' },
+      { emoji: '👤',       label: 'ほぼ一人で乗ることがほとんど' },
+    ],
+  },
+  {
+    axis: 'fs',
+    question: '車内空間に一番求めることは？',
+    options: [
+      { emoji: '🚌', label: '後部座席の広さと家族全員の快適さ' },
+      { emoji: '🪑', label: 'みんなが使いやすい実用的な設計' },
+      { emoji: '🎵', label: '運転しやすく、自分が快適な空間' },
+      { emoji: '⚡', label: 'ドライビングの楽しさや個性的な内装' },
+    ],
+  },
+  {
+    axis: 'fs',
+    question: '必要な乗車定員は？',
+    options: [
+      { emoji: '🧒', label: '7人以上乗れることが理想' },
+      { emoji: '👨‍👩‍👧', label: '5〜6人はしっかり乗れてほしい' },
+      { emoji: '👫', label: '3〜4人乗れれば問題ない' },
+      { emoji: '🙋', label: '1〜2人乗れれば十分' },
+    ],
+  },
+  // ── U/O 軸 ──────────────────────────────────────────────────────
+  {
+    axis: 'uo',
+    question: '主に走る場所・道路環境は？',
+    options: [
+      { emoji: '🏙️', label: '市街地・住宅地・幹線道路がほとんど' },
+      { emoji: '🛒', label: '街中が中心だが、たまに郊外も走る' },
+      { emoji: '🌳', label: '郊外・田舎道・ドライブルートが多い' },
+      { emoji: '⛰️', label: '山道・砂利道・キャンプ地など自然の中' },
+    ],
+  },
+  {
+    axis: 'uo',
+    question: '週末の過ごし方に近いのは？',
+    options: [
+      { emoji: '🛍️', label: '地元でショッピング・外食・映画など' },
+      { emoji: '🚗', label: '近〜中距離のドライブや観光スポット' },
+      { emoji: '🏖️', label: '自然豊かな場所でゆっくり過ごす' },
+      { emoji: '🏕️', label: 'キャンプ・釣り・登山など本格アウトドア' },
+    ],
+  },
+  {
+    axis: 'uo',
+    question: '荷物の積み込みについて、実態に近いのは？',
+    options: [
+      { emoji: '🛍️', label: '普段の買い物袋や小物が入れば十分' },
+      { emoji: '🧳', label: '旅行バッグや大きめの荷物も載せたい' },
+      { emoji: '🪑', label: 'アウトドアチェアやBBQ道具も積みたい' },
+      { emoji: '⛺', label: 'テント・クーラーなど大量の道具を積む' },
+    ],
+  },
+  // ── E/P 軸 ──────────────────────────────────────────────────────
+  {
+    axis: 'ep',
+    question: '車の購入・維持費に対する考え方は？',
+    options: [
+      { emoji: '💴', label: 'とにかく安く抑えたい、コスパ最優先' },
+      { emoji: '💰', label: 'コスパ重視だが、ある程度は出せる' },
+      { emoji: '💳', label: '品質・装備が良ければ多少高くても構わない' },
+      { emoji: '💎', label: '良い車なら費用はあまり気にしない' },
+    ],
+  },
+  {
+    axis: 'ep',
+    question: 'デザイン・スタイルへのこだわりは？',
+    options: [
+      { emoji: '🔧', label: '実用的であれば外見はまったく気にしない' },
+      { emoji: '👌', label: 'シンプルで清潔感があれば十分' },
+      { emoji: '✨', label: 'かっこいい・かわいいデザインを選びたい' },
+      { emoji: '👑', label: 'デザインや高級感に強くこだわる' },
+    ],
+  },
+  {
+    axis: 'ep',
+    question: '燃費・税金・保険などの維持コストは？',
+    options: [
+      { emoji: '🌿', label: '燃費最優先、毎月の出費を極力減らしたい' },
+      { emoji: '📊', label: '節約を意識しつつ、バランスを取りたい' },
+      { emoji: '🙆', label: '快適さのためなら多少のコスト増は許容できる' },
+      { emoji: '🌟', label: 'コストより乗り心地やブランドを優先する' },
+    ],
+  },
+  // ── C/W 軸 ──────────────────────────────────────────────────────
+  {
+    axis: 'cw',
+    question: '普段よく使う駐車場の環境は？',
+    options: [
+      { emoji: '🅿️', label: '機械式・縦列・狭小など制約が多い' },
+      { emoji: '🏘️', label: '一般的な平置き、特別広くはない' },
+      { emoji: '🏪', label: '広めのモール・ロードサイド店が多い' },
+      { emoji: '🏟️', label: '広大なスペースで、サイズを気にしない' },
+    ],
+  },
+  {
+    axis: 'cw',
+    question: '高速道路や長距離ドライブの頻度は？',
+    options: [
+      { emoji: '🏘️', label: 'ほぼ使わない・近場の移動のみ' },
+      { emoji: '🗓️', label: '月に1〜2回程度、たまに使う' },
+      { emoji: '🛣️', label: '週に1〜2回、中〜長距離を走る' },
+      { emoji: '✈️', label: 'ほぼ毎週、長距離・高速ドライブをする' },
+    ],
+  },
+  {
+    axis: 'cw',
+    question: '理想の車のサイズ感は？',
+    options: [
+      { emoji: '🤏', label: 'コンパクトで街中の小回りが最優先' },
+      { emoji: '📦', label: 'やや小さめだが積載力もある使い勝手重視' },
+      { emoji: '📐', label: 'ゆとりある中〜大型で快適な乗り心地' },
+      { emoji: '🚐', label: '広くて存在感のある大型の車が好き' },
+    ],
+  },
 ];
 
 export interface CarType16 {
@@ -263,11 +358,14 @@ export const GROUPS = [
 
 export function calcType16(answers: number[]): string {
   const score = { fs: 0, uo: 0, ep: 0, cw: 0 };
-  QUESTIONS.forEach((q, i) => { if (answers[i] === 0) score[q.axis]++; });
+  // answers[i] は選択肢 index (0〜3) をそのまま加算
+  // 0=A強 / 1=A弱 / 2=B弱 / 3=B強
+  // 3問×最大3点 = 最大9点。5点以上でB極。
+  QUESTIONS.forEach((q, i) => { if (i < answers.length) score[q.axis] += answers[i]; });
   return [
-    score.fs >= 2 ? 'F' : 'S',
-    score.uo >= 2 ? 'U' : 'O',
-    score.ep >= 2 ? 'E' : 'P',
-    score.cw >= 2 ? 'C' : 'W',
+    score.fs <= 4 ? 'F' : 'S',
+    score.uo <= 4 ? 'U' : 'O',
+    score.ep <= 4 ? 'E' : 'P',
+    score.cw <= 4 ? 'C' : 'W',
   ].join('');
 }

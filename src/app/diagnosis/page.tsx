@@ -38,7 +38,7 @@ export default function DiagnosisPage() {
   const typeCode = step === 'result' ? calcType16(answers) : null;
   const carType  = typeCode ? CAR_TYPES_16[typeCode] : null;
 
-  function select(val: 0 | 1) {
+  function select(val: number) {
     const next = [...answers, val];
     setAnswers(next);
     const nextIdx = (step as number) + 1;
@@ -141,14 +141,14 @@ export default function DiagnosisPage() {
               <h2 className="text-[1.25rem] font-bold text-slate-900 mt-2.5 leading-snug">{currentQ.question}</h2>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               {currentQ.options.map((opt, i) => (
                 <button
                   key={i}
-                  onClick={() => select(i as 0 | 1)}
-                  className="w-full flex items-center gap-4 p-4 rounded-2xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 active:scale-[0.97] text-left transition-all duration-200 group bg-white/60"
+                  onClick={() => select(i)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 active:scale-[0.97] text-left transition-all duration-200 group bg-white/60"
                 >
-                  <span className="text-2xl shrink-0">{opt.emoji}</span>
+                  <span className="text-xl shrink-0">{opt.emoji}</span>
                   <span className="text-sm text-slate-600 group-hover:text-indigo-700 transition-colors leading-snug">
                     {opt.label}
                   </span>
