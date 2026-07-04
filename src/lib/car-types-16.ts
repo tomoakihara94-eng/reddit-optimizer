@@ -1,6 +1,6 @@
-import type { CarBody } from '@/components/CarIllustration';
+import type { CarBody, PassengerType } from '@/components/CarIllustration';
 
-export type { CarBody };
+export type { CarBody, PassengerType };
 export type Axis = 'fs' | 'uo' | 'ep' | 'cw';
 
 export interface Question {
@@ -155,6 +155,7 @@ export interface CarType16 {
   cardBg: string;
   body: CarBody;
   illustColor: string;
+  passengers: PassengerType;
 }
 
 const B = 'https://www.ecar.co.jp';
@@ -164,7 +165,7 @@ const mu = (maker: string, model: string) =>
 export const CAR_TYPES_16: Record<string, CarType16> = {
   // ── Family × Urban ────────────────────────────────────────────────────
   FUEC: {
-    code: 'FUEC', body: 'hatchback', illustColor: '#60a5fa',
+    code: 'FUEC', body: 'hatchback', illustColor: '#60a5fa', passengers: 'family',
     name: '街の頼れるファミリーカー型', emoji: '🚗',
     tagline: 'コスパ最強、家族みんな笑顔で移動',
     description: '毎日の送り迎えや買い物に大活躍。小回りが効いて燃費もよく、家族全員が快適に乗れるコンパクトミニバンが最適です。',
@@ -176,7 +177,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
     cardBg: 'bg-blue-50 hover:bg-blue-100 border-blue-200',
   },
   FUEW: {
-    code: 'FUEW', body: 'minivan', illustColor: '#3b82f6',
+    code: 'FUEW', body: 'minivan', illustColor: '#3b82f6', passengers: 'family',
     name: '家族の大黒柱ミニバン型', emoji: '🚐',
     tagline: '乗り心地も広さも、家族第一',
     description: 'スライドドアの使いやすさと広い車内が魅力。チャイルドシートもしっかり設置できる、ファミリーの定番ミニバンが理想です。',
@@ -188,7 +189,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
     cardBg: 'bg-blue-50 hover:bg-blue-100 border-blue-200',
   },
   FUPC: {
-    code: 'FUPC', body: 'hatchback', illustColor: '#8b5cf6',
+    code: 'FUPC', body: 'hatchback', illustColor: '#8b5cf6', passengers: 'family',
     name: 'おしゃれファミリー型', emoji: '✨',
     tagline: 'デザインも諦めない、かっこいいパパ・ママ',
     description: '家族との移動もスタイリッシュに。実用性とデザイン性を両立した、街で映えるコンパクトファミリーカーが似合います。',
@@ -199,7 +200,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
     cardBg: 'bg-violet-50 hover:bg-violet-100 border-violet-200',
   },
   FUPW: {
-    code: 'FUPW', body: 'luxury-van', illustColor: '#7c3aed',
+    code: 'FUPW', body: 'luxury-van', illustColor: '#7c3aed', passengers: 'vip',
     name: 'VIPファミリー型', emoji: '👑',
     tagline: '家族への最高のプレゼントは、最上級の移動空間',
     description: '広くて豪華な車内で家族全員をVIP待遇に。品格あるプレミアムミニバンがあなたのファミリーライフを格上げします。',
@@ -211,7 +212,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
   },
   // ── Family × Outdoor ──────────────────────────────────────────────────
   FOEC: {
-    code: 'FOEC', body: 'suv', illustColor: '#34d399',
+    code: 'FOEC', body: 'suv', illustColor: '#34d399', passengers: 'family',
     name: 'みんなでアウトドア型', emoji: '🌲',
     tagline: 'キャンプも遠足も、家族みんなで行こう',
     description: '週末は家族でアウトドアへ。荷物もしっかり積めて燃費もよい、頼りになるコンパクトSUVが家族の冒険を支えます。',
@@ -223,7 +224,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
     cardBg: 'bg-green-50 hover:bg-green-100 border-green-200',
   },
   FOEW: {
-    code: 'FOEW', body: 'minivan', illustColor: '#10b981',
+    code: 'FOEW', body: 'minivan', illustColor: '#10b981', passengers: 'family',
     name: '冒険する大家族型', emoji: '🏕️',
     tagline: 'どこへでも行ける、家族の冒険基地',
     description: 'キャンプ道具を積んで、家族全員でアウトドアへ。広い荷室と4WDの頼もしさで、大家族の冒険を完全サポートします。',
@@ -234,7 +235,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
     cardBg: 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200',
   },
   FOPC: {
-    code: 'FOPC', body: 'suv', illustColor: '#f97316',
+    code: 'FOPC', body: 'suv', illustColor: '#f97316', passengers: 'couple',
     name: 'かっこいいアウトドアファミリー型', emoji: '🦁',
     tagline: 'スタイルも、自然も、両方手に入れる',
     description: 'デザインにこだわりながら、家族でアウトドアも楽しみたい。スタイリッシュなSUVが休日をもっとかっこよくしてくれます。',
@@ -245,7 +246,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
     cardBg: 'bg-orange-50 hover:bg-orange-100 border-orange-200',
   },
   FOPW: {
-    code: 'FOPW', body: 'suv', illustColor: '#ea580c',
+    code: 'FOPW', body: 'suv', illustColor: '#ea580c', passengers: 'couple',
     name: '贅沢アウトドアファミリー型', emoji: '🏔️',
     tagline: '最高の自然を、最高の車で体感する',
     description: '大人数でアウトドアに行っても快適さは妥協しない。広くて上質なプレミアムSUVが、家族の贅沢な冒険を演出します。',
@@ -257,7 +258,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
   },
   // ── Solo × Urban ──────────────────────────────────────────────────────
   SUEC: {
-    code: 'SUEC', body: 'hatchback', illustColor: '#2dd4bf',
+    code: 'SUEC', body: 'hatchback', illustColor: '#2dd4bf', passengers: 'solo',
     name: 'スマートシティドライバー型', emoji: '🌿',
     tagline: '賢く乗って、毎日をもっとお得に',
     description: '街乗りで燃費を最大限活かすスマートな選択。コンパクトで小回りが効いて、駐車も楽なエコカーが毎日の相棒になります。',
@@ -269,7 +270,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
     cardBg: 'bg-teal-50 hover:bg-teal-100 border-teal-200',
   },
   SUEW: {
-    code: 'SUEW', body: 'sedan', illustColor: '#06b6d4',
+    code: 'SUEW', body: 'sedan', illustColor: '#06b6d4', passengers: 'solo',
     name: 'エコ通勤エース型', emoji: '🚀',
     tagline: '毎日の通勤を、最もかしこく快適に',
     description: '長距離通勤でも燃費が気にならない。ゆとりある車内と低燃費を両立したハイブリッドセダンが、日々の通勤を快適にします。',
@@ -280,7 +281,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
     cardBg: 'bg-cyan-50 hover:bg-cyan-100 border-cyan-200',
   },
   SUPC: {
-    code: 'SUPC', body: 'sports', illustColor: '#f43f5e',
+    code: 'SUPC', body: 'sports', illustColor: '#f43f5e', passengers: 'solo',
     name: '走りを極めるシティドライバー型', emoji: '⚡',
     tagline: '街中でも、ドライブは本気で楽しむ',
     description: 'コンパクトでも走りに妥協しない。スポーティなデザインと軽快なハンドリングで、毎日の運転が楽しくなる一台です。',
@@ -292,7 +293,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
     cardBg: 'bg-rose-50 hover:bg-rose-100 border-rose-200',
   },
   SUPW: {
-    code: 'SUPW', body: 'sedan', illustColor: '#eab308',
+    code: 'SUPW', body: 'sedan', illustColor: '#eab308', passengers: 'couple',
     name: '大人の余裕セダン型', emoji: '🌟',
     tagline: '上質な移動が、あなたのステータスを語る',
     description: '乗り心地、デザイン、存在感——すべてにこだわるあなたへ。余裕のある大人のためのプレミアムセダンが理想です。',
@@ -304,7 +305,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
   },
   // ── Solo × Outdoor ────────────────────────────────────────────────────
   SOEC: {
-    code: 'SOEC', body: 'kei', illustColor: '#78716c',
+    code: 'SOEC', body: 'kei', illustColor: '#78716c', passengers: 'solo',
     name: '孤高の冒険者型', emoji: '🗻',
     tagline: '一人でどこまでも、自分の道を行く',
     description: '行き先は自分で決める。どんな悪路もへっちゃらなコンパクトオフローダーで、誰も知らない絶景を目指しましょう。',
@@ -315,7 +316,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
     cardBg: 'bg-stone-50 hover:bg-stone-100 border-stone-200',
   },
   SOEW: {
-    code: 'SOEW', body: 'suv', illustColor: '#16a34a',
+    code: 'SOEW', body: 'suv', illustColor: '#16a34a', passengers: 'solo',
     name: '自然と生きるアウトドア型', emoji: '🌲',
     tagline: '週末は山へ、フィールドが自分の庭',
     description: '釣りにキャンプに登山——道具をたっぷり積んで、自然の中へ。余裕のある積載力と走破性を持つSUVが相棒になります。',
@@ -326,7 +327,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
     cardBg: 'bg-green-50 hover:bg-green-100 border-green-200',
   },
   SOPC: {
-    code: 'SOPC', body: 'suv', illustColor: '#0ea5e9',
+    code: 'SOPC', body: 'suv', illustColor: '#0ea5e9', passengers: 'solo',
     name: '都会派アウトドアマン型', emoji: '🦅',
     tagline: '街でもかっこよく、自然でも頼もしく',
     description: '都市の洗練さとアウトドアの機能性を両立したい。スタイリッシュなクロスオーバーSUVがそのニーズに答えます。',
@@ -337,7 +338,7 @@ export const CAR_TYPES_16: Record<string, CarType16> = {
     cardBg: 'bg-sky-50 hover:bg-sky-100 border-sky-200',
   },
   SOPW: {
-    code: 'SOPW', body: 'suv', illustColor: '#6366f1',
+    code: 'SOPW', body: 'suv', illustColor: '#6366f1', passengers: 'couple',
     name: '完璧主義のドライバー型', emoji: '💎',
     tagline: 'スタイルも走りも自然も、すべてを手に入れる',
     description: 'プレミアムな乗り心地で、本格的なアウトドアへ。デザインと性能の両方を極めたプレミアムSUVが、あなたの理想です。',

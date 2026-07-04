@@ -78,7 +78,7 @@ export default function TypesPage() {
                       <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.18)_0%,transparent_55%)] pointer-events-none" />
                       <span className="relative text-[10px] font-black text-white/50 tracking-[0.25em] mb-2">{code}</span>
                       <div className="relative w-full max-w-[155px]">
-                        <CarIllustration body={t.body} primaryColor={t.illustColor} />
+                        <CarIllustration body={t.body} primaryColor={t.illustColor} passengers={t.passengers} />
                       </div>
                     </div>
 
