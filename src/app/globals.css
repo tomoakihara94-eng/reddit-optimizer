@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f6fb;
-  --foreground: #0f172a;
+  --background: #030712;
+  --foreground: #f8fafc;
 }
 
 body {
@@ -15,43 +15,137 @@ body {
 /* ── スクロールバー ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
 
-/* ── フェードイン ── */
+/* ═══════════════════════════════════════════
+   キーフレーム
+══════════════════════════════════════════ */
+
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.animate-fade-up { animation: fadeUp 0.35s ease both; }
 
-/* ── シマー（スケルトン）── */
+@keyframes gradient-x {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-10px); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.93) translateY(12px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
 @keyframes shimmer {
   from { background-position: -200% 0; }
-  to   { background-position: 200% 0; }
+  to   { background-position:  200% 0; }
 }
+
+/* オーロラ背景 orb アニメーション */
+@keyframes aurora-1 {
+  0%, 100% { transform: translate(0,     0)    scale(1);    opacity: 0.7; }
+  33%       { transform: translate(60px, -40px) scale(1.25); opacity: 0.9; }
+  66%       { transform: translate(-35px, 25px) scale(0.85); opacity: 0.55; }
+}
+@keyframes aurora-2 {
+  0%, 100% { transform: translate(0,      0)    scale(1);    opacity: 0.6; }
+  33%       { transform: translate(-55px,  30px) scale(1.15); opacity: 0.8; }
+  66%       { transform: translate(40px,  -40px) scale(0.88); opacity: 0.5; }
+}
+@keyframes aurora-3 {
+  0%, 100% { transform: translate(0,     0)    scale(1);    opacity: 0.45; }
+  50%       { transform: translate(-20px,-30px) scale(1.2);  opacity: 0.65; }
+}
+
+/* カードホバー用 */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(20px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+/* ═══════════════════════════════════════════
+   ユーティリティクラス
+══════════════════════════════════════════ */
+
+.animate-fade-up      { animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+.animate-scale-in     { animation: scale-in 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+.animate-float        { animation: float 4s ease-in-out infinite; }
+.animate-gradient-x   { background-size: 200% 200%; animation: gradient-x 5s ease infinite; }
+.animate-aurora-1     { animation: aurora-1 14s ease-in-out infinite; }
+.animate-aurora-2     { animation: aurora-2 18s ease-in-out infinite; }
+.animate-aurora-3     { animation: aurora-3 11s ease-in-out infinite; }
+
+/* ── グラデーションテキスト (アニメーション付き) ── */
+.text-gradient {
+  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 45%, #f472b6 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-x 5s ease infinite;
+}
+
+/* ── ガラスモーフィズム ── */
+.glass-dark {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.09);
+}
+.glass-white {
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.6);
+}
+
+/* ── グロー付きプライマリボタン ── */
+.btn-primary-glow {
+  background: linear-gradient(135deg, #2563eb, #4f46e5, #7c3aed);
+  background-size: 200% 200%;
+  animation: gradient-x 4s ease infinite;
+  box-shadow: 0 0 28px rgba(99,102,241,0.5), 0 4px 20px rgba(139,92,246,0.3);
+  transition: box-shadow 0.3s ease, transform 0.15s ease;
+}
+.btn-primary-glow:hover {
+  box-shadow: 0 0 48px rgba(99,102,241,0.7), 0 4px 30px rgba(139,92,246,0.45);
+}
+.btn-primary-glow:active { transform: scale(0.97); }
+
+/* ── 背景グリッドテクスチャ ── */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* ── シマー（スケルトン）── */
 .shimmer {
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0.05) 75%);
   background-size: 200% 100%;
-  animation: shimmer 1.4s infinite;
+  animation: shimmer 1.6s infinite;
+}
+
+/* ── ヘッダー背景パターン（管理ページ用）── */
+.header-mesh {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.18) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.14) 0%, transparent 60%),
+    linear-gradient(135deg, #0a0f1e 0%, #0d1030 50%, #0a0f1e 100%);
 }
 
 /* ── グロー ── */
-.glow-blue { box-shadow: 0 0 24px rgba(99,102,241,0.25), 0 4px 16px rgba(99,102,241,0.15); }
-.glow-emerald { box-shadow: 0 0 20px rgba(16,185,129,0.2), 0 4px 12px rgba(16,185,129,0.12); }
+.glow-blue    { box-shadow: 0 0 24px rgba(99,102,241,0.35), 0 4px 16px rgba(99,102,241,0.2); }
+.glow-emerald { box-shadow: 0 0 20px rgba(16,185,129,0.25), 0 4px 12px rgba(16,185,129,0.15); }
 
-/* ── ヘッダー背景パターン ── */
-.header-mesh {
-  background:
-    radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.15) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.12) 0%, transparent 60%),
-    linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-}
-
-/* ── ページ背景 ── */
+/* ── ページ背景（管理ページ）── */
 .page-bg {
-  background:
-    radial-gradient(ellipse at 10% 20%, rgba(99,102,241,0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 90% 80%, rgba(139,92,246,0.04) 0%, transparent 50%),
-    #f4f6fb;
+  background: #0a0f1e;
 }
