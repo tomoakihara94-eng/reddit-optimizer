@@ -88,9 +88,15 @@ export default function PersonalityPage() {
             診断スタート →
           </button>
 
-          <Link href="/diagnosis" className="block text-[11px] text-white/25 hover:text-white/50 transition-colors">
-            こっちは4軸・12問の詳細診断 →
-          </Link>
+          <div className="flex justify-center gap-4 text-[11px]">
+            <Link href="/personality/types" className="text-white/25 hover:text-white/50 transition-colors">
+              16タイプ一覧 →
+            </Link>
+            <span className="text-white/15">|</span>
+            <Link href="/diagnosis" className="text-white/25 hover:text-white/50 transition-colors">
+              12問の詳細診断 →
+            </Link>
+          </div>
         </div>
       </main>
     );
@@ -315,6 +321,18 @@ export default function PersonalityPage() {
 
           {/* ナビゲーション */}
           <div className="space-y-2">
+            <Link
+              href={`/personality/type/${typeCode}`}
+              className="block w-full py-3 bg-white border border-slate-200 hover:border-violet-300 text-slate-600 hover:text-violet-700 font-medium rounded-2xl text-sm text-center transition-all shadow-sm"
+            >
+              このタイプをもっと詳しく見る →
+            </Link>
+            <Link
+              href="/personality/types"
+              className="block w-full py-3 bg-white border border-slate-200 hover:border-violet-300 text-slate-600 hover:text-violet-700 font-medium rounded-2xl text-sm text-center transition-all shadow-sm"
+            >
+              16タイプ一覧を見る
+            </Link>
             <Link
               href="/diagnosis"
               className="block w-full py-3 bg-white border border-slate-200 hover:border-violet-300 text-slate-600 hover:text-violet-700 font-medium rounded-2xl text-sm text-center transition-all shadow-sm"

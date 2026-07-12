@@ -29,6 +29,7 @@ export interface PersonalityType {
   tagline: string;
   personality: string;
   drivingStyle: string;
+  traits: string[];
   cars: CarMatch[];
   gradient: string;
   accentColor: string;
@@ -128,6 +129,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: 'みんなを連れて、どこまでも行く',
     personality: '行動力とリーダーシップが武器。友達を引き連れてどんな場所にも向かえるタフさと、クールな雰囲気を両立している。大自然の中でも都会でも、常にみんなの中心にいる存在。',
     drivingStyle: '目的地は自分が決める。道中はみんなでわいわい、でも運転は真剣。頼りになるドライバー。',
+    traits: ['行動力', 'リーダーシップ', '冒険心', '仲間思い'],
     cars: [
       { name: 'ランドクルーザー', maker: 'トヨタ', body: 'suv', illustColor: '#374151', passengers: 'couple', url: mu('toyota','landcruiser'), reason: '圧倒的な存在感と走破性。あなたのリーダー気質に応えてくれる、本物の冒険車。' },
       { name: 'RAV4',           maker: 'トヨタ', body: 'suv', illustColor: '#1d4ed8', passengers: 'couple', url: mu('toyota','rav4'),        reason: '実用性と冒険心のバランスが絶妙。仲間との旅行も、ひとりの遠征も全てこなす万能SUV。' },
@@ -141,6 +143,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: '都会のセンスで、みんなをまとめる',
     personality: '流行に敏感でスタイリッシュ。友達グループの中で自然とリーダーになるが、無理に目立とうとしないクールさが魅力。都市を自分のホームにしている、センスの塊。',
     drivingStyle: '街中をスマートに走る。派手な運転はしないが、センスを感じさせる走り方ができる。',
+    traits: ['センス', 'リーダーシップ', '都会的', 'クール'],
     cars: [
       { name: 'ヴェゼル',  maker: 'ホンダ', body: 'suv',      illustColor: '#dc2626', passengers: 'couple', url: mu('honda','vezel'),   reason: 'スタイリッシュなデザインと使い勝手の良さを兼備。都会派リーダーにぴったりのSUV。' },
       { name: 'C-HR',    maker: 'トヨタ', body: 'suv',      illustColor: '#1e293b', passengers: 'couple', url: mu('toyota','chr'),    reason: '個性的なフォルムが街で目立つ。あなたのセンスの良さをさりげなく主張できる一台。' },
@@ -154,6 +157,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: 'みんなの笑顔が、あなたのエネルギー',
     personality: '誰とでもすぐ仲良くなれる、場を盛り上げる天才。大人数でわいわいするのが何より好き。温かみのある雰囲気を大切にしながら、どこでも楽しい空間を作り出す。',
     drivingStyle: '車内BGMの選曲を担当し、みんなのテンションを上げるのが得意。乗り降りのサポートも完璧。',
+    traits: ['社交性', '賑やか', '温かみ', '仲間思い'],
     cars: [
       { name: 'ヴォクシー',    maker: 'トヨタ', body: 'minivan', illustColor: '#1e40af', passengers: 'family', url: mu('toyota','voxy'),      reason: '大人数を快適に乗せられる広い車内。あなたの「みんなで行こう」精神を完全サポート。' },
       { name: 'セレナ',        maker: '日産',   body: 'minivan', illustColor: '#831843', passengers: 'family', url: mu('nissan','serena'),     reason: '後席の乗り心地が特に優秀。みんなが快適に楽しめる、まさにパーティ仕様のミニバン。' },
@@ -167,6 +171,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: 'どこに行っても、みんなが笑顔になる',
     personality: '明るくて気遣いができる、コミュニティの太陽。コンパクトでもみんなと一緒なら最高の冒険になると知っている。フレンドリーで裏表がない、自然体の魅力がある。',
     drivingStyle: '会話が弾む助手席泥棒。でも安全運転でみんなを気持ちよく送り届ける。',
+    traits: ['フレンドリー', '明るさ', '気遣い', '自然体'],
     cars: [
       { name: 'シエンタ', maker: 'トヨタ', body: 'hatchback', illustColor: '#f97316', passengers: 'family', url: mu('toyota','sienta'), reason: '小さめなのに最大7人乗れる。あなたの「全員乗れる！」精神にぴったりのコンパクトミニバン。' },
       { name: 'フリード', maker: 'ホンダ', body: 'hatchback', illustColor: '#0ea5e9', passengers: 'family', url: mu('honda','freed'),   reason: '親しみやすいデザインと使いやすさ。気軽に友達を乗せてどこへでも行ける相棒。' },
@@ -180,6 +185,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: 'ひとりで、どこまでも行ける',
     personality: '自立していてクール。ひとりでどこへでも行けるタフさと、大自然の中でも動じない冷静さがある。集団より単独行動が好きで、自分だけの道を切り開くことに喜びを感じる。',
     drivingStyle: '目的地は自分だけが知っている。山道も悪路も楽しみながら走る、本物のドライバー。',
+    traits: ['自立心', '行動力', 'タフ', 'クール'],
     cars: [
       { name: 'エクストレイル', maker: '日産',   body: 'suv', illustColor: '#1f2937', passengers: 'solo', url: mu('nissan','xtrail'),   reason: '悪路もオンロードも自在にこなす万能SUV。あなたのひとり旅をどこまでも支えてくれる。' },
       { name: 'フォレスター',   maker: 'スバル', body: 'suv', illustColor: '#166534', passengers: 'solo', url: mu('subaru','forester'),  reason: '走行安定性と積載力が高水準で両立。ひとりで山奥に乗り込む、そのシーンが目に浮かぶ。' },
@@ -193,6 +199,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: '走ることが、自分を表現すること',
     personality: 'スポーティで瞬発力があり、かっこよさへのこだわりが人一倍強い。コンパクトでも速くてかっこいい方が好き。運転そのものが楽しくて仕方がない、本物のドライビングラバー。',
     drivingStyle: '走ることが好きで、助手席には座っていられないタイプ。ワインディングでも臆せず走る。',
+    traits: ['情熱', '速さ', 'かっこよさ', '走り好き'],
     cars: [
       { name: 'GR86',        maker: 'トヨタ', body: 'sports', illustColor: '#dc2626', passengers: 'solo', url: mu('toyota','gr86'),  reason: '純粋に走る楽しさを追求したスポーツカー。あなたの「運転が好き」という気持ちに完璧に応える。' },
       { name: 'シビック',     maker: 'ホンダ', body: 'sports', illustColor: '#1e293b', passengers: 'solo', url: mu('honda','civic'),  reason: 'スポーティさと実用性を両立。かっこよく日常を走りたいあなたにとって理想の相棒。' },
@@ -206,6 +213,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: '気の向くまま、風の行く方へ',
     personality: '自由奔放で好奇心旺盛。かわいいものや自然が好きで、ひとりでもどこへでも行ける行動力がある。計画より直感、地図より感覚で動くタイプ。旅の途中の発見が何よりも好き。',
     drivingStyle: '気になる道があったら即ハンドルを切る。目的地は出発してから決めることも多い。',
+    traits: ['自由', '好奇心', '直感', '冒険心'],
     cars: [
       { name: 'ハスラー',      maker: 'スズキ',   body: 'kei', illustColor: '#f59e0b', passengers: 'solo', url: mu('suzuki','hustler'),    reason: 'ポップでかわいいのに未舗装路もOKな万能軽。あなたの自由な旅をどこまでも連れて行く。' },
       { name: 'クロストレック', maker: 'スバル',   body: 'suv', illustColor: '#0d9488', passengers: 'solo', url: mu('subaru','crosstrek'),  reason: '小さめなのに走破性が高い。ナチュラルな外観があなたの旅のスタイルにぴったり合う。' },
@@ -219,6 +227,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: '最小限で、最大限に楽しむ',
     personality: '身軽さが武器。最小限の荷物でひとり旅に飛び出し、思わぬ絶景を見つけるのが得意。かわいいものが好きでもアクティブ。小さくてもパワーのある、しなやかな強さを持っている。',
     drivingStyle: '小さい車の機動力を最大限に活かす。細い道も悪路も、身軽に突き進む。',
+    traits: ['身軽さ', '行動力', '意外性', '独自路線'],
     cars: [
       { name: 'ジムニー', maker: 'スズキ',   body: 'kei', illustColor: '#4b5563', passengers: 'solo', url: mu('suzuki','jimny'),   reason: '軽自動車最強の走破性。小さくてかわいいのに本格オフロードをこなせる、あなたの分身のような車。' },
       { name: 'タフト',   maker: 'ダイハツ', body: 'kei', illustColor: '#2563eb', passengers: 'solo', url: mu('daihatsu','taft'),  reason: 'ガラスルーフで開放感たっぷり。ひとりで走る時間をもっと特別にしてくれるアウトドア軽。' },
@@ -232,6 +241,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: '余裕と品格が、最高のおもてなし',
     personality: '落ち着いていて品があり、一緒にいる人を居心地よくさせる才能がある。派手ではないが、そこにいるだけで場の空気が変わる。高いものへのこだわりは、周囲への敬意の表れでもある。',
     drivingStyle: '急がない。ゆったりと走りながら、助手席の人が一番リラックスできる運転を心がける。',
+    traits: ['余裕', '品格', '上質', '存在感'],
     cars: [
       { name: 'アルファード',   maker: 'トヨタ', body: 'luxury-van', illustColor: '#1e1b4b', passengers: 'vip', url: mu('toyota','alphard'),  reason: '日本最高峰の高級ミニバン。乗り込んだ瞬間に格が違うとわかる、まさに帝王の車。' },
       { name: 'ヴェルファイア', maker: 'トヨタ', body: 'luxury-van', illustColor: '#111827', passengers: 'vip', url: mu('toyota','vellfire'), reason: '威圧感のある迫力フェイスと豪華な内装。あなたの「余裕と品格」を外からも内からも体現する。' },
@@ -245,6 +255,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: '都会に溶け込む、知的なドライバー',
     personality: '知的でスマート。友達と過ごす時間も大切にしながら、どこかひとりの時間も確保している。都市生活に精通していて、センスのいい選択をさりげなくする。',
     drivingStyle: '無駄のない運転が信条。渋滞でもイライラせず、いつも余裕を見せられる。',
+    traits: ['知性', '合理性', '都会的', 'スマート'],
     cars: [
       { name: 'プリウス',  maker: 'トヨタ', body: 'sedan', illustColor: '#0f766e', passengers: 'couple', url: mu('toyota','prius'),  reason: '洗練されたデザインと圧倒的な燃費。都市生活のスマートさを体現するハイブリッドセダン。' },
       { name: 'カムリ',    maker: 'トヨタ', body: 'sedan', illustColor: '#1e40af', passengers: 'couple', url: mu('toyota','camry'),  reason: 'ゆとりある大人のセダン。静粛性と快適性が高く、会話を楽しみながらの移動に最適。' },
@@ -258,6 +269,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: 'いるだけで、場が和む',
     personality: '誰からも愛される、天然の人たらし。温かくて自然とみんなが集まってくる。大きな空間でみんながゆったりできる環境を好む。争いが嫌いで、平和を大切にする。',
     drivingStyle: '同乗者全員が快適かどうかをいつも気にしている。音楽もみんなの好みを優先する。',
+    traits: ['癒し', '親しみやすさ', '温かみ', '平和主義'],
     cars: [
       { name: 'オデッセイ',    maker: 'ホンダ', body: 'minivan', illustColor: '#4338ca', passengers: 'family', url: mu('honda','odyssey'),  reason: '上質な居住空間と洗練されたデザイン。みんなが快適でいられる、アイドルにふさわしい空間。' },
       { name: 'ステップワゴン', maker: 'ホンダ', body: 'minivan', illustColor: '#0369a1', passengers: 'family', url: mu('honda','stepwgn'),  reason: '広くて使いやすく全員がリラックスできる。あなたの「みんな笑顔」を叶えてくれるミニバン。' },
@@ -271,6 +283,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: '温かさが、いちばんの強み',
     personality: '気が利いて温かく、一緒にいると安心感がある。大きな声を出さなくてもみんながついてくる穏やかなリーダー。小さなことへの気遣いが得意で、コミュニティをそっと支えている。',
     drivingStyle: '丁寧で落ち着いた運転。急発進・急ブレーキをしないので、同乗者が安心して眠れる。',
+    traits: ['穏やかさ', '気遣い', '安心感', '気配り'],
     cars: [
       { name: 'タント',   maker: 'ダイハツ', body: 'hatchback', illustColor: '#ec4899', passengers: 'couple', url: mu('daihatsu','tanto'),  reason: '大きなドア開口部でみんなが乗り降りしやすい。温かい気遣いを形にしたような車。' },
       { name: 'スペーシア', maker: 'スズキ',   body: 'hatchback', illustColor: '#8b5cf6', passengers: 'couple', url: mu('suzuki','spacia'),   reason: '収納上手で室内広々。みんなが快適に過ごせる環境づくりが得意なあなたの分身みたいな車。' },
@@ -284,6 +297,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: 'こだわりが、あなたの美学',
     personality: '審美眼が高く、自分の美学を大切にする。社交的ではないが、一人一人との深い関係を重視する。独自の価値観を持ち、流行より本質を見極めることができる。',
     drivingStyle: '自分が完璧と思う一台だけに乗り続ける。そのこだわりが走り方にも現れる。',
+    traits: ['審美眼', 'こだわり', '独自性', '高品質'],
     cars: [
       { name: 'クラウン', maker: 'トヨタ', body: 'sedan',    illustColor: '#1e293b', passengers: 'solo', url: mu('toyota','crown'),  reason: '日本が誇る高級セダンの代名詞。こだわりを持つあなたが選ぶべき、本物の上質さがある車。' },
       { name: 'CX-60',   maker: 'マツダ', body: 'suv',      illustColor: '#7f1d1d', passengers: 'solo', url: mu('mazda','cx60'),    reason: '芸術的なデザインと走りへのこだわりが詰まった、美学を持つドライバーのためのSUV。' },
@@ -297,6 +311,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: 'シンプルの中に、本当の豊かさがある',
     personality: 'ミニマルな生き方を愛し、本当に必要なものだけで生きることを美徳とする。スマートで無駄がなく、合理的な判断が得意。周囲に流されない自分軸を持っている。',
     drivingStyle: '無駄な操作をしない、滑らかで効率的な運転。燃費を常に意識している。',
+    traits: ['ミニマル', '合理性', '自分軸', 'エコ'],
     cars: [
       { name: 'アクア', maker: 'トヨタ', body: 'hatchback', illustColor: '#0d9488', passengers: 'solo', url: mu('toyota','aqua'),  reason: 'シンプルなデザインと最高水準の燃費。必要なものだけを追求したあなたのための究極のエコカー。' },
       { name: 'ノート', maker: '日産',   body: 'hatchback', illustColor: '#0369a1', passengers: 'solo', url: mu('nissan','note'),  reason: 'e-POWERの滑らかな加速が心地よい。シンプルながら走りにもこだわるあなたにフィットする。' },
@@ -310,6 +325,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: '急がなくていい。自分のペースで発見する',
     personality: '自分のペースを大切にする、穏やかな探索者。かわいいものや自然が好きで、ゆっくりと時間をかけて物事を楽しむ。無理をしないが、気がつけばいろんなところに行っている。',
     drivingStyle: '急がない運転が信条。遠回りでも景色のいい道を選ぶ。目的地より道中を楽しむタイプ。',
+    traits: ['マイペース', '穏やかさ', '好奇心', '自然好き'],
     cars: [
       { name: 'CX-30',     maker: 'マツダ', body: 'suv', illustColor: '#c2410c', passengers: 'solo', url: mu('mazda','cx30'),         reason: '程よいサイズ感と上質な乗り心地。ゆったりドライブを楽しみたいあなたにちょうどいいSUV。' },
       { name: 'XV',        maker: 'スバル', body: 'suv', illustColor: '#15803d', passengers: 'solo', url: mu('subaru','xv'),           reason: '自然の中でも街でも映えるナチュラルなSUV。あなたのまったりドライブライフに馴染む一台。' },
@@ -323,6 +339,7 @@ export const PERSONALITY_TYPES: Record<string, PersonalityType> = {
     tagline: 'あなたのそばにいると、なぜか落ち着く',
     personality: 'そこにいるだけで周りが癒される、不思議な存在感の持ち主。内心は好奇心旺盛で、ひとりで好きなことに熱中できる。自分のペースで、無理せず生きることが上手。',
     drivingStyle: 'ゆっくりでいい。丁寧に、大切に運転する。信号待ちで景色を眺める余裕がある。',
+    traits: ['癒し', '丁寧さ', '穏やかさ', '自然体'],
     cars: [
       { name: 'ワゴンR', maker: 'スズキ',   body: 'kei', illustColor: '#d1d5db', passengers: 'solo', url: mu('suzuki','wagonr'), reason: '長年愛され続ける軽の定番。シンプルで使いやすく、あなたの穏やかな日常にそっと寄り添う。' },
       { name: 'N-BOX',  maker: 'ホンダ',   body: 'kei', illustColor: '#fca5a5', passengers: 'solo', url: mu('honda','nbox'),    reason: '日本一売れている軽自動車。広い室内でひとりの時間を快適に過ごせる優しい空間。' },
