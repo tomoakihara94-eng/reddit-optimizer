@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { PERSONALITY_TYPES } from '@/lib/driving-personality';
 import { CarIllustration } from '@/components/CarIllustration';
 
@@ -43,8 +44,15 @@ export default async function TypePage({ params }: { params: Promise<{ code: str
             TYPE · {code}
           </div>
 
-          <div className="text-7xl mb-5 drop-shadow-lg" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.25))' }}>
-            {t.emoji}
+          {/* キャラクターイラスト */}
+          <div className="relative mx-auto w-52 h-64 mb-2">
+            <Image
+              src={`/characters/${code.toUpperCase()}.png`}
+              alt={t.name}
+              fill
+              className="object-contain drop-shadow-2xl"
+              priority
+            />
           </div>
 
           <h1 className="text-4xl font-black text-white mb-3 tracking-tight">{t.name}</h1>

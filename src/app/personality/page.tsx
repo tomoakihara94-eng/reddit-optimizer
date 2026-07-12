@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { CarIllustration } from '@/components/CarIllustration';
 import { P_QUESTIONS, PERSONALITY_TYPES, calcPersonality } from '@/lib/driving-personality';
 
@@ -211,7 +212,16 @@ export default function PersonalityPage() {
           <div className="absolute bottom-0 right-0 w-64 h-64 bg-black/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10">
             <span className="inline-block text-[10px] font-black text-white/50 tracking-[0.35em] mb-3">TYPE · {typeCode}</span>
-            <div className="text-6xl mb-4 animate-bounce">{pType.emoji}</div>
+            {/* キャラクターイラスト */}
+            <div className="relative mx-auto w-44 h-52 mb-3">
+              <Image
+                src={`/characters/${typeCode}.png`}
+                alt={pType.name}
+                fill
+                className="object-contain drop-shadow-2xl"
+                priority
+              />
+            </div>
             <h1 className="text-3xl font-black text-white mb-2">{pType.name}</h1>
             <p className="text-sm text-white/75 max-w-xs mx-auto">{pType.tagline}</p>
           </div>

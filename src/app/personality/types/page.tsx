@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { PERSONALITY_TYPES } from '@/lib/driving-personality';
 
 const GROUPS = [
@@ -99,11 +100,19 @@ export default function PersonalityTypesPage() {
                     href={`/personality/type/${code}`}
                     className="group rounded-3xl overflow-hidden border border-white/80 hover:border-slate-200 hover:scale-[1.03] hover:shadow-xl transition-all duration-300 bg-white shadow-sm"
                   >
-                    {/* グラデーション上部 */}
-                    <div className={`bg-gradient-to-br ${t.gradient} p-4 text-center relative overflow-hidden`}>
+                    {/* キャラクター画像上部 */}
+                    <div className={`bg-gradient-to-br ${t.gradient} text-center relative overflow-hidden h-36`}>
                       <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.15)_0%,transparent_55%)] pointer-events-none" />
-                      <span className="relative text-[9px] font-black text-white/40 tracking-[0.3em] block mb-1">{code}</span>
-                      <span className="relative text-3xl">{t.emoji}</span>
+                      <span className="absolute top-2 left-0 right-0 text-[9px] font-black text-white/40 tracking-[0.3em] text-center z-10">{code}</span>
+                      <div className="relative w-full h-full">
+                        <Image
+                          src={`/characters/${code}.png`}
+                          alt={t.name}
+                          fill
+                          className="object-contain object-bottom"
+                          sizes="160px"
+                        />
+                      </div>
                     </div>
 
                     {/* 情報下部 */}
