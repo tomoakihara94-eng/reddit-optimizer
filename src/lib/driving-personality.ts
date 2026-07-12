@@ -5,7 +5,11 @@ export type PAxis = 'an' | 'gs' | 'ck' | 'wl';
 export interface PQuestion {
   axis: PAxis;
   question: string;
-  options: [{ label: string; emoji: string }, { label: string; emoji: string }];
+  // options[0] = 左極（スコア低）, options[1] = 右極（スコア高）
+  options: [
+    { label: string; shortLabel: string; emoji: string },
+    { label: string; shortLabel: string; emoji: string },
+  ];
 }
 
 export interface CarMatch {
@@ -40,74 +44,75 @@ export const P_QUESTIONS: PQuestion[] = [
     axis: 'an',
     question: '週末に何もない日、気づいたらどっちにいる？',
     options: [
-      { label: 'どこかに出かけてる', emoji: '🚗' },
-      { label: '家やお気に入りの場所でのんびり', emoji: '🏠' },
+      { label: 'どこかに出かけてる',           shortLabel: 'アクティブ派', emoji: '🚗' },
+      { label: '家やお気に入りの場所でのんびり', shortLabel: 'まったり派',  emoji: '🏠' },
     ],
   },
   {
     axis: 'an',
     question: '気になるお店を見つけたとき、どっちに近い？',
     options: [
-      { label: 'すぐ行く。とにかく行ってみる', emoji: '⚡' },
-      { label: 'じっくり調べてから、タイミングを見て行く', emoji: '🔍' },
+      { label: 'すぐ行く。とにかく行ってみる',          shortLabel: '即行動',  emoji: '⚡' },
+      { label: 'じっくり調べてから、タイミングを見て行く', shortLabel: '慎重派',  emoji: '🔍' },
     ],
   },
   {
     axis: 'gs',
-    question: 'ドライブするなら？',
+    question: 'ドライブするなら、どっちがしっくりくる？',
     options: [
-      { label: '友達や家族と、みんなで行きたい', emoji: '👥' },
-      { label: 'ひとりか少人数で、自分のペースで', emoji: '🎧' },
+      { label: '友達や家族と、みんなで行きたい',  shortLabel: 'みんなで', emoji: '👥' },
+      { label: 'ひとりか少人数で、自分のペースで', shortLabel: 'ひとりで', emoji: '🎧' },
     ],
   },
   {
     axis: 'gs',
-    question: '車内の雰囲気、好みは？',
+    question: '理想の車内の雰囲気は？',
     options: [
-      { label: 'みんなで盛り上がる、わいわい空間', emoji: '🎵' },
-      { label: '好きな音楽・ポッドキャスト、自分だけの時間', emoji: '🎶' },
+      { label: 'みんなで盛り上がる、わいわい空間',      shortLabel: 'わいわい',  emoji: '🎵' },
+      { label: '好きな音楽・ポッドキャスト、自分だけの時間', shortLabel: 'しずか', emoji: '🎶' },
     ],
   },
   {
     axis: 'ck',
-    question: 'インテリアを選ぶなら？',
+    question: 'インテリアや小物を選ぶなら？',
     options: [
-      { label: 'モノトーン・シンプル・かっこいい系', emoji: '🖤' },
-      { label: 'カラフル・ナチュラル・温かみのある系', emoji: '🌸' },
+      { label: 'モノトーン・シンプル・かっこいい系', shortLabel: 'クール系',  emoji: '🖤' },
+      { label: 'カラフル・ナチュラル・温かみのある系', shortLabel: 'かわいい系', emoji: '🌸' },
     ],
   },
   {
     axis: 'ck',
     question: '自分のスタイルに一番近いのは？',
     options: [
-      { label: 'スッキリ、余計なものはいらない派', emoji: '🕶️' },
-      { label: '個性的・ポップ、自分らしさを表現したい派', emoji: '🌈' },
+      { label: 'スッキリ、余計なものはいらない派',       shortLabel: 'シンプル', emoji: '🕶️' },
+      { label: '個性的・ポップ、自分らしさを表現したい派', shortLabel: '個性的',  emoji: '🌈' },
     ],
   },
   {
     axis: 'wl',
-    question: '荷物は？',
+    question: '荷物の持ち方は？',
     options: [
-      { label: 'いろいろ持ちたい、多めでもOK', emoji: '🎒' },
-      { label: '最小限で身軽にしたい', emoji: '👜' },
+      { label: 'いろいろ持ちたい、多めでもOK', shortLabel: '荷物多め', emoji: '🎒' },
+      { label: '最小限で身軽にしたい',         shortLabel: '身軽派',  emoji: '👜' },
     ],
   },
   {
     axis: 'wl',
     question: '車のサイズ感の好みは？',
     options: [
-      { label: '余裕と安心感のある大きめが好き', emoji: '🚐' },
-      { label: '小回りが効くコンパクトが好き', emoji: '🔑' },
+      { label: '余裕と安心感のある大きめが好き',  shortLabel: '大きめ',   emoji: '🚐' },
+      { label: '小回りが効くコンパクトが好き', shortLabel: 'コンパクト', emoji: '🔑' },
     ],
   },
 ];
 
-// sum < 2 → first pole (ties favor first), sum >= 2 → second pole
+// 7段階スケール (0=左極 … 6=右極)、2問/軸 → 合計 0-12
+// <=5 → 左極、>=7 → 右極、6（中立）→ 左極（タイブレーク）
 export function calcPersonality(answers: number[]): string {
   const poles = [0, 1, 2, 3].map(i => {
     const a = answers[i * 2] ?? 0;
     const b = answers[i * 2 + 1] ?? 0;
-    return (a + b) < 2 ? 0 : 1;
+    return (a + b) <= 6 ? 0 : 1;
   });
   return [
     poles[0] === 0 ? 'A' : 'N',

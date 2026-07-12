@@ -98,11 +98,23 @@ export default function PersonalityPage() {
 
   // ═══════════════════ 質問 ═══════════════════
   if (typeof step === 'number' && currentQ) {
+    // 7段階スケール設定
+    // 0,1,2 = 左極(violet)  3 = 中立(slate)  4,5,6 = 右極(pink)
+    const SCALE = [
+      { size: 26, color: '#7c3aed' },
+      { size: 22, color: '#8b5cf6' },
+      { size: 18, color: '#a78bfa' },
+      { size: 14, color: '#64748b' },
+      { size: 18, color: '#f472b6' },
+      { size: 22, color: '#db2777' },
+      { size: 26, color: '#be123c' },
+    ];
+
     return (
       <main className="relative min-h-screen bg-[#0a0a0f] overflow-hidden flex flex-col items-center justify-center p-5">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-violet-600/[0.08] rounded-full blur-[130px]" />
-          <div className="absolute bottom-0 right-[-10%] w-[400px] h-[400px] bg-blue-500/[0.07] rounded-full blur-[120px]" />
+          <div className="absolute bottom-0 right-[-10%] w-[400px] h-[400px] bg-pink-600/[0.07] rounded-full blur-[120px]" />
         </div>
 
         <div className="relative z-10 max-w-sm w-full">
@@ -115,33 +127,57 @@ export default function PersonalityPage() {
             <div className="h-[2px] bg-white/10 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700 ease-out"
-                style={{
-                  width: `${progress}%`,
-                  background: 'linear-gradient(90deg, #7c3aed, #db2777)',
-                }}
+                style={{ width: `${progress}%`, background: 'linear-gradient(90deg, #7c3aed, #db2777)' }}
               />
             </div>
           </div>
 
           {/* 質問カード */}
           <div className="border border-white/8 bg-white/[0.03] rounded-3xl p-6 mb-4 backdrop-blur-sm">
-            <h2 className="text-[1.3rem] font-bold text-white leading-snug text-center mb-7">
+            {/* 質問文 */}
+            <h2 className="text-[1.1rem] font-bold text-white leading-snug text-center mb-8">
               {currentQ.question}
             </h2>
 
-            <div className="space-y-3">
-              {currentQ.options.map((opt, i) => (
+            {/* 両端ラベル */}
+            <div className="flex justify-between items-start mb-4 px-1">
+              <div className="flex flex-col items-center gap-1 w-[72px]">
+                <span className="text-xl">{currentQ.options[0].emoji}</span>
+                <span className="text-[10px] text-white/50 text-center leading-tight font-medium">
+                  {currentQ.options[0].shortLabel}
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-1 w-[72px]">
+                <span className="text-xl">{currentQ.options[1].emoji}</span>
+                <span className="text-[10px] text-white/50 text-center leading-tight font-medium">
+                  {currentQ.options[1].shortLabel}
+                </span>
+              </div>
+            </div>
+
+            {/* 7段階スケール */}
+            <div className="flex items-center justify-between px-2 mb-5">
+              {SCALE.map((s, val) => (
                 <button
-                  key={i}
-                  onClick={() => choose(i)}
-                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border border-white/10 hover:border-violet-400/60 hover:bg-violet-500/10 active:scale-[0.97] text-left transition-all duration-200 group"
-                >
-                  <span className="text-2xl shrink-0">{opt.emoji}</span>
-                  <span className="text-sm text-white/70 group-hover:text-white transition-colors leading-snug">
-                    {opt.label}
-                  </span>
-                </button>
+                  key={val}
+                  onClick={() => choose(val)}
+                  className="rounded-full border-2 transition-all duration-150 hover:scale-125 active:scale-95 hover:opacity-100 opacity-70"
+                  style={{
+                    width:  s.size + 'px',
+                    height: s.size + 'px',
+                    borderColor: s.color,
+                    backgroundColor: 'transparent',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = s.color; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'; }}
+                />
               ))}
+            </div>
+
+            {/* ラベルテキスト */}
+            <div className="flex justify-between text-[10px] text-white/25 px-1">
+              <span>{currentQ.options[0].label}</span>
+              <span className="text-right">{currentQ.options[1].label}</span>
             </div>
           </div>
 
