@@ -5,7 +5,7 @@ import { CAR_DATA, COLORS, OPTION_GROUPS } from '@/lib/car-data';
 import { lookupGradeOptions } from '@/lib/vehicle-grade-options';
 
 // ── Types ──────────────────────────────────────────────────────────────
-type Mode = 'reply' | 'photo';
+type Mode = 'reply' | 'photo' | 'csv';
 
 interface MultiResult {
   mode: 'multi';
@@ -86,11 +86,49 @@ const MODES: { id: Mode; label: string; desc: string; icon: string }[] = [
     desc: 'お客様の質問文を貼り付けると最適な返答文案を作成',
     icon: '✉️',
   },
+  {
+    id: 'csv',
+    label: 'カーセンサー CSV変換',
+    desc: '在庫CSVをカーセンサー形式に変換してダウンロード',
+    icon: '📊',
+  },
 ];
 
 const MULTI_TABS = [
   { id: 'instagram', label: 'Instagram' },
   { id: 'blog',      label: '自社ブログ' },
+];
+
+// ── CSV変換ユーティリティ ────────────────────────────────────────────────────
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+function parseCsvText(text: string): string[][] {
+  return text.split('\n').filter(l => l.trim()).map(parseCsvLine);
+}
+function toCsvText(header: string[], rows: string[][]): string {
+  const esc = (c: string) => (c.includes(',') || c.includes('"') || c.includes('\n')) ? `"${c.replace(/"/g,'""')}"` : c;
+  return [header, ...rows].map(r => r.map(esc).join(',')).join('\n');
+}
+function downloadCsvFile(text: string, filename: string) {
+  const blob = new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+const CSV_PREVIEW_COLS = [
+  { idx: 0, label: '車両ID' }, { idx: 3, label: 'メーカー' }, { idx: 5, label: 'モデル' },
+  { idx: 7, label: 'グレード' }, { idx: 9, label: '年式' }, { idx: 10, label: '走行距離' },
+  { idx: 12, label: '車体色' }, { idx: 20, label: '本体価格(万)' }, { idx: 18, label: '修復歴' },
 ];
 
 // ── カーセンサー 装備チェック項目 ───────────────────────────────────────────
@@ -459,10 +497,35 @@ export default function Home() {
   const [contentLoading, setContentLoading] = useState(false);
   const fileInputRef                      = useRef<HTMLInputElement>(null);
   const resultRef                         = useRef<HTMLDivElement>(null);
+  const csvInputRef                       = useRef<HTMLInputElement>(null);
+  const [csvHeader, setCsvHeader]         = useState<string[]>([]);
+  const [csvRows, setCsvRows]             = useState<string[][]>([]);
+  const [csvStatus, setCsvStatus]         = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [csvError, setCsvError]           = useState('');
 
   const canSubmit =
     mode === 'photo' ? photoFiles.length > 0 :
+    mode === 'csv'   ? false :
     inquiry.trim() !== '';
+
+  function processCsvFile(file: File) {
+    setCsvStatus('loading');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const buf = e.target?.result as ArrayBuffer;
+        const text = new TextDecoder('shift-jis').decode(buf);
+        const all = parseCsvText(text);
+        if (all.length < 2) throw new Error('データが見つかりません');
+        const [h, ...r] = all;
+        setCsvHeader(h); setCsvRows(r); setCsvStatus('ready');
+      } catch (err) {
+        setCsvError(err instanceof Error ? err.message : '読み込みエラー');
+        setCsvStatus('error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
 
   const currentModels = CAR_DATA.find(m => m.name === maker)?.models ?? [];
   const currentGrades = currentModels.find(m => m.name === model)?.grades ?? [];
@@ -1582,9 +1645,9 @@ export default function Home() {
         </div>
       </header>
 
-      <main className={`mx-auto px-4 py-7 space-y-5 ${mode === 'photo' ? 'max-w-5xl' : 'max-w-3xl'}`}>
+      <main className={`mx-auto px-4 py-7 space-y-5 ${mode === 'photo' ? 'max-w-5xl' : 'max-w-4xl'}`}>
         {/* ── Mode selector ─────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {MODES.map(m => (
             <button
               key={m.id}
@@ -1616,7 +1679,98 @@ export default function Home() {
         </div>
 
         {/* Input form */}
-        <div className={`bg-white/90 backdrop-blur-sm rounded-3xl shadow-sm border border-gray-100/80 ${mode === 'photo' ? 'p-5' : 'p-6'}`}>
+        {/* ── CSV変換モード ──────────────────────────────────────────── */}
+        {mode === 'csv' && (
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-sm border border-gray-100/80 p-6 space-y-5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="text-base font-semibold text-gray-900">在庫CSVをカーセンサー形式に変換</h2>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+                仕様確認中 — 変換ロジックは仕様入手後に更新
+              </span>
+            </div>
+
+            {(csvStatus === 'idle' || csvStatus === 'error') && (
+              <div
+                onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) processCsvFile(f); }}
+                onDragOver={e => e.preventDefault()}
+                onClick={() => csvInputRef.current?.click()}
+                className="border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all"
+              >
+                <input ref={csvInputRef} type="file" accept=".csv" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) processCsvFile(f); }} />
+                <div className="text-4xl mb-3">📂</div>
+                <p className="text-gray-700 font-bold mb-1">CSVファイルをドロップ または クリック</p>
+                <p className="text-gray-400 text-sm">ecar.co.jp 在庫CSV（Shift-JIS）対応</p>
+                {csvError && <p className="mt-3 text-red-500 text-sm">{csvError}</p>}
+              </div>
+            )}
+
+            {csvStatus === 'loading' && (
+              <div className="text-center py-12">
+                <div className="inline-block w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-gray-500">読み込み中...</p>
+              </div>
+            )}
+
+            {csvStatus === 'ready' && (
+              <>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: '台数', value: csvRows.length.toLocaleString(), color: 'text-blue-600' },
+                    { label: '在庫中', value: csvRows.filter(r => r[1] === '在庫').length.toLocaleString(), color: 'text-emerald-600' },
+                    { label: '列数', value: csvHeader.length, color: 'text-slate-700' },
+                  ].map(s => (
+                    <div key={s.label} className="bg-slate-50 rounded-2xl p-4 text-center">
+                      <p className={`text-3xl font-black ${s.color}`}>{s.value}</p>
+                      <p className="text-slate-400 text-xs mt-1">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="overflow-hidden rounded-2xl border border-gray-100">
+                  <div className="px-4 py-2.5 bg-slate-50 border-b border-gray-100 flex justify-between items-center">
+                    <span className="text-xs font-bold text-gray-500">プレビュー（先頭5件）</span>
+                    <button onClick={() => { setCsvStatus('idle'); setCsvHeader([]); setCsvRows([]); }}
+                      className="text-xs text-gray-400 hover:text-gray-600">← 別のファイル</button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="text-xs w-full">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          {CSV_PREVIEW_COLS.map(c => (
+                            <th key={c.idx} className="px-3 py-2 text-left text-gray-500 font-semibold whitespace-nowrap">{c.label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {csvRows.slice(0, 5).map((row, i) => (
+                          <tr key={i} className="border-t border-gray-50">
+                            {CSV_PREVIEW_COLS.map(c => (
+                              <td key={c.idx} className="px-3 py-2 text-gray-700 whitespace-nowrap">{row[c.idx] || '—'}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
+                    downloadCsvFile(toCsvText(csvHeader, csvRows), `carsensor_${today}.csv`);
+                  }}
+                  className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base transition-colors"
+                >
+                  カーセンサー用CSVをダウンロード →
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className={`bg-white/90 backdrop-blur-sm rounded-3xl shadow-sm border border-gray-100/80 ${mode === 'photo' ? 'p-5' : 'p-6'} ${mode === 'csv' ? 'hidden' : ''}`}>
           {mode !== 'photo' && (
             <h2 className="text-base font-semibold text-gray-900 mb-5">
               {mode === 'reply' ? 'お客様の問い合わせ内容を入力' : '車両情報を入力'}
