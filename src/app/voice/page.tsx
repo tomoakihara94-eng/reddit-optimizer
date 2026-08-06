@@ -68,7 +68,8 @@ export default function VoicePage() {
   const [transcript,   setTranscript]   = useState('');
   const [responseText, setResponseText] = useState('');
   const [results,      setResults]      = useState<CarMatch[] | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
 
   // 在庫CSV読み込み
   useEffect(() => {
@@ -125,8 +126,9 @@ export default function VoicePage() {
   }
 
   function startListening() {
-    const SR = (window as Window & typeof globalThis & { webkitSpeechRecognition?: typeof SpeechRecognition })
-      .webkitSpeechRecognition ?? window.SpeechRecognition;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    const SR = w.webkitSpeechRecognition ?? w.SpeechRecognition;
     if (!SR) { alert('このブラウザは音声認識に対応していません（Chrome推奨）'); return; }
 
     const rec = new SR();
@@ -134,8 +136,9 @@ export default function VoicePage() {
     rec.interimResults  = false;
     rec.maxAlternatives = 1;
     rec.onstart  = () => { setStatus('listening'); setTranscript(''); setResponseText(''); setResults(null); };
-    rec.onend    = () => { if (status === 'listening') setStatus('ready'); };
-    rec.onresult = (e: SpeechRecognitionEvent) => {
+    rec.onend    = () => { setStatus((s: Status) => s === 'listening' ? 'ready' : s); };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rec.onresult = (e: any) => {
       const t = e.results[0][0].transcript;
       setTranscript(t);
       handleSearch(t);
