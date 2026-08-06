@@ -10,6 +10,8 @@ interface CarMatch {
   year: string;
   price: string;
   color: string;
+  makerUrl: string;
+  modelUrl: string;
 }
 
 interface SearchContext {
@@ -32,14 +34,20 @@ function parseCsvLine(line: string): string[] {
 
 function toRow(r: string[]): CarMatch {
   return {
-    id:    r[0],
-    maker: r[3]?.replace(/"/g, '') ?? '',
-    model: r[5]?.replace(/"/g, '') ?? '',
-    grade: r[7]?.replace(/"/g, '') ?? '',
-    year:  r[9] ?? '',
-    price: r[20] ?? '',
-    color: r[12]?.replace(/"/g, '') ?? '',
+    id:       r[0],
+    maker:    r[3]?.replace(/"/g, '') ?? '',
+    model:    r[5]?.replace(/"/g, '') ?? '',
+    grade:    r[7]?.replace(/"/g, '') ?? '',
+    year:     r[9] ?? '',
+    price:    r[20] ?? '',
+    color:    r[12]?.replace(/"/g, '') ?? '',
+    makerUrl: r[4]?.replace(/"/g, '') ?? '',
+    modelUrl: r[6]?.replace(/"/g, '') ?? '',
   };
+}
+
+function ecarUrl(car: { makerUrl: string; modelUrl: string }) {
+  return `https://www.ecar.co.jp/maker_${car.makerUrl}/model_${car.modelUrl}/type_0/price_0_1/car.html`;
 }
 
 function searchInventory(
@@ -60,32 +68,44 @@ function searchInventory(
   }).map(toRow);
 }
 
-function buildGradeInfo(rows: string[][], model: string): { text: string; grades: { grade: string; count: number; min: number; max: number }[] } {
-  const cars = rows.filter(r => r[1] === '在庫' && r[5]?.toLowerCase().includes(model.toLowerCase()));
-  const map = new Map<string, { count: number; prices: number[] }>();
-  cars.forEach(r => {
+function buildGradeInfo(rows: string[][], model: string): { text: string; cars: CarMatch[] } {
+  const matched = rows.filter(r => r[1] === '在庫' && r[5]?.toLowerCase().includes(model.toLowerCase()));
+  const map = new Map<string, { count: number; prices: number[]; sample: string[] }>();
+  matched.forEach(r => {
     const g = r[7]?.replace(/"/g, '') || '（不明）';
-    if (!map.has(g)) map.set(g, { count: 0, prices: [] });
+    if (!map.has(g)) map.set(g, { count: 0, prices: [], sample: r });
     const entry = map.get(g)!;
     entry.count++;
     const p = parseFloat(r[20]);
     if (!isNaN(p)) entry.prices.push(p);
   });
 
-  const grades = [...map.entries()].map(([grade, v]) => ({
-    grade,
-    count: v.count,
-    min: v.prices.length ? Math.min(...v.prices) : 0,
-    max: v.prices.length ? Math.max(...v.prices) : 0,
-  })).sort((a, b) => a.min - b.min);
+  if (map.size === 0) return { text: `${model}の在庫はございません。`, cars: [] };
 
-  if (grades.length === 0) return { text: `${model}の在庫はございません。`, grades: [] };
+  const entries = [...map.entries()].sort((a, b) => {
+    const aMin = a[1].prices.length ? Math.min(...a[1].prices) : 0;
+    const bMin = b[1].prices.length ? Math.min(...b[1].prices) : 0;
+    return aMin - bMin;
+  });
 
-  const parts = grades.map(g =>
-    `${g.grade}が${g.count}台（${g.min > 0 ? `${g.min}〜${g.max}万円` : '価格未定'}）`
-  );
-  const text = `${model}は${grades.length}種類のグレードがございます。${parts.join('、')}です。`;
-  return { text, grades };
+  const parts = entries.map(([grade, v]) => {
+    const min = v.prices.length ? Math.min(...v.prices) : 0;
+    const max = v.prices.length ? Math.max(...v.prices) : 0;
+    return `${grade}が${v.count}台（${min > 0 ? `${min}〜${max}万円` : '価格未定'}）`;
+  });
+  const text = `${model}は${map.size}種類のグレードがございます。${parts.join('、')}です。`;
+
+  const cars: CarMatch[] = entries.map(([grade, v]) => {
+    const r = v.sample;
+    const min = v.prices.length ? Math.min(...v.prices) : 0;
+    const max = v.prices.length ? Math.max(...v.prices) : 0;
+    return {
+      id: grade, maker: r[3]?.replace(/"/g, '') ?? '', model: r[5]?.replace(/"/g, '') ?? '',
+      grade, year: '', price: min > 0 ? `${min}〜${max}` : '-', color: `${v.count}台`,
+      makerUrl: r[4]?.replace(/"/g, '') ?? '', modelUrl: r[6]?.replace(/"/g, '') ?? '',
+    };
+  });
+  return { text, cars };
 }
 
 function buildRecommendations(rows: string[][], ctx: SearchContext): CarMatch[] {
@@ -161,17 +181,9 @@ export default function VoicePage() {
         if (!targetModel) {
           reply = 'どの車種のグレードについてお知らせしますか？';
         } else {
-          const { text: gradeText, grades } = buildGradeInfo(inventory, targetModel);
+          const { text: gradeText, cars: gradeCars } = buildGradeInfo(inventory, targetModel);
           reply = gradeText;
-          matchedCars = grades.map(g => ({
-            id: g.grade,
-            maker: maker ?? context.maker ?? '',
-            model: targetModel,
-            grade: g.grade,
-            year: '',
-            price: g.min > 0 ? `${g.min}〜${g.max}` : '-',
-            color: `${g.count}台`,
-          }));
+          matchedCars = gradeCars;
         }
 
       } else if (intent === 'recommend') {
@@ -296,15 +308,24 @@ export default function VoicePage() {
             {results && results.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-white/10">
                 {results.slice(0, 4).map((car, i) => (
-                  <div key={car.id + i} className="bg-white/8 rounded-xl px-4 py-2.5 flex items-center justify-between">
+                  <a
+                    key={car.id + i}
+                    href={ecarUrl(car)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-white/8 rounded-xl px-4 py-2.5 flex items-center justify-between hover:bg-white/15 active:bg-white/20 transition-colors"
+                  >
                     <div>
                       <p className="font-bold text-sm text-white">{car.model}</p>
                       <p className="text-white/50 text-xs">
                         {car.grade}{car.year ? ` · ${car.year}年` : ''}{car.color ? ` · ${car.color}` : ''}
                       </p>
                     </div>
-                    <p className="text-indigo-300 font-black text-sm whitespace-nowrap">{car.price}万</p>
-                  </div>
+                    <div className="text-right">
+                      <p className="text-indigo-300 font-black text-sm whitespace-nowrap">{car.price}万</p>
+                      <p className="text-white/30 text-[10px]">詳細 →</p>
+                    </div>
+                  </a>
                 ))}
                 {results.length > 4 && (
                   <p className="text-white/30 text-xs text-center">他 {results.length - 4}台</p>
