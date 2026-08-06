@@ -12,6 +12,11 @@ interface CarMatch {
   color: string;
 }
 
+interface SearchContext {
+  maker: string | null;
+  model: string | null;
+}
+
 function parseCsvLine(line: string): string[] {
   const result: string[] = [];
   let cur = ''; let inQ = false;
@@ -25,30 +30,76 @@ function parseCsvLine(line: string): string[] {
   return result;
 }
 
+function toRow(r: string[]): CarMatch {
+  return {
+    id:    r[0],
+    maker: r[3]?.replace(/"/g, '') ?? '',
+    model: r[5]?.replace(/"/g, '') ?? '',
+    grade: r[7]?.replace(/"/g, '') ?? '',
+    year:  r[9] ?? '',
+    price: r[20] ?? '',
+    color: r[12]?.replace(/"/g, '') ?? '',
+  };
+}
+
 function searchInventory(
   rows: string[][],
-  query: { model: string | null; grade: string | null; maker: string | null },
+  query: { model?: string | null; grade?: string | null; maker?: string | null; color?: string | null },
 ): CarMatch[] {
-  return rows
-    .filter(r => {
-      if (r[1] !== '在庫') return false;
-      const model  = r[5]?.replace(/"/g, '').toLowerCase() ?? '';
-      const grade  = r[7]?.replace(/"/g, '').toLowerCase() ?? '';
-      const maker  = r[3]?.replace(/"/g, '').toLowerCase() ?? '';
-      if (query.model  && !model.includes(query.model.toLowerCase()))  return false;
-      if (query.grade  && !grade.includes(query.grade.toLowerCase()))  return false;
-      if (query.maker  && !maker.includes(query.maker.toLowerCase()))  return false;
-      return true;
-    })
-    .map(r => ({
-      id:    r[0],
-      maker: r[3]?.replace(/"/g, ''),
-      model: r[5]?.replace(/"/g, ''),
-      grade: r[7]?.replace(/"/g, ''),
-      year:  r[9],
-      price: r[20],
-      color: r[12],
-    }));
+  return rows.filter(r => {
+    if (r[1] !== '在庫') return false;
+    const model = r[5]?.toLowerCase() ?? '';
+    const grade = r[7]?.toLowerCase() ?? '';
+    const maker = r[3]?.toLowerCase() ?? '';
+    const color = r[12]?.toLowerCase() ?? '';
+    if (query.model && !model.includes(query.model.toLowerCase())) return false;
+    if (query.grade && !grade.includes(query.grade.toLowerCase())) return false;
+    if (query.maker && !maker.includes(query.maker.toLowerCase())) return false;
+    if (query.color && !color.includes(query.color.toLowerCase())) return false;
+    return true;
+  }).map(toRow);
+}
+
+function buildGradeInfo(rows: string[][], model: string): { text: string; grades: { grade: string; count: number; min: number; max: number }[] } {
+  const cars = rows.filter(r => r[1] === '在庫' && r[5]?.toLowerCase().includes(model.toLowerCase()));
+  const map = new Map<string, { count: number; prices: number[] }>();
+  cars.forEach(r => {
+    const g = r[7]?.replace(/"/g, '') || '（不明）';
+    if (!map.has(g)) map.set(g, { count: 0, prices: [] });
+    const entry = map.get(g)!;
+    entry.count++;
+    const p = parseFloat(r[20]);
+    if (!isNaN(p)) entry.prices.push(p);
+  });
+
+  const grades = [...map.entries()].map(([grade, v]) => ({
+    grade,
+    count: v.count,
+    min: v.prices.length ? Math.min(...v.prices) : 0,
+    max: v.prices.length ? Math.max(...v.prices) : 0,
+  })).sort((a, b) => a.min - b.min);
+
+  if (grades.length === 0) return { text: `${model}の在庫はございません。`, grades: [] };
+
+  const parts = grades.map(g =>
+    `${g.grade}が${g.count}台（${g.min > 0 ? `${g.min}〜${g.max}万円` : '価格未定'}）`
+  );
+  const text = `${model}は${grades.length}種類のグレードがございます。${parts.join('、')}です。`;
+  return { text, grades };
+}
+
+function buildRecommendations(rows: string[][], ctx: SearchContext): CarMatch[] {
+  const seen = new Map<string, CarMatch>();
+  rows.filter(r => {
+    if (r[1] !== '在庫') return false;
+    if (ctx.maker && !r[3]?.toLowerCase().includes(ctx.maker.toLowerCase())) return false;
+    if (ctx.model && r[5]?.toLowerCase().includes(ctx.model.toLowerCase())) return false;
+    return true;
+  }).forEach(r => {
+    const model = r[5]?.replace(/"/g, '') ?? '';
+    if (model && !seen.has(model)) seen.set(model, toRow(r));
+  });
+  return [...seen.values()].slice(0, 4);
 }
 
 function speak(text: string) {
@@ -68,10 +119,10 @@ export default function VoicePage() {
   const [transcript,   setTranscript]   = useState('');
   const [responseText, setResponseText] = useState('');
   const [results,      setResults]      = useState<CarMatch[] | null>(null);
+  const [context,      setContext]      = useState<SearchContext>({ maker: null, model: null });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
 
-  // 在庫CSV読み込み
   useEffect(() => {
     fetch('/inventory.csv')
       .then(r => r.arrayBuffer())
@@ -89,32 +140,74 @@ export default function VoicePage() {
     setResults(null);
     setResponseText('');
     try {
-      const res  = await fetch('/api/voice-search', {
+      const res = await fetch('/api/voice-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript: text }),
+        body: JSON.stringify({ transcript: text, context }),
       });
-      const { model, grade, maker } = await res.json() as {
-        model: string | null; grade: string | null; maker: string | null;
+      const { intent, model, grade, maker, color } = await res.json() as {
+        intent: 'search' | 'grade_info' | 'recommend';
+        model: string | null;
+        grade: string | null;
+        maker: string | null;
+        color: string | null;
       };
 
-      const matches = searchInventory(inventory, { model, grade, maker });
-      setResults(matches);
-
-      const carLabel = [maker, model, grade].filter(Boolean).join(' ') || 'ご指定の車';
       let reply = '';
-      if (matches.length === 0) {
-        reply = `${carLabel}は現在在庫がございません。他のご希望はございますか？`;
-      } else if (matches.length === 1) {
-        const m = matches[0];
-        reply = `${m.model} ${m.grade}は1台ございます。${m.year}年式、${m.color}、本体価格${m.price}万円です。`;
+      let matchedCars: CarMatch[] = [];
+
+      if (intent === 'grade_info') {
+        const targetModel = model ?? context.model;
+        if (!targetModel) {
+          reply = 'どの車種のグレードについてお知らせしますか？';
+        } else {
+          const { text: gradeText, grades } = buildGradeInfo(inventory, targetModel);
+          reply = gradeText;
+          matchedCars = grades.map(g => ({
+            id: g.grade,
+            maker: maker ?? context.maker ?? '',
+            model: targetModel,
+            grade: g.grade,
+            year: '',
+            price: g.min > 0 ? `${g.min}〜${g.max}` : '-',
+            color: `${g.count}台`,
+          }));
+        }
+
+      } else if (intent === 'recommend') {
+        const ctx = { maker: maker ?? context.maker, model: model ?? context.model };
+        const recs = buildRecommendations(inventory, ctx);
+        if (recs.length === 0) {
+          reply = '他のおすすめ車種が見つかりませんでした。';
+        } else {
+          const names = recs.map(r => r.model).join('、');
+          reply = `${ctx.maker ?? 'こちら'}の他のおすすめとして、${names}がございます。`;
+          matchedCars = recs;
+        }
+
       } else {
-        const prices  = matches.map(m => parseFloat(m.price)).filter(n => !isNaN(n));
-        const minPrice = prices.length ? Math.min(...prices) : null;
-        reply = `${carLabel}は現在${matches.length}台ございます。${minPrice ? `本体価格${minPrice}万円からとなっております。` : ''}スタッフにお声がけください。`;
+        // search
+        matchedCars = searchInventory(inventory, { model, grade, maker, color });
+        const newCtx = { maker: maker ?? context.maker, model: model ?? context.model };
+        setContext(newCtx);
+
+        const carLabel = [maker, model, grade].filter(Boolean).join(' ') || 'ご指定の車';
+        const colorLabel = color ? `${color}の` : '';
+
+        if (matchedCars.length === 0) {
+          reply = `${colorLabel}${carLabel}は現在在庫がございません。他のご希望はございますか？`;
+        } else if (matchedCars.length === 1) {
+          const m = matchedCars[0];
+          reply = `${colorLabel}${m.model} ${m.grade}は1台ございます。${m.year}年式、${m.color}、本体価格${m.price}万円です。`;
+        } else {
+          const prices = matchedCars.map(m => parseFloat(m.price)).filter(n => !isNaN(n));
+          const minPrice = prices.length ? Math.min(...prices) : null;
+          reply = `${colorLabel}${carLabel}は現在${matchedCars.length}台ございます。${minPrice ? `本体価格${minPrice}万円からとなっております。` : ''}スタッフにお声がけください。`;
+        }
       }
 
       setResponseText(reply);
+      setResults(matchedCars);
       speak(reply);
       setStatus('done');
     } catch {
@@ -139,7 +232,7 @@ export default function VoicePage() {
     rec.onend    = () => { setStatus((s: Status) => s === 'listening' ? 'ready' : s); };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onresult = (e: any) => {
-      const t = e.results[0][0].transcript;
+      const t = e.results[0][0].transcript as string;
       setTranscript(t);
       handleSearch(t);
     };
@@ -148,23 +241,21 @@ export default function VoicePage() {
     recognitionRef.current = rec;
   }
 
-  const isListening  = status === 'listening';
-  const isSearching  = status === 'searching';
-  const isReady      = status === 'ready' || status === 'done';
+  const isListening = status === 'listening';
+  const isSearching = status === 'searching';
+  const isReady     = status === 'ready' || status === 'done';
 
   return (
     <main className="min-h-screen bg-[#07071a] flex flex-col items-center justify-center p-6 text-white select-none">
       <div className="w-full max-w-sm text-center space-y-8">
 
-        {/* ヘッダー */}
         <div>
           <p className="text-white/30 text-xs tracking-widest uppercase mb-2">在庫確認</p>
           <h1 className="text-2xl font-black">車種・グレードを<br />話しかけてください</h1>
-          <p className="text-white/30 text-xs mt-2">例：「ヴォクシーのZSはありますか」</p>
+          <p className="text-white/30 text-xs mt-2">例：「白いヴォクシーZSはある？」「グレードの違いは？」「他のおすすめは？」</p>
         </div>
 
-        {/* マイクボタン */}
-        {(status === 'loading') ? (
+        {status === 'loading' ? (
           <div className="flex items-center justify-center gap-2 text-white/40">
             <div className="w-5 h-5 border-2 border-white/30 border-t-white/80 rounded-full animate-spin" />
             在庫データ読み込み中...
@@ -188,7 +279,6 @@ export default function VoicePage() {
           </button>
         )}
 
-        {/* 認識テキスト */}
         {transcript && (
           <div className="bg-white/8 border border-white/10 rounded-2xl px-5 py-3 text-left">
             <p className="text-white/40 text-[10px] mb-1 tracking-wider">認識した発言</p>
@@ -196,7 +286,6 @@ export default function VoicePage() {
           </div>
         )}
 
-        {/* 回答 */}
         {responseText && (
           <div className="bg-indigo-500/20 border border-indigo-400/30 rounded-2xl p-5 text-left space-y-4">
             <div>
@@ -206,17 +295,19 @@ export default function VoicePage() {
 
             {results && results.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-white/10">
-                {results.slice(0, 3).map(car => (
-                  <div key={car.id} className="bg-white/8 rounded-xl px-4 py-2.5 flex items-center justify-between">
+                {results.slice(0, 4).map((car, i) => (
+                  <div key={car.id + i} className="bg-white/8 rounded-xl px-4 py-2.5 flex items-center justify-between">
                     <div>
                       <p className="font-bold text-sm text-white">{car.model}</p>
-                      <p className="text-white/50 text-xs">{car.grade} · {car.year}年 · {car.color}</p>
+                      <p className="text-white/50 text-xs">
+                        {car.grade}{car.year ? ` · ${car.year}年` : ''}{car.color ? ` · ${car.color}` : ''}
+                      </p>
                     </div>
-                    <p className="text-indigo-300 font-black text-sm">{car.price}万</p>
+                    <p className="text-indigo-300 font-black text-sm whitespace-nowrap">{car.price}万</p>
                   </div>
                 ))}
-                {results.length > 3 && (
-                  <p className="text-white/30 text-xs text-center">他 {results.length - 3}台</p>
+                {results.length > 4 && (
+                  <p className="text-white/30 text-xs text-center">他 {results.length - 4}台</p>
                 )}
               </div>
             )}
@@ -228,6 +319,12 @@ export default function VoicePage() {
               もう一度話す
             </button>
           </div>
+        )}
+
+        {context.model && status === 'done' && (
+          <p className="text-white/20 text-xs">
+            会話中の車種: {[context.maker, context.model].filter(Boolean).join(' ')}
+          </p>
         )}
 
         <p className="text-white/15 text-xs">{inventory.length > 0 ? `${inventory.length}台の在庫データ` : ''}</p>
