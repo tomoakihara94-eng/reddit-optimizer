@@ -50,17 +50,30 @@ function ecarUrl(car: { makerUrl: string; modelUrl: string }) {
   return `https://www.ecar.co.jp/maker_${car.makerUrl}/model_${car.modelUrl}/type_0/price_0_1/car.html`;
 }
 
+// スマホ音声認識がカタカナ化する車名を正規化
+const KANA_TO_EN: [RegExp, string][] = [
+  [/ボックス/g, 'BOX'], [/エヌ/g, 'N-'], [/ワゴン/g, 'WGN'],
+  [/エックス/g, 'X'],  [/ジー/g, 'G'],   [/エス/g, 'S'],
+  [/ブイ/g, 'V'],      [/ゼット/g, 'Z'],  [/アール/g, 'R'],
+];
+function normalizeModel(s: string): string {
+  let r = s.toLowerCase().replace(/\s+/g, '').replace(/ー/g, '');
+  for (const [from, to] of KANA_TO_EN) r = r.replace(from, to.toLowerCase());
+  return r.replace(/-+/g, '-').replace(/^-|-$/g, '');
+}
+
 function searchInventory(
   rows: string[][],
   query: { model?: string | null; grade?: string | null; maker?: string | null; color?: string | null },
 ): CarMatch[] {
+  const qModel = query.model ? normalizeModel(query.model) : null;
   return rows.filter(r => {
     if (r[1] !== '在庫') return false;
-    const model = r[5]?.toLowerCase() ?? '';
+    const model = normalizeModel(r[5] ?? '');
     const grade = r[7]?.toLowerCase() ?? '';
     const maker = r[3]?.toLowerCase() ?? '';
     const color = r[12]?.toLowerCase() ?? '';
-    if (query.model && !model.includes(query.model.toLowerCase())) return false;
+    if (qModel && !model.includes(qModel)) return false;
     if (query.grade && !grade.includes(query.grade.toLowerCase())) return false;
     if (query.maker && !maker.includes(query.maker.toLowerCase())) return false;
     if (query.color && !color.includes(query.color.toLowerCase())) return false;
@@ -69,7 +82,8 @@ function searchInventory(
 }
 
 function buildGradeInfo(rows: string[][], model: string): { text: string; cars: CarMatch[] } {
-  const matched = rows.filter(r => r[1] === '在庫' && r[5]?.toLowerCase().includes(model.toLowerCase()));
+  const qModel = normalizeModel(model);
+  const matched = rows.filter(r => r[1] === '在庫' && normalizeModel(r[5] ?? '').includes(qModel));
   const map = new Map<string, { count: number; prices: number[]; sample: string[] }>();
   matched.forEach(r => {
     const g = r[7]?.replace(/"/g, '') || '（不明）';
