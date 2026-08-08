@@ -22,9 +22,12 @@ export async function POST(req: NextRequest) {
 発言:「${transcript}」
 
 intentの種類:
-- "search": 特定の車を探している（例:「ヴォクシーのZSはある？」「白いアルファードが欲しい」）
+- "vehicle_lookup": 車両番号・管理番号など数字のIDで特定の1台を指定している（例:「24598の車」「車両番号25100」「25100番」）
+- "search": 特定の車種・グレードを探している（例:「ヴォクシーのZSはある？」「白いアルファードが欲しい」）
 - "grade_info": グレードの違いや詳細を聞いている（例:「グレードの違いは？」「ZSとZの違いは？」）
 - "recommend": 他のおすすめや似た車を聞いている（例:「他に似たのはある？」「おすすめは？」）
+
+vehicle_lookupの場合はvehicleIdに数字のみ返す（例: "24598"）。
 
 重要：modelは車名カタログの正式表記で返すこと。
 音声認識でカタカナ化された場合は元の表記に戻す。
@@ -33,7 +36,8 @@ intentの種類:
 
 colorはCSVの車体色列に含まれそうな日本語で返す（例:「白」→「ホワイト」または「白」）。
 
-{"intent": "search", "maker": null, "model": "ヴォクシー", "grade": "ZS", "color": null}
+{"intent": "search", "maker": null, "model": "ヴォクシー", "grade": "ZS", "color": null, "vehicleId": null}
+{"intent": "vehicle_lookup", "maker": null, "model": null, "grade": null, "color": null, "vehicleId": "24598"}
 
 JSONのみ返してください。`,
     }],

@@ -50,6 +50,10 @@ function ecarUrl(car: { makerUrl: string; modelUrl: string }) {
   return `https://www.ecar.co.jp/maker_${car.makerUrl}/model_${car.modelUrl}/type_0/price_0_1/car.html`;
 }
 
+function ecarDirectUrl(car: { makerUrl: string; id: string }) {
+  return `https://www.ecar.co.jp/${car.makerUrl}_${car.id}.html`;
+}
+
 // スマホ音声認識がカタカナ化する車名を正規化
 const KANA_TO_EN: [RegExp, string][] = [
   [/ボックス/g, 'BOX'], [/エヌ/g, 'N-'], [/ワゴン/g, 'WGN'],
@@ -179,18 +183,31 @@ export default function VoicePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transcript: text, context }),
       });
-      const { intent, model, grade, maker, color } = await res.json() as {
-        intent: 'search' | 'grade_info' | 'recommend';
+      const { intent, model, grade, maker, color, vehicleId } = await res.json() as {
+        intent: 'vehicle_lookup' | 'search' | 'grade_info' | 'recommend';
         model: string | null;
         grade: string | null;
         maker: string | null;
         color: string | null;
+        vehicleId: string | null;
       };
 
       let reply = '';
       let matchedCars: CarMatch[] = [];
 
-      if (intent === 'grade_info') {
+      if (intent === 'vehicle_lookup' && vehicleId) {
+        const row = inventory.find(r => r[0]?.trim() === vehicleId.trim());
+        if (!row) {
+          reply = `車両番号${vehicleId}は見つかりませんでした。番号をご確認ください。`;
+        } else {
+          const car = toRow(row);
+          reply = `車両番号${vehicleId}、${car.model} ${car.grade}、${car.year}年式、${car.color}、本体価格${car.price}万円です。`;
+          matchedCars = [{ ...car, id: vehicleId }];
+          // 直接ページへ自動遷移
+          window.open(ecarDirectUrl({ makerUrl: car.makerUrl, id: vehicleId }), '_blank');
+        }
+
+      } else if (intent === 'grade_info') {
         const targetModel = model ?? context.model;
         if (!targetModel) {
           reply = 'どの車種のグレードについてお知らせしますか？';
@@ -324,7 +341,7 @@ export default function VoicePage() {
                 {results.slice(0, 4).map((car, i) => (
                   <a
                     key={car.id + i}
-                    href={ecarUrl(car)}
+                    href={/^\d+$/.test(car.id) ? ecarDirectUrl({ makerUrl: car.makerUrl, id: car.id }) : ecarUrl(car)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="bg-white/8 rounded-xl px-4 py-2.5 flex items-center justify-between hover:bg-white/15 active:bg-white/20 transition-colors"
