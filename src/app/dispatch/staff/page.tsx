@@ -95,18 +95,13 @@ export default function StaffPage() {
 
   const startAudio = useCallback(() => {
     if (audioReady) return;
-    // チャイム音を unlock
-    audiosRef.current = CHIME_FREQS.map(freq => {
-      const audio = new Audio(makeWavUri(freq));
-      audio.volume = 0.001;
-      audio.play().then(() => { audio.pause(); audio.currentTime = 0; audio.volume = 1; }).catch(() => {});
-      return audio;
+    // Audio要素を作成
+    audiosRef.current = CHIME_FREQS.map(freq => new Audio(makeWavUri(freq)));
+    winAudioRef.current = new Audio(makeWinMelody());
+    // ボタンを押した瞬間にチャイムを鳴らして動作確認
+    audiosRef.current.forEach((audio, i) => {
+      setTimeout(() => { audio.currentTime = 0; audio.play().catch(() => {}); }, i * 180);
     });
-    // 当選ファンファーレを unlock
-    const win = new Audio(makeWinMelody());
-    win.volume = 0.001;
-    win.play().then(() => { win.pause(); win.currentTime = 0; win.volume = 1; }).catch(() => {});
-    winAudioRef.current = win;
     setAudioReady(true);
   }, [audioReady]);
 
