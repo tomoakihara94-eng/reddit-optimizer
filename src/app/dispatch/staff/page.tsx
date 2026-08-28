@@ -100,6 +100,9 @@ export default function StaffPage() {
     if (prevStatusRef.current !== 'active' && data.status === 'active') {
       setPressed(false);
       playAlert();
+      if ('vibrate' in navigator) {
+        navigator.vibrate([300, 100, 300, 100, 300]);
+      }
     }
     prevStatusRef.current = data.status;
     setStatus(data);
