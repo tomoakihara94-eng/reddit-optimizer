@@ -15,7 +15,6 @@ function urlBase64ToUint8Array(b64: string): ArrayBuffer {
   return new Uint8Array([...raw].map(c => c.charCodeAt(0))).buffer as ArrayBuffer;
 }
 
-// WAV data URI を生成（ユーザー操作なしでは iOS で再生不可なので、起動時に unlock する）
 function makeWavUri(freq: number, dur = 0.35, sr = 22050): string {
   const n = Math.floor(sr * dur);
   const buf = new ArrayBuffer(44 + n * 2);
@@ -38,6 +37,39 @@ function makeWavUri(freq: number, dur = 0.35, sr = 22050): string {
   return 'data:audio/wav;base64,' + btoa(bin);
 }
 
+// ファンファーレ：複数音符を1つのWAVに結合
+function makeWinMelody(sr = 22050): string {
+  // C5 D5 E5 G5 C6 - 明るく上昇するメロディ
+  const notes: [number, number][] = [
+    [523.25, 0.12], [587.33, 0.10], [659.25, 0.12],
+    [783.99, 0.10], [1046.50, 0.12], [1318.51, 0.55],
+  ];
+  const totalN = notes.reduce((acc, [, d]) => acc + Math.floor(sr * d), 0);
+  const buf = new ArrayBuffer(44 + totalN * 2);
+  const v = new DataView(buf);
+  const str = (o: number, s: string) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  str(0, 'RIFF'); v.setUint32(4, 36 + totalN * 2, true);
+  str(8, 'WAVE'); str(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  str(36, 'data'); v.setUint32(40, totalN * 2, true);
+  let offset = 44;
+  for (const [freq, dur] of notes) {
+    const n = Math.floor(sr * dur);
+    for (let i = 0; i < n; i++) {
+      const t = i / sr;
+      const env = Math.min(t / 0.01, 1) * Math.min((dur - t) / 0.05, 1);
+      v.setInt16(offset + i * 2, Math.round(Math.sin(2 * Math.PI * freq * t) * env * 0.8 * 32767), true);
+    }
+    offset += n * 2;
+  }
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return 'data:audio/wav;base64,' + btoa(bin);
+}
+
 const CHIME_FREQS = [880, 1108, 1320];
 
 export default function StaffPage() {
@@ -49,36 +81,38 @@ export default function StaffPage() {
   const [audioReady, setAudioReady] = useState(false);
   const prevStatusRef  = useRef<string>('idle');
   const audiosRef      = useRef<HTMLAudioElement[]>([]);
+  const winAudioRef    = useRef<HTMLAudioElement | null>(null);
   const chimeTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const staffNameRef   = useRef('');
 
   useEffect(() => {
-    setStaffId(localStorage.getItem('dispatch_staff_id') ?? '');
-    setStaffName(localStorage.getItem('dispatch_staff_name') ?? '');
+    const id   = localStorage.getItem('dispatch_staff_id') ?? '';
+    const name = localStorage.getItem('dispatch_staff_name') ?? '';
+    setStaffId(id);
+    setStaffName(name);
+    staffNameRef.current = name;
   }, []);
 
   const startAudio = useCallback(() => {
     if (audioReady) return;
-    // ユーザー操作中にAudio要素を unlock する
+    // チャイム音を unlock
     audiosRef.current = CHIME_FREQS.map(freq => {
       const audio = new Audio(makeWavUri(freq));
-      // 無音再生して iOS のロックを解除
       audio.volume = 0.001;
-      audio.play().then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-        audio.volume = 1;
-      }).catch(() => {});
+      audio.play().then(() => { audio.pause(); audio.currentTime = 0; audio.volume = 1; }).catch(() => {});
       return audio;
     });
+    // 当選ファンファーレを unlock
+    const win = new Audio(makeWinMelody());
+    win.volume = 0.001;
+    win.play().then(() => { win.pause(); win.currentTime = 0; win.volume = 1; }).catch(() => {});
+    winAudioRef.current = win;
     setAudioReady(true);
   }, [audioReady]);
 
   const playChime = useCallback(() => {
     audiosRef.current.forEach((audio, i) => {
-      setTimeout(() => {
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
-      }, i * 180);
+      setTimeout(() => { audio.currentTime = 0; audio.play().catch(() => {}); }, i * 180);
     });
   }, []);
 
@@ -89,10 +123,14 @@ export default function StaffPage() {
   }, [playChime]);
 
   const stopChimeLoop = useCallback(() => {
-    if (chimeTimerRef.current) {
-      clearInterval(chimeTimerRef.current);
-      chimeTimerRef.current = null;
-    }
+    if (chimeTimerRef.current) { clearInterval(chimeTimerRef.current); chimeTimerRef.current = null; }
+  }, []);
+
+  const playWin = useCallback(() => {
+    const audio = winAudioRef.current;
+    if (!audio) return;
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
   }, []);
 
   // Register push subscription
@@ -119,19 +157,22 @@ export default function StaffPage() {
   const pollStatus = useCallback(async () => {
     const res = await fetch('/api/dispatch/status');
     const data = await res.json() as ApiStatus;
-    // 新しいイベント開始 → チャイムループ開始
+
     if (prevStatusRef.current !== 'active' && data.status === 'active') {
       setPressed(false);
       startChimeLoop();
       if ('vibrate' in navigator) navigator.vibrate([300, 100, 300, 100, 300]);
     }
-    // イベント終了 or 担当者決定 → チャイム停止
     if (prevStatusRef.current === 'active' && data.status !== 'active') {
       stopChimeLoop();
+      // 当選者だったらファンファーレ
+      if (data.status === 'assigned' && data.winner.name === staffNameRef.current) {
+        playWin();
+      }
     }
     prevStatusRef.current = data.status;
     setStatus(data);
-  }, [startChimeLoop, stopChimeLoop]);
+  }, [startChimeLoop, stopChimeLoop, playWin]);
 
   useEffect(() => {
     pollStatus();
@@ -158,7 +199,6 @@ export default function StaffPage() {
     <main className="min-h-screen bg-[#07071a] flex flex-col items-center justify-center p-6 text-white select-none">
       <div className="w-full max-w-sm text-center space-y-8">
 
-        {/* Header */}
         <div>
           <p className="text-white/30 text-xs tracking-widest mb-1">差配システム</p>
           <h1 className="text-2xl font-black">{staffName || '---'}</h1>
@@ -166,7 +206,6 @@ export default function StaffPage() {
           {pushOk === false && <p className="text-red-400 text-xs mt-1">⚠️ 通知をオンにしてください</p>}
         </div>
 
-        {/* Audio unlock — must tap before going on standby */}
         {!audioReady && (
           <button
             onClick={startAudio}
@@ -175,21 +214,15 @@ export default function StaffPage() {
             🔊 音を有効にする（必須）
           </button>
         )}
-        {audioReady && (
-          <p className="text-green-400 text-xs">🔊 音 ON ✓</p>
-        )}
+        {audioReady && <p className="text-green-400 text-xs">🔊 音 ON ✓</p>}
 
-        {/* Idle */}
         {status.status === 'idle' && (
           <div className="flex flex-col items-center gap-4">
-            <div className="w-36 h-36 rounded-full bg-white/5 border-2 border-white/10 flex items-center justify-center text-5xl">
-              🟢
-            </div>
+            <div className="w-36 h-36 rounded-full bg-white/5 border-2 border-white/10 flex items-center justify-center text-5xl">🟢</div>
             <p className="text-white/40">待機中</p>
           </div>
         )}
 
-        {/* Active */}
         {status.status === 'active' && (
           <div className="space-y-6">
             {!iHavePressed ? (
@@ -210,7 +243,6 @@ export default function StaffPage() {
           </div>
         )}
 
-        {/* Assigned */}
         {status.status === 'assigned' && status.winner && (
           <div className={`rounded-3xl p-8 border ${
             isMyWin ? 'bg-green-500/15 border-green-400/25' : 'bg-white/5 border-white/10'
