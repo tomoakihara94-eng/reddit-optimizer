@@ -37,9 +37,7 @@ function makeWavUri(freq: number, dur = 0.35, sr = 22050): string {
   return 'data:audio/wav;base64,' + btoa(bin);
 }
 
-// ファンファーレ：複数音符を1つのWAVに結合
 function makeWinMelody(sr = 22050): string {
-  // C5 D5 E5 G5 C6 - 明るく上昇するメロディ
   const notes: [number, number][] = [
     [523.25, 0.12], [587.33, 0.10], [659.25, 0.12],
     [783.99, 0.10], [1046.50, 0.12], [1318.51, 0.55],
@@ -79,28 +77,24 @@ export default function StaffPage() {
   const [pressed, setPressed]       = useState(false);
   const [pushOk, setPushOk]         = useState<boolean | null>(null);
   const [audioReady, setAudioReady] = useState(false);
-  const prevStatusRef  = useRef<string>('idle');
-  const audiosRef      = useRef<HTMLAudioElement[]>([]);
-  const winAudioRef    = useRef<HTMLAudioElement | null>(null);
-  const chimeTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const staffNameRef   = useRef('');
+  const prevStatusRef = useRef<string>('idle');
+  const audiosRef     = useRef<HTMLAudioElement[]>([]);
+  const winAudioRef   = useRef<HTMLAudioElement | null>(null);
+  const chimeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const staffNameRef  = useRef('');
 
   useEffect(() => {
     const id   = localStorage.getItem('dispatch_staff_id') ?? '';
     const name = localStorage.getItem('dispatch_staff_name') ?? '';
-    setStaffId(id);
-    setStaffName(name);
-    staffNameRef.current = name;
+    setStaffId(id); setStaffName(name); staffNameRef.current = name;
   }, []);
 
   const startAudio = useCallback(() => {
     if (audioReady) return;
-    // チャイム音を作成して即再生（unlock + 動作確認）
     audiosRef.current = CHIME_FREQS.map(freq => new Audio(makeWavUri(freq)));
     audiosRef.current.forEach((audio, i) => {
       setTimeout(() => { audio.currentTime = 0; audio.play().catch(() => {}); }, i * 180);
     });
-    // ファンファーレも無音で再生してiOSのロックを解除
     const win = new Audio(makeWinMelody());
     winAudioRef.current = win;
     win.volume = 0.01;
@@ -131,7 +125,6 @@ export default function StaffPage() {
     audio.play().catch(() => {});
   }, []);
 
-  // Register push subscription
   useEffect(() => {
     if (!staffId || !VAPID_KEY) return;
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
@@ -155,7 +148,6 @@ export default function StaffPage() {
   const pollStatus = useCallback(async () => {
     const res = await fetch('/api/dispatch/status');
     const data = await res.json() as ApiStatus;
-
     if (prevStatusRef.current !== 'active' && data.status === 'active') {
       setPressed(false);
       startChimeLoop();
@@ -163,7 +155,6 @@ export default function StaffPage() {
     }
     if (prevStatusRef.current === 'active' && data.status !== 'active') {
       stopChimeLoop();
-      // 当選者だったらファンファーレ
       if (data.status === 'assigned' && data.winner.name === staffNameRef.current) {
         playWin();
       }
@@ -194,68 +185,98 @@ export default function StaffPage() {
   const iHavePressed = pressed || (status.status === 'active' && status.pressedIds.includes(staffId));
 
   return (
-    <main className="min-h-screen bg-[#07071a] flex flex-col items-center justify-center p-6 text-white select-none">
-      <div className="w-full max-w-sm text-center space-y-8">
+    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 flex flex-col items-center justify-center p-6 text-white select-none">
+      <div className="w-full max-w-sm">
 
-        <div>
-          <p className="text-white/30 text-xs tracking-widest mb-1">差配システム</p>
-          <h1 className="text-2xl font-black">{staffName || '---'}</h1>
-          {pushOk === true  && <p className="text-green-400 text-xs mt-1">🔔 通知 ON</p>}
-          {pushOk === false && <p className="text-red-400 text-xs mt-1">⚠️ 通知をオンにしてください</p>}
+        {/* Header */}
+        <div className="text-center mb-8">
+          <p className="text-indigo-400/60 text-xs tracking-[0.3em] uppercase mb-1">Sales Staff</p>
+          <h1 className="text-2xl font-bold">{staffName || '---'}</h1>
+          <div className="flex items-center justify-center gap-3 mt-2">
+            {pushOk === true  && <span className="text-xs text-emerald-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />通知 ON</span>}
+            {pushOk === false && <span className="text-xs text-red-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />通知 OFF</span>}
+            {audioReady && <span className="text-xs text-indigo-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block" />音 ON</span>}
+          </div>
         </div>
 
+        {/* Audio unlock */}
         {!audioReady && (
           <button
             onClick={startAudio}
-            className="w-full py-4 rounded-2xl bg-yellow-500 hover:bg-yellow-400 active:scale-95 transition-all text-black font-black text-lg shadow-lg shadow-yellow-500/30"
+            className="w-full py-4 rounded-2xl mb-6 font-bold text-sm transition-all active:scale-95"
+            style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.2), rgba(234,179,8,0.1))', border: '1px solid rgba(234,179,8,0.3)', color: '#fde047' }}
           >
             🔊 音を有効にする（必須）
           </button>
         )}
-        {audioReady && <p className="text-green-400 text-xs">🔊 音 ON ✓</p>}
 
+        {/* Idle */}
         {status.status === 'idle' && (
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-36 h-36 rounded-full bg-white/5 border-2 border-white/10 flex items-center justify-center text-5xl">🟢</div>
-            <p className="text-white/40">待機中</p>
+          <div className="flex flex-col items-center gap-6">
+            <div className="w-40 h-40 rounded-full flex items-center justify-center"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="text-center">
+                <div className="w-3 h-3 rounded-full bg-emerald-400 mx-auto mb-2 shadow-lg shadow-emerald-400/50" style={{ animation: 'pulse 2s infinite' }} />
+                <p className="text-white/30 text-sm">待機中</p>
+              </div>
+            </div>
+            <p className="text-white/20 text-xs tracking-widest">STANDBY</p>
           </div>
         )}
 
+        {/* Active */}
         {status.status === 'active' && (
-          <div className="space-y-6">
+          <div className="space-y-5">
             {!iHavePressed ? (
               <button
                 onClick={handlePress}
-                className="w-52 h-52 rounded-full mx-auto flex flex-col items-center justify-center gap-3 bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all shadow-2xl shadow-indigo-500/40 font-black text-xl animate-pulse"
+                className="w-full aspect-square rounded-3xl flex flex-col items-center justify-center gap-4 font-bold text-2xl transition-all active:scale-95"
+                style={{
+                  background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                  boxShadow: '0 0 60px rgba(99,102,241,0.5), 0 0 120px rgba(99,102,241,0.2)',
+                  animation: 'pulse 1.5s infinite',
+                }}
               >
-                <span className="text-4xl">🙋</span>
-                担当する
+                <span className="text-6xl">🙋</span>
+                <span>担当する</span>
               </button>
             ) : (
-              <div className="w-52 h-52 rounded-full mx-auto bg-white/8 border-2 border-white/15 flex flex-col items-center justify-center gap-3">
-                <span className="text-4xl">⏳</span>
-                <p className="text-white/50 font-bold">応答済み</p>
+              <div className="w-full aspect-square rounded-3xl flex flex-col items-center justify-center gap-4"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span className="text-6xl">⏳</span>
+                <p className="text-white/40 font-semibold">応答済み</p>
               </div>
             )}
-            <p className="text-white/40 text-sm">残り <span className="text-white font-bold">{status.remaining}</span> 秒</p>
+            <div className="bg-white/5 backdrop-blur border border-white/8 rounded-2xl px-4 py-3 flex items-center justify-between">
+              <span className="text-white/40 text-sm">残り時間</span>
+              <span className="text-white font-black text-xl tabular-nums">{status.remaining}秒</span>
+            </div>
           </div>
         )}
 
+        {/* Assigned */}
         {status.status === 'assigned' && status.winner && (
-          <div className={`rounded-3xl p-8 border ${
-            isMyWin ? 'bg-green-500/15 border-green-400/25' : 'bg-white/5 border-white/10'
-          }`}>
+          <div className={`rounded-3xl p-8 text-center overflow-hidden relative ${
+            isMyWin
+              ? 'border border-emerald-400/25'
+              : 'border border-white/10'
+          }`}
+            style={{
+              background: isMyWin
+                ? 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.08))'
+                : 'rgba(255,255,255,0.04)',
+            }}>
             {isMyWin ? (
               <>
-                <p className="text-5xl mb-3">🎉</p>
-                <p className="text-green-300 font-black text-xl">あなたが担当です！</p>
-                <p className="text-white/50 text-sm mt-2">お客様をご案内してください</p>
+                <div className="text-6xl mb-4">🎉</div>
+                <p className="text-emerald-300 font-black text-2xl mb-2">あなたが担当！</p>
+                <p className="text-white/40 text-sm">お客様をご案内してください</p>
               </>
             ) : (
               <>
-                <p className="text-4xl mb-3">👤</p>
-                <p className="text-white/50 text-sm mb-2">今回の担当</p>
-                <p className="text-3xl font-black">{status.winner.name}</p>
+                <div className="text-4xl mb-4">👤</div>
+                <p className="text-white/40 text-xs tracking-widest uppercase mb-2">今回の担当</p>
+                <p className="text-4xl font-black">{status.winner.name}</p>
               </>
             )}
           </div>

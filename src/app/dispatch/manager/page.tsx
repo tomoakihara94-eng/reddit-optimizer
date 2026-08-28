@@ -25,7 +25,6 @@ export default function ManagerPage() {
     return () => clearInterval(interval);
   }, [pollStatus]);
 
-  // active中は10秒ごとにプッシュ通知を再送
   useEffect(() => {
     if (status.status === 'active') {
       if (!repushTimerRef.current) {
@@ -68,70 +67,89 @@ export default function ManagerPage() {
       : [];
 
   return (
-    <main className="min-h-screen bg-[#07071a] flex flex-col items-center justify-center p-6 text-white">
-      <div className="w-full max-w-sm text-center space-y-8">
-        <div>
-          <p className="text-white/30 text-xs tracking-widest mb-1">差配システム</p>
-          <h1 className="text-2xl font-black">店長画面</h1>
+    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 flex flex-col items-center justify-center p-6 text-white">
+      <div className="w-full max-w-sm">
+
+        {/* Header */}
+        <div className="text-center mb-8">
+          <p className="text-amber-400/60 text-xs tracking-[0.3em] uppercase mb-1">Manager</p>
+          <h1 className="text-2xl font-bold">店長画面</h1>
           {errorMsg && (
-            <p className="text-red-400 text-xs mt-2 bg-red-400/10 rounded-lg p-2 break-all">{errorMsg}</p>
+            <p className="text-red-400 text-xs mt-2 bg-red-400/10 border border-red-400/20 rounded-xl p-2 break-all">{errorMsg}</p>
           )}
         </div>
 
+        {/* Idle */}
         {status.status === 'idle' && (
-          <button
-            onClick={notify}
-            disabled={sending}
-            className="w-52 h-52 rounded-full mx-auto flex flex-col items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 active:scale-95 disabled:opacity-60 transition-all shadow-2xl shadow-orange-500/40 font-black text-2xl"
-          >
-            <span className="text-4xl">🚗</span>
-            {sending ? '送信中...' : '来店\n通知'}
-          </button>
+          <div className="flex flex-col items-center gap-6">
+            <button
+              onClick={notify}
+              disabled={sending}
+              className="relative w-52 h-52 rounded-full flex flex-col items-center justify-center gap-3 font-bold text-xl transition-all active:scale-95 disabled:opacity-50"
+              style={{
+                background: 'linear-gradient(135deg, #f59e0b, #ef4444)',
+                boxShadow: '0 0 60px rgba(245,158,11,0.4), 0 0 120px rgba(245,158,11,0.15)',
+              }}
+            >
+              <span className="text-5xl">{sending ? '⏳' : '🚗'}</span>
+              <span>{sending ? '送信中...' : '来店通知'}</span>
+            </button>
+            <p className="text-white/30 text-sm">ボタンを押して来店を通知</p>
+          </div>
         )}
 
+        {/* Active */}
         {status.status === 'active' && (
-          <div className="space-y-6">
-            <div>
-              <p className="text-white/40 text-sm mb-1">ウィンドウ終了まで</p>
-              <div className="text-7xl font-black tabular-nums text-orange-400">
+          <div className="space-y-5">
+            <div className="bg-white/5 backdrop-blur border border-white/10 rounded-3xl p-6 text-center">
+              <p className="text-white/40 text-xs tracking-widest uppercase mb-2">Time Remaining</p>
+              <div className="text-8xl font-black tabular-nums text-transparent bg-clip-text"
+                style={{ backgroundImage: 'linear-gradient(135deg, #f59e0b, #ef4444)' }}>
                 {status.remaining}
               </div>
               <p className="text-white/30 text-sm mt-1">秒</p>
             </div>
 
-            {pressedNames.length > 0 ? (
-              <div className="bg-white/8 rounded-2xl p-4">
-                <p className="text-white/40 text-xs mb-3">応答済み ({pressedNames.length}名)</p>
-                <div className="flex flex-wrap gap-2 justify-center">
+            <div className="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-4">
+              <p className="text-white/40 text-xs tracking-widest uppercase mb-3">
+                応答済み {pressedNames.length > 0 ? `(${pressedNames.length}名)` : ''}
+              </p>
+              {pressedNames.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
                   {pressedNames.map(name => (
-                    <span key={name} className="bg-indigo-600 px-3 py-1.5 rounded-full text-sm font-bold">
+                    <span key={name}
+                      className="bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 px-3 py-1.5 rounded-full text-sm font-semibold">
                       {name}
                     </span>
                   ))}
                 </div>
-              </div>
-            ) : (
-              <p className="text-white/30 text-sm">応答待ち...</p>
-            )}
+              ) : (
+                <div className="flex items-center gap-2 text-white/25">
+                  <div className="w-2 h-2 rounded-full bg-white/25 animate-pulse" />
+                  <span className="text-sm">待機中...</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
+        {/* Assigned */}
         {status.status === 'assigned' && status.winner && (
-          <div className="space-y-6">
-            <div className="bg-green-500/15 border border-green-400/25 rounded-3xl p-8">
-              <p className="text-green-300 text-sm font-bold mb-3">✅ 担当者決定</p>
-              <p className="text-5xl font-black mb-3">{status.winner.name}</p>
-              <span className={`text-sm px-3 py-1 rounded-full font-bold ${
-                status.winner.rank === 'A' ? 'bg-yellow-400 text-black' :
-                status.winner.rank === 'B' ? 'bg-blue-400 text-white' :
-                'bg-slate-500 text-white'
-              }`}>
-                Rank {status.winner.rank}
-              </span>
+          <div className="space-y-4">
+            <div className="relative overflow-hidden rounded-3xl p-8 text-center"
+              style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.1))', border: '1px solid rgba(16,185,129,0.25)' }}>
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent" />
+              <p className="text-emerald-400 text-xs tracking-[0.3em] uppercase mb-4">✅ 担当者決定</p>
+              <p className="text-6xl font-black mb-4">{status.winner.name}</p>
+              <span className={`text-xs px-3 py-1.5 rounded-full font-bold tracking-wider ${
+                status.winner.rank === 'A' ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30' :
+                status.winner.rank === 'B' ? 'bg-blue-400/20 text-blue-300 border border-blue-400/30' :
+                'bg-slate-400/20 text-slate-300 border border-slate-400/30'
+              }`}>RANK {status.winner.rank}</span>
             </div>
             <button
               onClick={clear}
-              className="w-full py-4 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white font-bold text-lg"
+              className="w-full py-4 rounded-2xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all border border-white/10 text-white font-semibold"
             >
               次のお客様 →
             </button>
