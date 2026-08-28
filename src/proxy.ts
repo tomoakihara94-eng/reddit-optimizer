@@ -5,7 +5,12 @@ const AUTH_COOKIE = 'matsushita_auth';
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (pathname === '/login' || pathname.startsWith('/api/auth')) {
+  if (
+    pathname === '/login' ||
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/dispatch') ||
+    pathname.startsWith('/api/dispatch')
+  ) {
     return NextResponse.next();
   }
 
