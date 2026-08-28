@@ -1,10 +1,11 @@
 export const STAFF = [
-  { id: 'oori',     name: '大類',  rank: 'A' },
-  { id: 'asakura',  name: '朝倉',  rank: 'A' },
-  { id: 'ishigami', name: '石神',  rank: 'A' },
-  { id: 'haraki',   name: '原木',  rank: 'B' },
-  { id: 'yamato',   name: '大和',  rank: 'B' },
-  { id: 'hara',     name: '原',    rank: 'C' },
+  { id: 'oori',      name: '大類',      rank: 'A' },
+  { id: 'asakura',   name: '朝倉',      rank: 'A' },
+  { id: 'ishigami',  name: '石神',      rank: 'A' },
+  { id: 'yamato',    name: '大和',      rank: 'A' },
+  { id: 'haraking',  name: 'ハラキング', rank: 'B' },
+  { id: 'haraki',    name: '原木',      rank: 'B' },
+  { id: 'hara',      name: '原',        rank: 'C' },
 ] as const;
 
 export type StaffMember = typeof STAFF[number];
