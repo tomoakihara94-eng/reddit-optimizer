@@ -24,6 +24,27 @@ export default function StaffPage() {
   const [pushOk, setPushOk]       = useState<boolean | null>(null);
   const prevStatusRef = useRef<string>('idle');
 
+  const playAlert = useCallback(() => {
+    try {
+      const ctx = new AudioContext();
+      const frequencies = [880, 1108, 1320];
+      frequencies.forEach((freq, i) => {
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const t = ctx.currentTime + i * 0.18;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.4, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+        osc.start(t);
+        osc.stop(t + 0.5);
+      });
+    } catch { /* AudioContext blocked */ }
+  }, []);
+
   useEffect(() => {
     setStaffId(localStorage.getItem('dispatch_staff_id') ?? '');
     setStaffName(localStorage.getItem('dispatch_staff_name') ?? '');
@@ -57,9 +78,10 @@ export default function StaffPage() {
     const res = await fetch('/api/dispatch/status');
     const data = await res.json() as ApiStatus;
 
-    // Reset pressed flag when a new active event starts
+    // Reset pressed flag and play alert when a new active event starts
     if (prevStatusRef.current !== 'active' && data.status === 'active') {
       setPressed(false);
+      playAlert();
     }
     prevStatusRef.current = data.status;
     setStatus(data);
