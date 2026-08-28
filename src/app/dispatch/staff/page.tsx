@@ -95,13 +95,16 @@ export default function StaffPage() {
 
   const startAudio = useCallback(() => {
     if (audioReady) return;
-    // Audio要素を作成
+    // チャイム音を作成して即再生（unlock + 動作確認）
     audiosRef.current = CHIME_FREQS.map(freq => new Audio(makeWavUri(freq)));
-    winAudioRef.current = new Audio(makeWinMelody());
-    // ボタンを押した瞬間にチャイムを鳴らして動作確認
     audiosRef.current.forEach((audio, i) => {
       setTimeout(() => { audio.currentTime = 0; audio.play().catch(() => {}); }, i * 180);
     });
+    // ファンファーレも無音で再生してiOSのロックを解除
+    const win = new Audio(makeWinMelody());
+    winAudioRef.current = win;
+    win.volume = 0.01;
+    win.play().then(() => { win.pause(); win.currentTime = 0; win.volume = 1; }).catch(() => {});
     setAudioReady(true);
   }, [audioReady]);
 
