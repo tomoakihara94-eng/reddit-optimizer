@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { STAFF } from '@/lib/dispatch-config';
 
 type ApiStatus =
@@ -11,6 +11,7 @@ export default function ManagerPage() {
   const [status, setStatus] = useState<ApiStatus>({ status: 'idle' });
   const [sending, setSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const repushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const pollStatus = useCallback(async () => {
     const res = await fetch('/api/dispatch/status');
@@ -23,6 +24,22 @@ export default function ManagerPage() {
     const interval = setInterval(pollStatus, 2000);
     return () => clearInterval(interval);
   }, [pollStatus]);
+
+  // active中は10秒ごとにプッシュ通知を再送
+  useEffect(() => {
+    if (status.status === 'active') {
+      if (!repushTimerRef.current) {
+        repushTimerRef.current = setInterval(() => {
+          fetch('/api/dispatch/repush', { method: 'POST' });
+        }, 10000);
+      }
+    } else {
+      if (repushTimerRef.current) {
+        clearInterval(repushTimerRef.current);
+        repushTimerRef.current = null;
+      }
+    }
+  }, [status.status]);
 
   const notify = async () => {
     setSending(true);
