@@ -10,6 +10,7 @@ type ApiStatus =
 export default function ManagerPage() {
   const [status, setStatus] = useState<ApiStatus>({ status: 'idle' });
   const [sending, setSending] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const pollStatus = useCallback(async () => {
     const res = await fetch('/api/dispatch/status');
@@ -25,7 +26,16 @@ export default function ManagerPage() {
 
   const notify = async () => {
     setSending(true);
-    await fetch('/api/dispatch/notify', { method: 'POST' });
+    setErrorMsg('');
+    try {
+      const res = await fetch('/api/dispatch/notify', { method: 'POST' });
+      if (!res.ok) {
+        const text = await res.text();
+        setErrorMsg(`エラー ${res.status}: ${text.slice(0, 100)}`);
+      }
+    } catch (e) {
+      setErrorMsg(`通信エラー: ${String(e)}`);
+    }
     setSending(false);
     pollStatus();
   };
@@ -46,6 +56,9 @@ export default function ManagerPage() {
         <div>
           <p className="text-white/30 text-xs tracking-widest mb-1">差配システム</p>
           <h1 className="text-2xl font-black">店長画面</h1>
+          {errorMsg && (
+            <p className="text-red-400 text-xs mt-2 bg-red-400/10 rounded-lg p-2 break-all">{errorMsg}</p>
+          )}
         </div>
 
         {status.status === 'idle' && (
