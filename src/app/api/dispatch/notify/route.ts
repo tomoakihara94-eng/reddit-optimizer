@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { redis, EVENT_KEY, PRESSES_KEY, TOKENS_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
+import { getRedis, EVENT_KEY, PRESSES_KEY, TOKENS_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
 
 export const runtime = 'nodejs';
 
 export async function POST() {
   try {
+    const redis = getRedis();
     const event: DispatchEvent = {
       id: Date.now().toString(),
       startedAt: Date.now(),
@@ -13,7 +14,6 @@ export async function POST() {
     await redis.set(EVENT_KEY, event, { ex: 3600 });
     await redis.del(PRESSES_KEY);
 
-    // Send push notifications if VAPID keys are configured
     if (
       process.env.VAPID_PUBLIC_KEY &&
       process.env.VAPID_PRIVATE_KEY &&

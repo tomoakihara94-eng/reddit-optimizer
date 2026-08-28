@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { redis, EVENT_KEY } from '@/lib/dispatch-redis';
+import { getRedis, EVENT_KEY } from '@/lib/dispatch-redis';
 
 export async function GET() {
   const checks: Record<string, unknown> = {
@@ -12,6 +12,7 @@ export async function GET() {
   };
 
   try {
+    const redis = getRedis();
     const event = await redis.get(EVENT_KEY);
     checks.redis_connected = true;
     checks.current_event = event ?? 'none';

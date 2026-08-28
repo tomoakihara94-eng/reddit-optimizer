@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { redis, EVENT_KEY, PRESSES_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
+import { getRedis, EVENT_KEY, PRESSES_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
 import { determineWinner, parsePresses } from '@/lib/dispatch-winner';
 import { WINDOW_MS } from '@/lib/dispatch-config';
 
 export async function GET() {
+  const redis = getRedis();
   const event = await redis.get<DispatchEvent>(EVENT_KEY);
   if (!event) return NextResponse.json({ status: 'idle' });
 
