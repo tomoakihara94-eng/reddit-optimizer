@@ -22,31 +22,33 @@ export default function StaffPage() {
   const [status, setStatus]       = useState<ApiStatus>({ status: 'idle' });
   const [pressed, setPressed]     = useState(false);
   const [pushOk, setPushOk]       = useState<boolean | null>(null);
+  const [audioReady, setAudioReady] = useState(false);
   const prevStatusRef = useRef<string>('idle');
-  const audioCtxRef  = useRef<AudioContext | null>(null);
+  const audioCtxRef   = useRef<AudioContext | null>(null);
 
-  // Unlock AudioContext on first user touch (required by iOS Safari)
   useEffect(() => {
-    const unlock = () => {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new AudioContext();
-      }
-      audioCtxRef.current.resume();
-    };
-    window.addEventListener('touchstart', unlock, { once: true });
-    window.addEventListener('click', unlock, { once: true });
-    return () => {
-      window.removeEventListener('touchstart', unlock);
-      window.removeEventListener('click', unlock);
-    };
+    setStaffId(localStorage.getItem('dispatch_staff_id') ?? '');
+    setStaffName(localStorage.getItem('dispatch_staff_name') ?? '');
   }, []);
+
+  const startAudio = useCallback(() => {
+    if (audioReady) return;
+    const ctx = new AudioContext();
+    // 無音バッファを再生してiOSのロックを解除
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+    audioCtxRef.current = ctx;
+    setAudioReady(true);
+  }, [audioReady]);
 
   const playAlert = useCallback(() => {
     const ctx = audioCtxRef.current;
     if (!ctx) return;
     ctx.resume().then(() => {
-      const frequencies = [880, 1108, 1320];
-      frequencies.forEach((freq, i) => {
+      [880, 1108, 1320].forEach((freq, i) => {
         const osc  = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain);
@@ -63,24 +65,16 @@ export default function StaffPage() {
     }).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    setStaffId(localStorage.getItem('dispatch_staff_id') ?? '');
-    setStaffName(localStorage.getItem('dispatch_staff_name') ?? '');
-  }, []);
-
   // Register push subscription
   useEffect(() => {
     if (!staffId || !VAPID_KEY) return;
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-
     navigator.serviceWorker
       .register('/dispatch-sw.js')
-      .then(reg =>
-        reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_KEY),
-        })
-      )
+      .then(reg => reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_KEY),
+      }))
       .then(sub => {
         setPushOk(true);
         return fetch('/api/dispatch/register', {
@@ -95,18 +89,14 @@ export default function StaffPage() {
   const pollStatus = useCallback(async () => {
     const res = await fetch('/api/dispatch/status');
     const data = await res.json() as ApiStatus;
-
-    // Reset pressed flag and play alert when a new active event starts
     if (prevStatusRef.current !== 'active' && data.status === 'active') {
       setPressed(false);
       playAlert();
-      if ('vibrate' in navigator) {
-        navigator.vibrate([300, 100, 300, 100, 300]);
-      }
+      if ('vibrate' in navigator) navigator.vibrate([300, 100, 300, 100, 300]);
     }
     prevStatusRef.current = data.status;
     setStatus(data);
-  }, []);
+  }, [playAlert]);
 
   useEffect(() => {
     pollStatus();
@@ -125,12 +115,14 @@ export default function StaffPage() {
     pollStatus();
   };
 
-  const isMyWin    = status.status === 'assigned' && status.winner.name === staffName;
-  const iHavePressed =
-    pressed || (status.status === 'active' && status.pressedIds.includes(staffId));
+  const isMyWin      = status.status === 'assigned' && status.winner.name === staffName;
+  const iHavePressed = pressed || (status.status === 'active' && status.pressedIds.includes(staffId));
 
   return (
-    <main className="min-h-screen bg-[#07071a] flex flex-col items-center justify-center p-6 text-white select-none">
+    <main
+      className="min-h-screen bg-[#07071a] flex flex-col items-center justify-center p-6 text-white select-none"
+      onClick={startAudio}
+    >
       <div className="w-full max-w-sm text-center space-y-8">
 
         {/* Header */}
@@ -140,6 +132,16 @@ export default function StaffPage() {
           {pushOk === true  && <p className="text-green-400 text-xs mt-1">🔔 通知 ON</p>}
           {pushOk === false && <p className="text-red-400 text-xs mt-1">⚠️ 通知をオンにしてください</p>}
         </div>
+
+        {/* Audio unlock banner */}
+        {!audioReady && (
+          <button
+            onClick={startAudio}
+            className="w-full py-3 rounded-2xl bg-yellow-500/20 border border-yellow-400/40 text-yellow-300 text-sm font-bold animate-pulse"
+          >
+            🔊 タップして音を有効にする
+          </button>
+        )}
 
         {/* Idle */}
         {status.status === 'idle' && (
@@ -175,9 +177,7 @@ export default function StaffPage() {
         {/* Assigned */}
         {status.status === 'assigned' && status.winner && (
           <div className={`rounded-3xl p-8 border ${
-            isMyWin
-              ? 'bg-green-500/15 border-green-400/25'
-              : 'bg-white/5 border-white/10'
+            isMyWin ? 'bg-green-500/15 border-green-400/25' : 'bg-white/5 border-white/10'
           }`}>
             {isMyWin ? (
               <>
