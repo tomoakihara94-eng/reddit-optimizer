@@ -47,8 +47,9 @@ export default function StaffPage() {
   const [pressed, setPressed]       = useState(false);
   const [pushOk, setPushOk]         = useState<boolean | null>(null);
   const [audioReady, setAudioReady] = useState(false);
-  const prevStatusRef = useRef<string>('idle');
-  const audiosRef     = useRef<HTMLAudioElement[]>([]);
+  const prevStatusRef  = useRef<string>('idle');
+  const audiosRef      = useRef<HTMLAudioElement[]>([]);
+  const chimeTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setStaffId(localStorage.getItem('dispatch_staff_id') ?? '');
@@ -72,13 +73,26 @@ export default function StaffPage() {
     setAudioReady(true);
   }, [audioReady]);
 
-  const playAlert = useCallback(() => {
+  const playChime = useCallback(() => {
     audiosRef.current.forEach((audio, i) => {
       setTimeout(() => {
         audio.currentTime = 0;
         audio.play().catch(() => {});
       }, i * 180);
     });
+  }, []);
+
+  const startChimeLoop = useCallback(() => {
+    playChime();
+    if (chimeTimerRef.current) clearInterval(chimeTimerRef.current);
+    chimeTimerRef.current = setInterval(playChime, 3000);
+  }, [playChime]);
+
+  const stopChimeLoop = useCallback(() => {
+    if (chimeTimerRef.current) {
+      clearInterval(chimeTimerRef.current);
+      chimeTimerRef.current = null;
+    }
   }, []);
 
   // Register push subscription
@@ -105,14 +119,19 @@ export default function StaffPage() {
   const pollStatus = useCallback(async () => {
     const res = await fetch('/api/dispatch/status');
     const data = await res.json() as ApiStatus;
+    // 新しいイベント開始 → チャイムループ開始
     if (prevStatusRef.current !== 'active' && data.status === 'active') {
       setPressed(false);
-      playAlert();
+      startChimeLoop();
       if ('vibrate' in navigator) navigator.vibrate([300, 100, 300, 100, 300]);
+    }
+    // イベント終了 or 担当者決定 → チャイム停止
+    if (prevStatusRef.current === 'active' && data.status !== 'active') {
+      stopChimeLoop();
     }
     prevStatusRef.current = data.status;
     setStatus(data);
-  }, [playAlert]);
+  }, [startChimeLoop, stopChimeLoop]);
 
   useEffect(() => {
     pollStatus();
@@ -123,6 +142,7 @@ export default function StaffPage() {
   const handlePress = async () => {
     if (pressed || !staffId || status.status !== 'active') return;
     setPressed(true);
+    stopChimeLoop();
     await fetch('/api/dispatch/press', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
