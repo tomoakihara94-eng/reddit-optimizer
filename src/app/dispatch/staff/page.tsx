@@ -23,10 +23,28 @@ export default function StaffPage() {
   const [pressed, setPressed]     = useState(false);
   const [pushOk, setPushOk]       = useState<boolean | null>(null);
   const prevStatusRef = useRef<string>('idle');
+  const audioCtxRef  = useRef<AudioContext | null>(null);
+
+  // Unlock AudioContext on first user touch (required by iOS Safari)
+  useEffect(() => {
+    const unlock = () => {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext();
+      }
+      audioCtxRef.current.resume();
+    };
+    window.addEventListener('touchstart', unlock, { once: true });
+    window.addEventListener('click', unlock, { once: true });
+    return () => {
+      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('click', unlock);
+    };
+  }, []);
 
   const playAlert = useCallback(() => {
-    try {
-      const ctx = new AudioContext();
+    const ctx = audioCtxRef.current;
+    if (!ctx) return;
+    ctx.resume().then(() => {
       const frequencies = [880, 1108, 1320];
       frequencies.forEach((freq, i) => {
         const osc  = ctx.createOscillator();
@@ -42,7 +60,7 @@ export default function StaffPage() {
         osc.start(t);
         osc.stop(t + 0.5);
       });
-    } catch { /* AudioContext blocked */ }
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
