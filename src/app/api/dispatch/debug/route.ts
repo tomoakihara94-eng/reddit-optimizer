@@ -14,8 +14,11 @@ export async function GET() {
   try {
     const redis = getRedis();
     const event = await redis.get(EVENT_KEY);
+    const tokens = await redis.hgetall('dispatch:tokens') ?? {};
     checks.redis_connected = true;
     checks.current_event = event ?? 'none';
+    checks.push_token_count = Object.keys(tokens).length;
+    checks.push_token_ids = Object.keys(tokens);
   } catch (e) {
     checks.redis_connected = false;
     checks.redis_error = String(e);
