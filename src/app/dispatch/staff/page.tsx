@@ -12,19 +12,43 @@ function urlBase64ToUint8Array(b64: string): ArrayBuffer {
   const padding = '='.repeat((4 - b64.length % 4) % 4);
   const base64 = (b64 + padding).replace(/-/g, '+').replace(/_/g, '/');
   const raw = atob(base64);
-  const arr = new Uint8Array([...raw].map(c => c.charCodeAt(0)));
-  return arr.buffer as ArrayBuffer;
+  return new Uint8Array([...raw].map(c => c.charCodeAt(0))).buffer as ArrayBuffer;
 }
 
+// WAV data URI を生成（ユーザー操作なしでは iOS で再生不可なので、起動時に unlock する）
+function makeWavUri(freq: number, dur = 0.35, sr = 22050): string {
+  const n = Math.floor(sr * dur);
+  const buf = new ArrayBuffer(44 + n * 2);
+  const v = new DataView(buf);
+  const str = (o: number, s: string) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  str(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true);
+  str(8, 'WAVE'); str(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  str(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    const env = Math.min(t / 0.01, 1) * Math.min((dur - t) / 0.05, 1);
+    v.setInt16(44 + i * 2, Math.round(Math.sin(2 * Math.PI * freq * t) * env * 0.7 * 32767), true);
+  }
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return 'data:audio/wav;base64,' + btoa(bin);
+}
+
+const CHIME_FREQS = [880, 1108, 1320];
+
 export default function StaffPage() {
-  const [staffId, setStaffId]     = useState('');
-  const [staffName, setStaffName] = useState('');
-  const [status, setStatus]       = useState<ApiStatus>({ status: 'idle' });
-  const [pressed, setPressed]     = useState(false);
-  const [pushOk, setPushOk]       = useState<boolean | null>(null);
+  const [staffId, setStaffId]       = useState('');
+  const [staffName, setStaffName]   = useState('');
+  const [status, setStatus]         = useState<ApiStatus>({ status: 'idle' });
+  const [pressed, setPressed]       = useState(false);
+  const [pushOk, setPushOk]         = useState<boolean | null>(null);
   const [audioReady, setAudioReady] = useState(false);
   const prevStatusRef = useRef<string>('idle');
-  const audioCtxRef   = useRef<AudioContext | null>(null);
+  const audiosRef     = useRef<HTMLAudioElement[]>([]);
 
   useEffect(() => {
     setStaffId(localStorage.getItem('dispatch_staff_id') ?? '');
@@ -33,36 +57,28 @@ export default function StaffPage() {
 
   const startAudio = useCallback(() => {
     if (audioReady) return;
-    const ctx = new AudioContext();
-    // 無音バッファを再生してiOSのロックを解除
-    const buf = ctx.createBuffer(1, 1, 22050);
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    src.connect(ctx.destination);
-    src.start(0);
-    audioCtxRef.current = ctx;
+    // ユーザー操作中にAudio要素を unlock する
+    audiosRef.current = CHIME_FREQS.map(freq => {
+      const audio = new Audio(makeWavUri(freq));
+      // 無音再生して iOS のロックを解除
+      audio.volume = 0.001;
+      audio.play().then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = 1;
+      }).catch(() => {});
+      return audio;
+    });
     setAudioReady(true);
   }, [audioReady]);
 
   const playAlert = useCallback(() => {
-    const ctx = audioCtxRef.current;
-    if (!ctx) return;
-    ctx.resume().then(() => {
-      [880, 1108, 1320].forEach((freq, i) => {
-        const osc  = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        const t = ctx.currentTime + i * 0.18;
-        gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(0.4, t + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-        osc.start(t);
-        osc.stop(t + 0.5);
-      });
-    }).catch(() => {});
+    audiosRef.current.forEach((audio, i) => {
+      setTimeout(() => {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+      }, i * 180);
+    });
   }, []);
 
   // Register push subscription
@@ -100,8 +116,8 @@ export default function StaffPage() {
 
   useEffect(() => {
     pollStatus();
-    const interval = setInterval(pollStatus, 2000);
-    return () => clearInterval(interval);
+    const id = setInterval(pollStatus, 2000);
+    return () => clearInterval(id);
   }, [pollStatus]);
 
   const handlePress = async () => {
@@ -119,10 +135,7 @@ export default function StaffPage() {
   const iHavePressed = pressed || (status.status === 'active' && status.pressedIds.includes(staffId));
 
   return (
-    <main
-      className="min-h-screen bg-[#07071a] flex flex-col items-center justify-center p-6 text-white select-none"
-      onClick={startAudio}
-    >
+    <main className="min-h-screen bg-[#07071a] flex flex-col items-center justify-center p-6 text-white select-none">
       <div className="w-full max-w-sm text-center space-y-8">
 
         {/* Header */}
@@ -133,14 +146,17 @@ export default function StaffPage() {
           {pushOk === false && <p className="text-red-400 text-xs mt-1">⚠️ 通知をオンにしてください</p>}
         </div>
 
-        {/* Audio unlock banner */}
+        {/* Audio unlock — must tap before going on standby */}
         {!audioReady && (
           <button
             onClick={startAudio}
-            className="w-full py-3 rounded-2xl bg-yellow-500/20 border border-yellow-400/40 text-yellow-300 text-sm font-bold animate-pulse"
+            className="w-full py-4 rounded-2xl bg-yellow-500 hover:bg-yellow-400 active:scale-95 transition-all text-black font-black text-lg shadow-lg shadow-yellow-500/30"
           >
-            🔊 タップして音を有効にする
+            🔊 音を有効にする（必須）
           </button>
+        )}
+        {audioReady && (
+          <p className="text-green-400 text-xs">🔊 音 ON ✓</p>
         )}
 
         {/* Idle */}
