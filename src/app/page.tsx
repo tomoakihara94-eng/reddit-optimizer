@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { CAR_DATA, COLORS, OPTION_GROUPS } from '@/lib/car-data';
 import { lookupGradeOptions } from '@/lib/vehicle-grade-options';
 
@@ -1677,6 +1678,23 @@ export default function Home() {
             </button>
           ))}
         </div>
+
+        {/* ── 記事生成バナー ────────────────────────────────────────── */}
+        <Link
+          href="/article"
+          className="flex items-center gap-3.5 p-4 rounded-2xl bg-white/80 backdrop-blur-sm border border-gray-200/80 hover:border-indigo-200 hover:shadow-md shadow-sm hover:-translate-y-0.5 transition-all duration-200 group cursor-pointer"
+        >
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 group-hover:bg-indigo-100 flex items-center justify-center text-xl shrink-0 transition-all">
+            ✍️
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-gray-900">バズ記事 自動生成</p>
+            <p className="text-xs mt-1 text-gray-400 leading-snug">車種・型式・当店の視点から、販売店目線のSEO記事を生成</p>
+          </div>
+          <svg className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
 
         {/* Input form */}
         {/* ── CSV変換モード ──────────────────────────────────────────── */}
