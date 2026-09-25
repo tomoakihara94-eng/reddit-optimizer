@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getRedis, EVENT_KEY } from '@/lib/dispatch-redis';
+import { getRedis, EVENT_KEY, NOTIFY_LOG_KEY } from '@/lib/dispatch-redis';
 
 export async function GET() {
   const checks: Record<string, unknown> = {
@@ -14,11 +14,20 @@ export async function GET() {
   try {
     const redis = getRedis();
     const event = await redis.get(EVENT_KEY);
-    const tokens = await redis.hgetall('dispatch:tokens') ?? {};
+    const webTokens = (await redis.hgetall('dispatch:tokens')) ?? {};
+    const expoTokens = (await redis.hgetall('dispatch:expo_tokens')) ?? {};
+    const rawLog = await redis.lrange(NOTIFY_LOG_KEY, 0, 9);
+
+    const notifyLog = (rawLog as string[]).map((s: string) => {
+      try { return JSON.parse(s); } catch { return s; }
+    });
+
     checks.redis_connected = true;
     checks.current_event = event ?? 'none';
-    checks.push_token_count = Object.keys(tokens).length;
-    checks.push_token_ids = Object.keys(tokens);
+    checks.web_push_token_count = Object.keys(webTokens).length;
+    checks.expo_token_ids = Object.keys(expoTokens);
+    checks.expo_token_count = Object.keys(expoTokens).length;
+    checks.notify_log = notifyLog;
   } catch (e) {
     checks.redis_connected = false;
     checks.redis_error = String(e);

@@ -160,13 +160,21 @@ export default function StaffPage() {
       }
     }
     prevStatusRef.current = data.status;
+    statusRef.current = data.status;
     setStatus(data);
   }, [startChimeLoop, stopChimeLoop, playWin]);
 
+  const statusRef = useRef<string>('idle');
+
   useEffect(() => {
+    let id: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const delay = statusRef.current === 'active' ? 2000 : 10000;
+      id = setTimeout(async () => { await pollStatus(); schedule(); }, delay);
+    };
     pollStatus();
-    const id = setInterval(pollStatus, 2000);
-    return () => clearInterval(id);
+    schedule();
+    return () => clearTimeout(id);
   }, [pollStatus]);
 
   const handlePress = async () => {
