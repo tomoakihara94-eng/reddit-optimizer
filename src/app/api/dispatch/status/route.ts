@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getRedis, getAffinityTable, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, STAFF_CONDITIONS_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
-import { determineWinner, parsePresses } from '@/lib/dispatch-winner';
+import { getRedis, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, STAFF_CONDITIONS_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
+import { parsePresses } from '@/lib/dispatch-winner';
+import { finalizeIfDecided } from '@/lib/dispatch-result';
 import { WINDOW_MS } from '@/lib/dispatch-config';
 
 export async function GET() {
@@ -13,19 +14,16 @@ export async function GET() {
   const staffConditions = ((await redis.hgetall(STAFF_CONDITIONS_KEY)) ?? {}) as Record<string, string>;
 
   if (event.status === 'assigned') {
-    return NextResponse.json({ status: 'assigned', winner: event.winner, conditions });
+    return NextResponse.json({ status: 'assigned', winner: event.winner, eventId: event.id, conditions });
+  }
+
+  const winner = await finalizeIfDecided(redis, event);
+  if (winner) {
+    return NextResponse.json({ status: 'assigned', winner, eventId: event.id, conditions });
   }
 
   const raw = (await redis.hgetall(PRESSES_KEY)) ?? {};
   const presses = parsePresses(raw as Record<string, unknown>);
-  const winner = determineWinner(event, presses, staffConditions, await getAffinityTable());
-
-  if (winner) {
-    const updated: DispatchEvent = { ...event, status: 'assigned', winner };
-    await redis.set(EVENT_KEY, updated, { ex: 3600 });
-    await redis.del(PRESSES_KEY);
-    return NextResponse.json({ status: 'assigned', winner, conditions });
-  }
 
   const remaining = Math.max(0, Math.ceil((event.startedAt + WINDOW_MS - Date.now()) / 1000));
   return NextResponse.json({

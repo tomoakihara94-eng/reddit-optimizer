@@ -22,16 +22,41 @@ export function parsePresses(raw: Record<string, unknown>): Press[] {
   });
 }
 
+export type ScoreBreakdown = {
+  response: Response; responsePts: number;
+  condition: string | null; conditionPts: number;
+  units: number; unitsPts: number;
+  affinityLevel: number; base: number; score: number;
+};
+
+// 得点 =（応答 ＋ コンディション ＋ 実績×0.1）× 得意度×0.1
+export function scoreBreakdown(
+  p: Press,
+  staffConditions: Record<string, string>,
+  customerType?: string,
+  affinity: AffinityTable = {},
+): ScoreBreakdown {
+  const condition = staffConditions[p.id] ?? null;
+  const conditionPts = STAFF_CONDITIONS[condition as StaffCondition] ?? 0;
+  const units = SALES_UNITS[p.id] ?? 0;
+  const unitsPts = units * SALES_UNITS_WEIGHT;
+  const responsePts = RESPONSES[p.response];
+  const base = responsePts + conditionPts + unitsPts;
+  const affinityLevel = customerType ? affinity[p.id]?.[customerType as CustomerType] ?? AFFINITY_DEFAULT : AFFINITY_DEFAULT;
+  const round = (n: number) => Math.round(n * 100) / 100;
+  return {
+    response: p.response, responsePts, condition, conditionPts, units, unitsPts: round(unitsPts),
+    affinityLevel, base: round(base), score: round(base * affinityLevel * AFFINITY_WEIGHT),
+  };
+}
+
 export function scoreOf(
   p: Press,
   staffConditions: Record<string, string>,
   customerType?: string,
   affinity: AffinityTable = {},
 ): number {
-  const cond = STAFF_CONDITIONS[staffConditions[p.id] as StaffCondition] ?? 0;
-  const base = RESPONSES[p.response] + cond + (SALES_UNITS[p.id] ?? 0) * SALES_UNITS_WEIGHT;
-  const level = customerType ? affinity[p.id]?.[customerType as CustomerType] ?? AFFINITY_DEFAULT : AFFINITY_DEFAULT;
-  return base * level * AFFINITY_WEIGHT;
+  return scoreBreakdown(p, staffConditions, customerType, affinity).score;
 }
 
 export function determineWinner(

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRedis, getAffinityTable, EVENT_KEY, PRESSES_KEY, STAFF_CONDITIONS_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
+import { getRedis, EVENT_KEY, PRESSES_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
 import { STAFF, WINDOW_MS, RESPONSES, DEFAULT_RESPONSE, type Response } from '@/lib/dispatch-config';
-import { determineWinner, parsePresses } from '@/lib/dispatch-winner';
+import { finalizeIfDecided } from '@/lib/dispatch-result';
 
 export async function POST(req: NextRequest) {
   const { staffId, response } = await req.json() as { staffId: string; response?: string };
@@ -22,16 +22,7 @@ export async function POST(req: NextRequest) {
 
   await redis.hset(PRESSES_KEY, { [key]: JSON.stringify({ t: Date.now(), r }) });
 
-  if (Date.now() > event.startedAt + WINDOW_MS) {
-    const raw = (await redis.hgetall(PRESSES_KEY)) ?? {};
-    const presses = parsePresses(raw as Record<string, unknown>);
-    const staffConditions = ((await redis.hgetall(STAFF_CONDITIONS_KEY)) ?? {}) as Record<string, string>;
-    const winner = determineWinner(event, presses, staffConditions, await getAffinityTable());
-    if (winner) {
-      await redis.set(EVENT_KEY, { ...event, status: 'assigned', winner }, { ex: 3600 });
-      await redis.del(PRESSES_KEY);
-    }
-  }
+  if (Date.now() > event.startedAt + WINDOW_MS) await finalizeIfDecided(redis, event);
 
   return NextResponse.json({ success: true });
 }

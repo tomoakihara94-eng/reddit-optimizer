@@ -2,12 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRedis, getAffinityTable, AFFINITY_KEY } from '@/lib/dispatch-redis';
 import { STAFF, CUSTOMER_TYPES, AFFINITY_MIN, AFFINITY_MAX } from '@/lib/dispatch-config';
 
-// 得意度（1〜10）の管理者用API。暗証番号は Vercel の環境変数 DISPATCH_ADMIN_PIN
-function authorized(req: NextRequest) {
-  const pin = process.env.DISPATCH_ADMIN_PIN;
-  return !!pin && req.headers.get('x-admin-pin') === pin;
-}
+import { isAdmin as authorized } from '@/lib/dispatch-admin';
 
+// 得意度（1〜10）の管理者用API。暗証番号は Vercel の環境変数 DISPATCH_ADMIN_PIN
 export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   return NextResponse.json({ affinity: await getAffinityTable() }, { headers: { 'Cache-Control': 'no-store' } });

@@ -30,8 +30,8 @@ export const EXPO_TOKENS_KEY  = 'dispatch:expo_tokens';
 export const AFFINITY_KEY     = 'dispatch:affinity'; // staffId → { タイプ: 得意度(1〜10) }
 export const NOTIFY_LOG_KEY   = 'dispatch:notify_log';
 
-export async function getAffinityTable(): Promise<Record<string, Record<string, number>>> {
-  const raw = (await getRedis().hgetall(AFFINITY_KEY)) ?? {};
+export async function getAffinityTable(redis: Redis = getRedis()): Promise<Record<string, Record<string, number>>> {
+  const raw = (await redis.hgetall(AFFINITY_KEY)) ?? {};
   return Object.fromEntries(Object.entries(raw).map(([id, v]) =>
     [id, (typeof v === 'string' ? JSON.parse(v) : v) as Record<string, number>]));
 }
