@@ -6,6 +6,9 @@ const PUSH_TTL_SECONDS = 120;
 // アプリ側で登録する通知カテゴリ（「いくぜ」などのボタン付き。Apple Watch でも押せる）
 export const VISIT_CATEGORY_ID = 'dispatch_visit';
 
+// 来店通知の音（アプリ 1.1.13 以降に同梱。入っていない旧バージョンは iOS 標準音になる）
+const VISIT_SOUND = 'raiten.wav';
+
 // Expo push をスタッフごとに送る。data.staffId を付けて、通知ボタンの応答が誰のものか分かるようにする
 export async function sendVisitPush(
   expoTokens: Record<string, unknown>,
@@ -18,7 +21,7 @@ export async function sendVisitPush(
     .filter(([staffId]) => ACTIVE_STAFF_IDS.has(staffId) && !excludeIds.includes(staffId))
     .filter(([, token]) => !seen.has(token as string) && !!seen.add(token as string))
     .map(([staffId, to]) => ({
-      to, sound: 'default', title, body, ttl: PUSH_TTL_SECONDS,
+      to, sound: VISIT_SOUND, title, body, ttl: PUSH_TTL_SECONDS,
       categoryId: VISIT_CATEGORY_ID,
       data: { staffId },
     }));
