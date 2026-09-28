@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRedis, EVENT_KEY, PRESSES_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
-import { STAFF, WINDOW_MS, RESPONSES, DEFAULT_RESPONSE, type Response } from '@/lib/dispatch-config';
+import { getRedis, EVENT_KEY, PRESSES_KEY, MUTES_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
+import { STAFF, WINDOW_MS, RESPONSES, DEFAULT_RESPONSE, MUTE_DEFAULT_MIN, type Response } from '@/lib/dispatch-config';
 import { finalizeIfDecided } from '@/lib/dispatch-result';
 
 export async function POST(req: NextRequest) {
@@ -22,6 +22,9 @@ export async function POST(req: NextRequest) {
   if (existing) return NextResponse.json({ error: 'already pressed' }, { status: 400 });
 
   await redis.hset(PRESSES_KEY, { [key]: JSON.stringify({ t: Date.now(), r, ...(v ? { v } : {}) }) });
+  if (r === '対応中') {
+    await redis.hset(MUTES_KEY, { [staffId]: Date.now() + MUTE_DEFAULT_MIN * 60_000 });
+  }
 
   if (Date.now() > event.startedAt + WINDOW_MS) await finalizeIfDecided(redis, event);
 

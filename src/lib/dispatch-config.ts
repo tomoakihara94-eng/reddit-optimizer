@@ -36,7 +36,11 @@ export const RESPONSES = {
   '対応中':            0,
 } as const;
 export type Response = keyof typeof RESPONSES;
-export const DEFAULT_RESPONSE: Response = '普通'; // 応答を送らない旧クライアント（Web版など）用
+export const DEFAULT_RESPONSE: Response = '普通';
+
+// 「対応中（行けない）」を押した人は、来店通知を止める（既定10分、10〜60分で選び直せる）
+export const MUTE_DEFAULT_MIN = 10;
+export const MUTE_OPTIONS_MIN = [10, 20, 30, 40, 50, 60]; // 応答を送らない旧クライアント（Web版など）用
 
 // 営業が来店通知の前にあらかじめ選んでおくコンディション
 export const STAFF_CONDITIONS = {

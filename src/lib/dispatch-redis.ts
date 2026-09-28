@@ -28,10 +28,20 @@ export const STAFF_CONDITIONS_KEY = 'dispatch:staff_conditions'; // 来店前に
 export const TOKENS_KEY       = 'dispatch:tokens';
 export const EXPO_TOKENS_KEY  = 'dispatch:expo_tokens';
 export const AFFINITY_KEY     = 'dispatch:affinity'; // staffId → { タイプ: 得意度(1〜10) }
+export const MUTES_KEY        = 'dispatch:mutes'; // staffId → 通知を止める期限(ms)。「対応中（行けない）」で設定
 export const NOTIFY_LOG_KEY   = 'dispatch:notify_log';
 
 export async function getAffinityTable(redis: Redis = getRedis()): Promise<Record<string, Record<string, number>>> {
   const raw = (await redis.hgetall(AFFINITY_KEY)) ?? {};
   return Object.fromEntries(Object.entries(raw).map(([id, v]) =>
     [id, (typeof v === 'string' ? JSON.parse(v) : v) as Record<string, number>]));
+}
+
+// 今、通知を止めている営業（期限切れは除く）。値は期限の時刻(ms)
+export async function getActiveMutes(redis: Redis = getRedis()): Promise<Record<string, number>> {
+  const raw = ((await redis.hgetall(MUTES_KEY)) ?? {}) as Record<string, unknown>;
+  const now = Date.now();
+  return Object.fromEntries(
+    Object.entries(raw).map(([id, v]) => [id, Number(v)] as const).filter(([, until]) => until > now),
+  );
 }
