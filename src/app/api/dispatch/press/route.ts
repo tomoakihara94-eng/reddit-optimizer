@@ -4,7 +4,8 @@ import { STAFF, WINDOW_MS, RESPONSES, DEFAULT_RESPONSE, type Response } from '@/
 import { finalizeIfDecided } from '@/lib/dispatch-result';
 
 export async function POST(req: NextRequest) {
-  const { staffId, response } = await req.json() as { staffId: string; response?: string };
+  const { staffId, response, via } = await req.json() as { staffId: string; response?: string; via?: string };
+  const v = via === 'notification' ? 'notification' : via === 'app' ? 'app' : undefined;
   const r: Response = response && response in RESPONSES ? (response as Response) : DEFAULT_RESPONSE;
   const staff = STAFF.find(s => s.id === staffId);
   if (!staff) return NextResponse.json({ error: 'not found' }, { status: 404 });
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
   const existing = await redis.hget(PRESSES_KEY, key);
   if (existing) return NextResponse.json({ error: 'already pressed' }, { status: 400 });
 
-  await redis.hset(PRESSES_KEY, { [key]: JSON.stringify({ t: Date.now(), r }) });
+  await redis.hset(PRESSES_KEY, { [key]: JSON.stringify({ t: Date.now(), r, ...(v ? { v } : {}) }) });
 
   if (Date.now() > event.startedAt + WINDOW_MS) await finalizeIfDecided(redis, event);
 

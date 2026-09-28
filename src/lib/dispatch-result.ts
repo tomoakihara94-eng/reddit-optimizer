@@ -7,6 +7,7 @@ export type ResultRow = ScoreBreakdown & {
   rank: number | null;          // 当選順位（対象外は null）
   id: string; name: string;
   pressedAfterSec: number;      // 来店通知から押すまでの秒数
+  via?: 'app' | 'notification'; // 応答した経路
   status: 'winner' | 'candidate' | 'late' | 'excluded';
   note?: string;
 };
@@ -38,7 +39,7 @@ function buildResult(
     ...scoreBreakdown(p, staffConditions, event.customerType, affinity),
     rank: null, id: p.id, name: p.name,
     pressedAfterSec: Math.round((p.time - event.startedAt) / 100) / 10,
-    status, ...(note ? { note } : {}),
+    status, ...(note ? { note } : {}), ...(p.via ? { via: p.via } : {}),
   });
 
   const excluded = presses

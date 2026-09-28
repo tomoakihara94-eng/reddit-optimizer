@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { getRedis, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
 import { STAFF, CUSTOMER_TYPES } from '@/lib/dispatch-config';
-import { sendVisitPush } from '@/lib/dispatch-push';
+import { sendVisitPush, repushToPending, REPUSH_DELAYS_MS } from '@/lib/dispatch-push';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60; // 再通知（最大20秒後）まで関数を生かしておく
 
 const ACTIVE_STAFF_IDS: Set<string> = new Set(STAFF.map(s => s.id));
 export async function POST(req: NextRequest) {
@@ -61,6 +62,16 @@ export async function POST(req: NextRequest) {
       const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
       await sendVisitPush(expoTokens, [dispatcherId], '🚗 お客様来店', '長押し・Apple Watch で応答を選べます');
     } catch { /* ignore */ }
+
+    // 2回目・3回目の通知（未応答の人だけ）
+    after(async () => {
+      let waited = 0;
+      for (const [i, delay] of REPUSH_DELAYS_MS.entries()) {
+        await new Promise(r => setTimeout(r, delay - waited));
+        waited = delay;
+        await repushToPending(event.id, `🚗 お客様来店（${i + 2}回目）`, '長押し・Apple Watch で応答を選べます').catch(() => {});
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (e) {

@@ -1,4 +1,5 @@
-import { STAFF } from './dispatch-config';
+import { STAFF, WINDOW_MS } from './dispatch-config';
+import { getRedis, EVENT_KEY, EXPO_TOKENS_KEY, PRESSES_KEY, type DispatchEvent } from './dispatch-redis';
 
 const ACTIVE_STAFF_IDS: Set<string> = new Set(STAFF.map(s => s.id));
 const PUSH_TTL_SECONDS = 120;
@@ -23,6 +24,7 @@ export async function sendVisitPush(
     .map(([staffId, to]) => ({
       to, sound: VISIT_SOUND, title, body, ttl: PUSH_TTL_SECONDS,
       categoryId: VISIT_CATEGORY_ID,
+      interruptionLevel: 'time-sensitive', // 集中モード中でも届く（アプリ側に権限が必要）
       data: { staffId },
     }));
   if (messages.length === 0) return;
@@ -32,3 +34,17 @@ export async function sendVisitPush(
     body: JSON.stringify(messages),
   });
 }
+
+// 同じ来店で、まだ応答していない営業にだけもう一度通知する（差配者と応答済みの人は除く）
+export async function repushToPending(eventId: string, title: string, body: string) {
+  const redis = getRedis();
+  const event = await redis.get<DispatchEvent>(EVENT_KEY);
+  if (!event || event.id !== eventId || event.status !== 'active') return;
+  if (Date.now() > event.startedAt + WINDOW_MS) return;
+  const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
+  const pressedIds = Object.keys((await redis.hgetall(PRESSES_KEY)) ?? {}).map(k => k.split('::')[0]);
+  await sendVisitPush(expoTokens, [event.dispatcherId, ...pressedIds], title, body);
+}
+
+// 来店通知は計3回（0秒・10秒・20秒）。2回目以降は未応答の人だけ
+export const REPUSH_DELAYS_MS = [10_000, 20_000];

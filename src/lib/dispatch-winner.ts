@@ -5,7 +5,7 @@ import {
 } from './dispatch-config';
 import type { DispatchEvent } from './dispatch-redis';
 
-export type Press = { id: string; name: string; rank: string; time: number; response: Response };
+export type Press = { id: string; name: string; rank: string; time: number; response: Response; via?: 'app' | 'notification' };
 
 // 値は旧形式（押した時刻の数値）と新形式（{ t, r }）の両方を受け付ける
 export function parsePresses(raw: Record<string, unknown>): Press[] {
@@ -14,9 +14,9 @@ export function parsePresses(raw: Record<string, unknown>): Press[] {
     let v: unknown = val;
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch { /* 数値文字列 */ } }
     if (v && typeof v === 'object') {
-      const { t, r } = v as { t: number; r?: string };
+      const { t, r, v: via } = v as { t: number; r?: string; v?: 'app' | 'notification' };
       const response = r && r in RESPONSES ? (r as Response) : DEFAULT_RESPONSE;
-      return { id, name, rank, time: Number(t), response };
+      return { id, name, rank, time: Number(t), response, ...(via ? { via } : {}) };
     }
     return { id, name, rank, time: Number(v), response: DEFAULT_RESPONSE };
   });
