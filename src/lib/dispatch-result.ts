@@ -1,6 +1,6 @@
 import type { Redis } from '@upstash/redis';
-import { EVENT_KEY, PRESSES_KEY, STAFF_CONDITIONS_KEY, getAffinityTable, type DispatchEvent } from './dispatch-redis';
-import { WINDOW_MS } from './dispatch-config';
+import { EVENT_KEY, PRESSES_KEY, STAFF_CONDITIONS_KEY, MUTES_KEY, getAffinityTable, type DispatchEvent } from './dispatch-redis';
+import { WINDOW_MS, WINNER_MUTE_MIN } from './dispatch-config';
 import { determineWinner, parsePresses, scoreBreakdown, type Press, type ScoreBreakdown } from './dispatch-winner';
 
 export type ResultRow = ScoreBreakdown & {
@@ -80,6 +80,7 @@ export async function finalizeIfDecided(redis: Redis, event: DispatchEvent): Pro
     await redis.expire(key, RESULT_TTL_SECONDS);
     await redis.set(EVENT_KEY, { ...event, status: 'assigned', winner }, { ex: 3600 });
     await redis.del(PRESSES_KEY);
+    await redis.hset(MUTES_KEY, { [winner.id]: Date.now() + WINNER_MUTE_MIN * 60_000 });
   }
   return winner;
 }
