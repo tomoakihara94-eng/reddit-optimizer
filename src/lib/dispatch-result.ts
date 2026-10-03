@@ -1,5 +1,5 @@
 import type { Redis } from '@upstash/redis';
-import { EVENT_KEY, PRESSES_KEY, STAFF_CONDITIONS_KEY, MUTES_KEY, getAffinityTable, type DispatchEvent } from './dispatch-redis';
+import { EVENT_KEY, PRESSES_KEY, STAFF_CONDITIONS_KEY, MUTES_KEY, MUTE_LOCKS_KEY, getAffinityTable, type DispatchEvent } from './dispatch-redis';
 import { WINDOW_MS, WINNER_MUTE_MIN } from './dispatch-config';
 import { determineWinner, parsePresses, scoreBreakdown, type Press, type ScoreBreakdown } from './dispatch-winner';
 
@@ -80,7 +80,10 @@ export async function finalizeIfDecided(redis: Redis, event: DispatchEvent): Pro
     await redis.expire(key, RESULT_TTL_SECONDS);
     await redis.set(EVENT_KEY, { ...event, status: 'assigned', winner }, { ex: 3600 });
     await redis.del(PRESSES_KEY);
-    await redis.hset(MUTES_KEY, { [winner.id]: Date.now() + WINNER_MUTE_MIN * 60_000 });
+    // 当選者は1時間、来店通知を止める（本人は解除できない）
+    const until = Date.now() + WINNER_MUTE_MIN * 60_000;
+    await redis.hset(MUTES_KEY, { [winner.id]: until });
+    await redis.hset(MUTE_LOCKS_KEY, { [winner.id]: until });
   }
   return winner;
 }

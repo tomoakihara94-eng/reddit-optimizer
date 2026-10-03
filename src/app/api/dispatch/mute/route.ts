@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getRedis, MUTES_KEY } from '@/lib/dispatch-redis';
+import { getRedis, getActiveMuteLocks, MUTES_KEY } from '@/lib/dispatch-redis';
 import { STAFF, MUTE_OPTIONS_MIN } from '@/lib/dispatch-config';
 
 // 来店通知を止める時間を選び直す（10〜60分）。minutes: 0 で再開
@@ -9,6 +9,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid' }, { status: 400 });
 
   const redis = getRedis();
+  const lockedUntil = (await getActiveMuteLocks(redis))[staffId];
+  if (lockedUntil) {
+    return NextResponse.json({ error: 'locked', mutedUntil: lockedUntil }, { status: 423 });
+  }
   if (minutes === 0) {
     await redis.hdel(MUTES_KEY, staffId);
     return NextResponse.json({ success: true, mutedUntil: null });
