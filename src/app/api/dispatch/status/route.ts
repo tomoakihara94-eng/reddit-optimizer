@@ -4,7 +4,9 @@ import { parsePresses } from '@/lib/dispatch-winner';
 import { finalizeIfDecided } from '@/lib/dispatch-result';
 import { WINDOW_MS } from '@/lib/dispatch-config';
 
-export async function GET() {
+export async function GET(req: Request) {
+  // 営業アプリは自分の staffId を付けて問い合わせる。当選者本人にだけお客様タイプを返す
+  const staffId = new URL(req.url).searchParams.get('staffId');
   const redis = getRedis();
   const event = await redis.get<DispatchEvent>(EVENT_KEY);
   const mutes = await getActiveMutes(redis);
@@ -15,12 +17,14 @@ export async function GET() {
   const staffConditions = ((await redis.hgetall(STAFF_CONDITIONS_KEY)) ?? {}) as Record<string, string>;
 
   if (event.status === 'assigned') {
-    return NextResponse.json({ status: 'assigned', winner: event.winner, eventId: event.id, conditions, mutes });
+    const customerType = staffId && staffId === event.winner?.id ? event.customerType ?? null : undefined;
+    return NextResponse.json({ status: 'assigned', winner: event.winner, eventId: event.id, conditions, mutes, ...(customerType !== undefined ? { customerType } : {}) });
   }
 
   const winner = await finalizeIfDecided(redis, event);
   if (winner) {
-    return NextResponse.json({ status: 'assigned', winner, eventId: event.id, conditions, mutes });
+    const customerType = staffId && staffId === winner.id ? event.customerType ?? null : undefined;
+    return NextResponse.json({ status: 'assigned', winner, eventId: event.id, conditions, mutes, ...(customerType !== undefined ? { customerType } : {}) });
   }
 
   const raw = (await redis.hgetall(PRESSES_KEY)) ?? {};
