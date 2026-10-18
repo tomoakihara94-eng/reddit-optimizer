@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis';
+import { SALES_UNITS } from './dispatch-config';
 
 let _redis: Redis | null = null;
 
@@ -29,6 +30,7 @@ export const TOKENS_KEY       = 'dispatch:tokens';
 export const EXPO_TOKENS_KEY  = 'dispatch:expo_tokens';
 export const AFFINITY_KEY     = 'dispatch:affinity'; // staffId → { タイプ: 得意度(1〜10) }
 export const MUTES_KEY        = 'dispatch:mutes'; // staffId → 通知を止める期限(ms)。「対応中（行けない）」で設定
+export const SALES_UNITS_KEY  = 'dispatch:sales_units'; // staffId → 実績（台数）。管理者画面で入力
 export const NOTIFY_LOG_KEY   = 'dispatch:notify_log';
 
 export async function getAffinityTable(redis: Redis = getRedis()): Promise<Record<string, Record<string, number>>> {
@@ -44,4 +46,11 @@ export async function getActiveMutes(redis: Redis = getRedis()): Promise<Record<
   return Object.fromEntries(
     Object.entries(raw).map(([id, v]) => [id, Number(v)] as const).filter(([, until]) => until > now),
   );
+}
+
+// 実績（台数）。管理者画面で入力した値を優先し、未入力の人は dispatch-config の初期値
+export async function getSalesUnits(redis: Redis = getRedis()): Promise<Record<string, number>> {
+  const raw = ((await redis.hgetall(SALES_UNITS_KEY)) ?? {}) as Record<string, unknown>;
+  const saved = Object.fromEntries(Object.entries(raw).map(([id, v]) => [id, Number(v)]));
+  return { ...SALES_UNITS, ...saved };
 }

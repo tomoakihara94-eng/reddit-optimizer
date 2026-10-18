@@ -57,7 +57,7 @@ export const STAFF_CONDITIONS = {
 } as const;
 export type StaffCondition = keyof typeof STAFF_CONDITIONS;
 
-// 実績（台数）
+// 実績（台数）の初期値。管理者画面で入力した値（Redis dispatch:sales_units）が優先される
 export const SALES_UNITS: Record<string, number> = {
   asakura:  42,   // 浅倉
   ishigami: 29,   // 石神

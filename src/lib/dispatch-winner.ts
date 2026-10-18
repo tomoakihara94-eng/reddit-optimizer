@@ -35,10 +35,11 @@ export function scoreBreakdown(
   staffConditions: Record<string, string>,
   customerType?: string,
   affinity: AffinityTable = {},
+  salesUnits: Record<string, number> = SALES_UNITS,
 ): ScoreBreakdown {
   const condition = staffConditions[p.id] ?? null;
   const conditionPts = STAFF_CONDITIONS[condition as StaffCondition] ?? 0;
-  const units = SALES_UNITS[p.id] ?? 0;
+  const units = salesUnits[p.id] ?? 0;
   const unitsPts = units * SALES_UNITS_WEIGHT;
   const responsePts = RESPONSES[p.response];
   const base = responsePts + conditionPts + unitsPts;
@@ -55,8 +56,9 @@ export function scoreOf(
   staffConditions: Record<string, string>,
   customerType?: string,
   affinity: AffinityTable = {},
+  salesUnits: Record<string, number> = SALES_UNITS,
 ): number {
-  return scoreBreakdown(p, staffConditions, customerType, affinity).score;
+  return scoreBreakdown(p, staffConditions, customerType, affinity, salesUnits).score;
 }
 
 export function determineWinner(
@@ -64,6 +66,7 @@ export function determineWinner(
   presses: Press[],
   staffConditions: Record<string, string> = {},
   affinity: AffinityTable = {},
+  salesUnits: Record<string, number> = SALES_UNITS,
 ): Press | null {
   // 差配者本人と「対応中」の人は当選対象外
   const eligible = presses.filter(p => p.id !== event.dispatcherId && p.response !== '対応中');
@@ -75,7 +78,7 @@ export function determineWinner(
   const after  = eligible.filter(p => p.time > windowEnd);
 
   if (within.length > 0) {
-    const score = (p: Press) => scoreOf(p, staffConditions, event.customerType, affinity);
+    const score = (p: Press) => scoreOf(p, staffConditions, event.customerType, affinity, salesUnits);
     return within.sort((a, b) => score(b) - score(a) || a.time - b.time)[0];
   }
   return after.sort((a, b) => a.time - b.time)[0];

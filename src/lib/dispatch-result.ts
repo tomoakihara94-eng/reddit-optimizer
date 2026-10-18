@@ -1,5 +1,5 @@
 import type { Redis } from '@upstash/redis';
-import { EVENT_KEY, PRESSES_KEY, STAFF_CONDITIONS_KEY, MUTES_KEY, getAffinityTable, type DispatchEvent } from './dispatch-redis';
+import { EVENT_KEY, PRESSES_KEY, STAFF_CONDITIONS_KEY, MUTES_KEY, getAffinityTable, getSalesUnits, type DispatchEvent } from './dispatch-redis';
 import { WINDOW_MS, WINNER_MUTE_MIN } from './dispatch-config';
 import { determineWinner, parsePresses, scoreBreakdown, type Press, type ScoreBreakdown } from './dispatch-winner';
 
@@ -33,10 +33,11 @@ export const resultsKey = (date: string) => `dispatch:results:${date}`;
 function buildResult(
   event: DispatchEvent, presses: Press[], winner: Press,
   staffConditions: Record<string, string>, affinity: Awaited<ReturnType<typeof getAffinityTable>>,
+  salesUnits: Record<string, number>,
 ): DispatchResult {
   const windowEnd = event.startedAt + WINDOW_MS;
   const row = (p: Press, status: ResultRow['status'], note?: string): ResultRow => ({
-    ...scoreBreakdown(p, staffConditions, event.customerType, affinity),
+    ...scoreBreakdown(p, staffConditions, event.customerType, affinity, salesUnits),
     rank: null, id: p.id, name: p.name,
     pressedAfterSec: Math.round((p.time - event.startedAt) / 100) / 10,
     status, ...(note ? { note } : {}), ...(p.via ? { via: p.via } : {}),
@@ -69,12 +70,13 @@ export async function finalizeIfDecided(redis: Redis, event: DispatchEvent): Pro
   const presses = parsePresses(raw as Record<string, unknown>);
   const staffConditions = ((await redis.hgetall(STAFF_CONDITIONS_KEY)) ?? {}) as Record<string, string>;
   const affinity = await getAffinityTable(redis);
-  const winner = determineWinner(event, presses, staffConditions, affinity);
+  const salesUnits = await getSalesUnits(redis);
+  const winner = determineWinner(event, presses, staffConditions, affinity, salesUnits);
   if (!winner) return null;
 
   const locked = await redis.set(`dispatch:finalize:${event.id}`, '1', { nx: true, ex: 300 });
   if (locked) {
-    const result = buildResult(event, presses, winner, staffConditions, affinity);
+    const result = buildResult(event, presses, winner, staffConditions, affinity, salesUnits);
     const key = resultsKey(jstDate(event.startedAt));
     await redis.rpush(key, JSON.stringify(result));
     await redis.expire(key, RESULT_TTL_SECONDS);
