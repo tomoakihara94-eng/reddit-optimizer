@@ -13,7 +13,7 @@ export const STAFF: readonly StaffMember[] = [
   { id: 'kakizaki',  name: '柿崎',   rank: 'B' },
   { id: 'kyotoku',   name: '教徳',   rank: 'B' },
   { id: 'kondo',     name: '近藤',   rank: 'B' },
-  { id: 'sato',      name: '佐藤',   rank: 'B' },
+  { id: 'sato',      name: '平賀',   rank: 'B' },
   { id: 'shinomi',   name: '四野見', rank: 'B' },
   { id: 'takahiro',  name: '孝宏',   rank: 'B' },
   { id: 'chihara',   name: '千原',   rank: 'B' },
@@ -70,7 +70,7 @@ export const SALES_UNITS: Record<string, number> = {
   kakizaki: 30,   // 柿崎
   kyotoku:  20,   // 教徳
   kondo:    13,   // 近藤
-  sato:      9,   // 佐藤
+  sato:      9,   // 平賀（旧表記: 佐藤）
   shinomi:  40,   // 四野見
   takahiro: 29,   // 孝宏
   chihara:  22,   // 千原
