@@ -1,4 +1,4 @@
-import { STAFF, WINDOW_MS } from './dispatch-config';
+import { STAFF, WINDOW_MS, isQuietHours } from './dispatch-config';
 import { getRedis, getActiveMutes, EVENT_KEY, EXPO_TOKENS_KEY, PRESSES_KEY, type DispatchEvent } from './dispatch-redis';
 
 const ACTIVE_STAFF_IDS: Set<string> = new Set(STAFF.map(s => s.id));
@@ -17,6 +17,7 @@ export async function sendVisitPush(
   title: string,
   body: string,
 ) {
+  if (isQuietHours()) return; // 夜間（18:00〜翌8:15）は通知しない
   const muted = await getActiveMutes(); // 「対応中（行けない）」で通知を止めている人
   const seen = new Set<string>(); // 同端末で複数スタッフIDに登録されている場合の重複排除
   const messages = Object.entries(expoTokens)

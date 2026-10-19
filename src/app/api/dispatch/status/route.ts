@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getRedis, getActiveMutes, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, STAFF_CONDITIONS_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
 import { parsePresses } from '@/lib/dispatch-winner';
 import { finalizeIfDecided } from '@/lib/dispatch-result';
-import { WINDOW_MS } from '@/lib/dispatch-config';
+import { WINDOW_MS, isQuietHours } from '@/lib/dispatch-config';
 
 export async function GET(req: Request) {
   // 営業アプリは自分の staffId を付けて問い合わせる。当選者本人にだけお客様タイプを返す
@@ -10,7 +10,8 @@ export async function GET(req: Request) {
   const redis = getRedis();
   const event = await redis.get<DispatchEvent>(EVENT_KEY);
   const mutes = await getActiveMutes(redis);
-  if (!event) return NextResponse.json({ status: 'idle', mutes }, { headers: { 'Cache-Control': 'no-store' } });
+  const quiet = isQuietHours(); // 差配者画面に「夜間は通知なし」を出すため
+  if (!event) return NextResponse.json({ status: 'idle', mutes, quiet }, { headers: { 'Cache-Control': 'no-store' } });
 
   const rawConditions = (await redis.hgetall(CONDITIONS_KEY)) ?? {};
   const conditions = rawConditions as Record<string, string>;
