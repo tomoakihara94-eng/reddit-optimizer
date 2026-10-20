@@ -1,0 +1,85 @@
+# 差配システム（サーバー側）設計メモ
+
+来店したお客様の担当営業を決めるシステムのサーバー側。iOS アプリ（`~/dispatch-app`、Expo）から
+`https://reddit-optimizer.vercel.app/api/dispatch/*` を呼ぶ。データは Upstash Redis。
+
+変更する前にこのメモを読み、変えたらこのメモも更新する。
+
+## 流れ
+
+1. 差配者がアプリで「来店通知を送る」→ お客様タイプを選ぶ → `POST /notify`
+   - `dispatch:event` に `{ id, startedAt, status: 'active', customerType }` を作り、押下・応答の記録を消す
+   - 営業へ Expo push（0秒）。`after()` で 10秒・20秒後に未応答者へ再送（計3回）
+2. 営業が応答（アプリのボタン or 通知ボタン / Apple Watch）→ `POST /press { staffId, response, via }`
+3. 全員が `GET /status` を2秒ごとにポーリング。30秒経過後の最初の status/press で `finalizeIfDecided` が当選を確定
+4. 確定時: event を `assigned` に、得点の内訳を日別ログへ保存、当選者の通知を30分停止
+5. 差配者が「次のお客様」→ `POST /clear`
+
+## 当選の決め方（`src/lib/dispatch-winner.ts`）
+
+```
+得点 =（応答 + コンディション + 実績台数 × 0.1）× 得意度 × 0.1
+```
+
+- 応答: いくぜ40 / 行けたら行きたい30 / 普通20 / 今は無理かも10 / 対応中0（**対応中は当選対象外**）
+- コンディション: 絶好調8 / 好調6 / 普通4 / 不調2 / 絶不調0（来店前に営業が選ぶ。未選択0）
+- 実績: `dispatch:sales_units`（管理者画面で入力）。未入力の人は `SALES_UNITS`（config）の初期値
+- 得意度: `dispatch:affinity` の お客様タイプ別 1〜10。未入力は 10（×1.0）
+- 30秒以内に応答した人の中で最高得点。同点は早押し
+- 30秒以内に誰もいなければ、30秒後に最初に応答した人
+- 差配者本人（`event.dispatcherId`、旧仕様の名残）は対象外
+
+## 通知が届かない条件（`src/lib/dispatch-push.ts` の `sendVisitPush`）
+
+- 夜間: 日本時間 18:00〜翌 8:15（`isQuietHours`）
+- `dispatch:mutes` に期限がある人
+  - 「対応中（行けない）」を押した → 10分（`/mute` で 10〜60分に変更・0で再開）
+  - 当選した → 30分（本人が再開できる）
+  - 営業が「来店通知 OFF」 → 実質無期限（`MUTE_OFF_MS`）
+- すでに応答した人（再送時）
+- 同じ端末が複数の営業IDに登録されている場合は1通だけ（`/register-expo` で古い登録を消す）
+
+## Redis キー（`src/lib/dispatch-redis.ts`）
+
+| キー | 中身 | 寿命 |
+|---|---|---|
+| `dispatch:event` | 今の来店（active / assigned） | 1時間 |
+| `dispatch:presses` | 押下 `id::name::rank` → `{ t, r, v }`（旧形式は時刻の数値） | 確定時に削除 |
+| `dispatch:staff_conditions` | 営業ID → コンディション | 保持 |
+| `dispatch:conditions` | 旧仕様の抜群/不良（旧アプリ用に残置） | 来店ごとに削除 |
+| `dispatch:expo_tokens` | 営業ID → Expo push トークン | 保持 |
+| `dispatch:tokens` | Web push（旧 PWA） | 保持 |
+| `dispatch:affinity` | 営業ID → `{ タイプ: 得意度 }` | 保持 |
+| `dispatch:sales_units` | 営業ID → 台数 | 保持 |
+| `dispatch:mutes` | 営業ID → 通知停止の期限(ms) | 保持（期限切れは無視） |
+| `dispatch:results:YYYY-MM-DD` | その日（JST）の当選内訳 | 180日 |
+| `dispatch:finalize:<eventId>` | 当選確定のロック（二重記録防止） | 5分 |
+| `dispatch:notify_log` | 来店通知の送信記録 最新10件 | 1日 |
+
+## 管理者（暗証番号）
+
+- 暗証番号は Vercel の環境変数 `DISPATCH_ADMIN_PIN`。ヘッダー `X-Admin-Pin` で照合（`src/lib/dispatch-admin.ts`）
+- 必要な API: `/admin-verify`、`/affinity`、`/sales-units`、`/results`
+- 変更は `vercel env rm` → `vercel env add` → 本番再公開。反映まで10秒ほどかかる
+- **未対応**: `/notify` 自体は暗証番号不要（古いアプリ・外部から送れる）
+
+## 設計上の決めごと（なぜこうしたか）
+
+- **応答の値「対応中」は変えない**: 画面では「対応中（行けない）」だが、古いアプリが「対応中」を送るため
+- **営業ID は変えない**: 平賀さんの ID は `sato`（佐藤→平賀は同一人物の名前訂正）。ID を変えると押下・得意度・実績・通知登録が切れる
+- **お客様タイプは当選者にだけ返す**: `GET /status?staffId=` が当選者本人のときだけ `customerType` を付ける（他の営業には見せない仕様）
+- **古いアプリとの互換**: 新しい項目は省略可能にし、なければ従来どおり動くようにする（`DEFAULT_RESPONSE` など）
+- **スタッフ一覧はアプリ（`dispatch-app/lib/config.ts`）にも同じものがある**。追加・改名は両方直す（将来まとめる予定）
+
+## テスト
+
+```
+npm test
+```
+
+`src/lib/dispatch.test.ts`（当選ロジック・結果記録・通知停止・夜間判定）。Redis はテスト内のモックを使い、本番には触れない。
+
+## 公開
+
+- `npx vercel --prod --yes`（1回目が CLI エラーになることが多い。再実行で成功する）
+- 公開後に `curl https://reddit-optimizer.vercel.app/api/dispatch/status` で確認

@@ -36,7 +36,7 @@ export const RESPONSES = {
   '対応中':            0,
 } as const;
 export type Response = keyof typeof RESPONSES;
-export const DEFAULT_RESPONSE: Response = '普通';
+export const DEFAULT_RESPONSE: Response = '普通'; // 応答を送らない旧クライアント（Web版など）用
 
 // 「対応中（行けない）」を押した人は、来店通知を止める（既定10分、10〜60分で選び直せる）
 export const MUTE_DEFAULT_MIN = 10;
@@ -45,6 +45,7 @@ export const MUTE_OPTIONS_MIN = [10, 20, 30, 40, 50, 60];
 export const WINNER_MUTE_MIN = 30;
 // 営業が自分で「来店通知 OFF」にしたとき（ON に戻すまで）。期限は実質無期限
 export const MUTE_OFF = -1;
+export const MUTE_OFF_MS = 10 * 365 * 24 * 3600_000;
 
 // 夜間は営業に来店通知を送らない（日本時間 18:00〜翌 8:15）
 export const QUIET_START = { h: 18, m: 0 };
@@ -54,7 +55,6 @@ export function isQuietHours(now = Date.now()) {
   const min = d.getUTCHours() * 60 + d.getUTCMinutes();
   return min >= QUIET_START.h * 60 + QUIET_START.m || min < QUIET_END.h * 60 + QUIET_END.m;
 }
-export const MUTE_OFF_MS = 10 * 365 * 24 * 3600_000; // 応答を送らない旧クライアント（Web版など）用
 
 // 営業が来店通知の前にあらかじめ選んでおくコンディション
 export const STAFF_CONDITIONS = {
