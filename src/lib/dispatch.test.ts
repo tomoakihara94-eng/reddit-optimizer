@@ -140,3 +140,15 @@ test('夜間（日本時間 18:00〜翌8:15）の判定', () => {
   assert.equal(isQuietHours(jst(18, 0)), true);
   assert.equal(isQuietHours(jst(0, 0)), true);
 });
+
+// ─── アプリ向けの共通設定 ───
+test('GET /config はアプリが使う一覧を返す（スタッフ・応答の表示名と点数・夜間）', async () => {
+  const { GET } = await import('../app/api/dispatch/config/route');
+  const body = await GET().json();
+  assert.ok(body.staff.length > 0);
+  assert.ok(body.staff.every((s: { id: string; name: string }) => s.id && s.name));
+  assert.deepEqual(body.responses.find((r: { value: string }) => r.value === '対応中'),
+    { value: '対応中', label: '対応中（行けない）', points: 0 });
+  assert.deepEqual(body.quiet, { start: { h: 18, m: 0 }, end: { h: 8, m: 15 } });
+  assert.equal(body.windowSec, 30);
+});

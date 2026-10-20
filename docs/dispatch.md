@@ -56,6 +56,10 @@
 | `dispatch:finalize:<eventId>` | 当選確定のロック（二重記録防止） | 5分 |
 | `dispatch:notify_log` | 来店通知の送信記録 最新10件 | 1日 |
 
+## 公開 API（暗証番号なし）
+
+`/config`（共通設定）、`/status`、`/notify`、`/press`、`/mute`、`/staff-condition`、`/register-expo` など
+
 ## 管理者（暗証番号）
 
 - 暗証番号は Vercel の環境変数 `DISPATCH_ADMIN_PIN`。ヘッダー `X-Admin-Pin` で照合（`src/lib/dispatch-admin.ts`）
@@ -69,7 +73,7 @@
 - **営業ID は変えない**: 平賀さんの ID は `sato`（佐藤→平賀は同一人物の名前訂正）。ID を変えると押下・得意度・実績・通知登録が切れる
 - **お客様タイプは当選者にだけ返す**: `GET /status?staffId=` が当選者本人のときだけ `customerType` を付ける（他の営業には見せない仕様）
 - **古いアプリとの互換**: 新しい項目は省略可能にし、なければ従来どおり動くようにする（`DEFAULT_RESPONSE` など）
-- **スタッフ一覧はアプリ（`dispatch-app/lib/config.ts`）にも同じものがある**。追加・改名は両方直す（将来まとめる予定）
+- **共通の設定はここが正**: `GET /config` がスタッフ一覧・応答（表示名・点数）・コンディション・お客様タイプ・停止の分数・夜間を返し、アプリ（1.1.24〜）は起動時に読む。スタッフの追加・改名はここを直して公開するだけでアプリにも反映される（アプリの予備の初期値は `dispatch-app` で `npm run test:server` を流して合わせる）
 
 ## テスト
 
