@@ -144,11 +144,19 @@ test('夜間（日本時間 18:00〜翌8:15）の判定', () => {
 // ─── アプリ向けの共通設定 ───
 test('GET /config はアプリが使う一覧を返す（スタッフ・応答の表示名と点数・夜間）', async () => {
   const { GET } = await import('../app/api/dispatch/config/route');
-  const body = await GET().json();
+  const body = await (await GET()).json();
   assert.ok(body.staff.length > 0);
   assert.ok(body.staff.every((s: { id: string; name: string }) => s.id && s.name));
   assert.deepEqual(body.responses.find((r: { value: string }) => r.value === '対応中'),
     { value: '対応中', label: '対応中（行けない）', points: 0 });
   assert.deepEqual(body.quiet, { start: { h: 18, m: 0 }, end: { h: 8, m: 15 } });
   assert.equal(body.windowSec, 30);
+});
+
+test('営業の名前は Redis の変更分で上書きされ、ID は変わらない', async () => {
+  const { getStaff } = await import('./dispatch-redis');
+  const staff = await getStaff(mockRedis({ 'dispatch:staff_names': { hara: '原田' } }));
+  assert.equal(staff.find(s => s.id === 'hara')?.name, '原田');
+  assert.equal(staff.find(s => s.id === 'asakura')?.name, '浅倉');
+  assert.equal(staff.length, (await import('./dispatch-config')).STAFF.length);
 });

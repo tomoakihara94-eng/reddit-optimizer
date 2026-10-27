@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRedis, EVENT_KEY, PRESSES_KEY, MUTES_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
-import { STAFF, WINDOW_MS, RESPONSES, DEFAULT_RESPONSE, MUTE_DEFAULT_MIN, type Response } from '@/lib/dispatch-config';
+import { getRedis, getStaff, EVENT_KEY, PRESSES_KEY, MUTES_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
+import { WINDOW_MS, RESPONSES, DEFAULT_RESPONSE, MUTE_DEFAULT_MIN, type Response } from '@/lib/dispatch-config';
 import { finalizeIfDecided } from '@/lib/dispatch-result';
 
 export async function POST(req: NextRequest) {
   const { staffId, response, via } = await req.json() as { staffId: string; response?: string; via?: string };
   const v = via === 'notification' ? 'notification' : via === 'app' ? 'app' : undefined;
   const r: Response = response && response in RESPONSES ? (response as Response) : DEFAULT_RESPONSE;
-  const staff = STAFF.find(s => s.id === staffId);
+  const staff = (await getStaff()).find(s => s.id === staffId);
   if (!staff) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
   const redis = getRedis();

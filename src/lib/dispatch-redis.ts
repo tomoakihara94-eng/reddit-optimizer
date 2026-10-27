@@ -1,5 +1,5 @@
 import { Redis } from '@upstash/redis';
-import { SALES_UNITS } from './dispatch-config';
+import { SALES_UNITS, STAFF, type StaffMember } from './dispatch-config';
 
 let _redis: Redis | null = null;
 
@@ -31,6 +31,7 @@ export const EXPO_TOKENS_KEY  = 'dispatch:expo_tokens';
 export const AFFINITY_KEY     = 'dispatch:affinity'; // staffId → { タイプ: 得意度(1〜10) }
 export const MUTES_KEY        = 'dispatch:mutes'; // staffId → 通知を止める期限(ms)。「対応中（行けない）」で設定
 export const SALES_UNITS_KEY  = 'dispatch:sales_units'; // staffId → 実績（台数）。管理者画面で入力
+export const STAFF_NAMES_KEY  = 'dispatch:staff_names'; // staffId → 表示名。管理者が営業画面から変更
 export const NOTIFY_LOG_KEY   = 'dispatch:notify_log';
 
 export async function getAffinityTable(redis: Redis = getRedis()): Promise<Record<string, Record<string, number>>> {
@@ -53,4 +54,14 @@ export async function getSalesUnits(redis: Redis = getRedis()): Promise<Record<s
   const raw = ((await redis.hgetall(SALES_UNITS_KEY)) ?? {}) as Record<string, unknown>;
   const saved = Object.fromEntries(Object.entries(raw).map(([id, v]) => [id, Number(v)]));
   return { ...SALES_UNITS, ...saved };
+}
+
+// スタッフ一覧（名前は変更分を反映）。ID は固定、名前だけ Redis で上書きできる
+export async function getStaff(redis: Redis = getRedis()): Promise<StaffMember[]> {
+  try {
+    const names = ((await redis.hgetall(STAFF_NAMES_KEY)) ?? {}) as Record<string, string>;
+    return STAFF.map(s => (names[s.id] ? { ...s, name: names[s.id] } : s));
+  } catch {
+    return [...STAFF]; // Redis に届かないときは初期の名前
+  }
 }
