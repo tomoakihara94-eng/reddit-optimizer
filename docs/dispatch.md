@@ -54,6 +54,7 @@
 | `dispatch:mutes` | 営業ID → 通知停止の期限(ms) | 保持（期限切れは無視） |
 | `dispatch:results:YYYY-MM-DD` | その日（JST）の当選内訳 | 180日 |
 | `dispatch:finalize:<eventId>` | 当選確定のロック（二重記録防止） | 5分 |
+| `dispatch:staff_names` | 営業ID → 表示名（管理者が変更。なければ config の名前） | 保持 |
 | `dispatch:notify_log` | 来店通知の送信記録 最新10件 | 1日 |
 
 ## 公開 API（暗証番号なし）
@@ -63,7 +64,7 @@
 ## 管理者（暗証番号）
 
 - 暗証番号は Vercel の環境変数 `DISPATCH_ADMIN_PIN`。ヘッダー `X-Admin-Pin` で照合（`src/lib/dispatch-admin.ts`）
-- 必要な API: `/admin-verify`、`/affinity`、`/sales-units`、`/results`
+- 必要な API: `/admin-verify`、`/affinity`、`/sales-units`、`/results`、`/staff-name`
 - 変更は `vercel env rm` → `vercel env add` → 本番再公開。反映まで10秒ほどかかる
 - **未対応**: `/notify` 自体は暗証番号不要（古いアプリ・外部から送れる）
 
