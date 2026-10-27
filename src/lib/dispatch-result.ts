@@ -1,6 +1,7 @@
 import type { Redis } from '@upstash/redis';
 import { EVENT_KEY, PRESSES_KEY, STAFF_CONDITIONS_KEY, MUTES_KEY, getAffinityTable, getSalesUnits, type DispatchEvent } from './dispatch-redis';
 import { WINDOW_MS, WINNER_MUTE_MIN } from './dispatch-config';
+import { getFastRules } from './dispatch-fast';
 import { determineWinner, parsePresses, scoreBreakdown, type Press, type ScoreBreakdown } from './dispatch-winner';
 
 export type ResultRow = ScoreBreakdown & {
@@ -71,7 +72,8 @@ export async function finalizeIfDecided(redis: Redis, event: DispatchEvent): Pro
   const staffConditions = ((await redis.hgetall(STAFF_CONDITIONS_KEY)) ?? {}) as Record<string, string>;
   const affinity = await getAffinityTable(redis);
   const salesUnits = await getSalesUnits(redis);
-  const winner = determineWinner(event, presses, staffConditions, affinity, salesUnits);
+  const fastRules = await getFastRules(redis);
+  const winner = determineWinner(event, presses, staffConditions, affinity, salesUnits, fastRules);
   if (!winner) return null;
 
   const locked = await redis.set(`dispatch:finalize:${event.id}`, '1', { nx: true, ex: 300 });

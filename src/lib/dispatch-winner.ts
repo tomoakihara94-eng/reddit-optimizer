@@ -4,6 +4,7 @@ import {
   type Response, type StaffCondition, type CustomerType,
 } from './dispatch-config';
 import type { DispatchEvent } from './dispatch-redis';
+import type { FastRules } from './dispatch-fast';
 
 export type Press = { id: string; name: string; rank: string; time: number; response: Response; via?: 'app' | 'notification' };
 
@@ -67,18 +68,28 @@ export function determineWinner(
   staffConditions: Record<string, string> = {},
   affinity: AffinityTable = {},
   salesUnits: Record<string, number> = SALES_UNITS,
+  fastRules?: FastRules,
 ): Press | null {
   // 差配者本人と「対応中」の人は当選対象外
   const eligible = presses.filter(p => p.id !== event.dispatcherId && p.response !== '対応中');
   if (eligible.length === 0) return null;
-  if (Date.now() <= event.startedAt + WINDOW_MS) return null; // window still open
-
+  const now = Date.now();
   const windowEnd = event.startedAt + WINDOW_MS;
+  const score = (p: Press) => scoreOf(p, staffConditions, event.customerType, affinity, salesUnits);
+
+  // 即決定: 30秒を待たず、決めた秒数以降に決めた点数以上の応答があれば、その時点の最高点の人に決める
+  if (now <= windowEnd) {
+    if (!fastRules?.enabled) return null;
+    const best = [...eligible].sort((a, b) => score(b) - score(a) || a.time - b.time)[0];
+    const elapsed = now - event.startedAt;
+    const hit = fastRules.tiers.some(t => elapsed >= t.afterSec * 1000 && score(best) >= t.minScore);
+    return hit ? best : null;
+  }
+
   const within = eligible.filter(p => p.time <= windowEnd);
   const after  = eligible.filter(p => p.time > windowEnd);
 
   if (within.length > 0) {
-    const score = (p: Press) => scoreOf(p, staffConditions, event.customerType, affinity, salesUnits);
     return within.sort((a, b) => score(b) - score(a) || a.time - b.time)[0];
   }
   return after.sort((a, b) => a.time - b.time)[0];

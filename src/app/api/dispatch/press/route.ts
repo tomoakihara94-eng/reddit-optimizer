@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRedis, getStaff, EVENT_KEY, PRESSES_KEY, MUTES_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
-import { WINDOW_MS, RESPONSES, DEFAULT_RESPONSE, MUTE_DEFAULT_MIN, type Response } from '@/lib/dispatch-config';
+import { RESPONSES, DEFAULT_RESPONSE, MUTE_DEFAULT_MIN, type Response } from '@/lib/dispatch-config';
 import { finalizeIfDecided } from '@/lib/dispatch-result';
 
 export async function POST(req: NextRequest) {
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     await redis.hset(MUTES_KEY, { [staffId]: Date.now() + MUTE_DEFAULT_MIN * 60_000 });
   }
 
-  if (Date.now() > event.startedAt + WINDOW_MS) await finalizeIfDecided(redis, event);
+  await finalizeIfDecided(redis, event); // 即決定・30秒経過のどちらでも、決まればここで確定
 
   return NextResponse.json({ success: true });
 }

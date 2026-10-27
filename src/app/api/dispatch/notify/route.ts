@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getRedis, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
 import { STAFF, CUSTOMER_TYPES } from '@/lib/dispatch-config';
-import { sendVisitPush, repushToPending, REPUSH_DELAYS_MS } from '@/lib/dispatch-push';
+import { sendVisitPush, repushToPending, gatedIdsNow } from '@/lib/dispatch-push';
+import { getFastRules, repushTimesSec } from '@/lib/dispatch-fast';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 再通知（最大20秒後）まで関数を生かしておく
@@ -60,15 +61,17 @@ export async function POST(req: NextRequest) {
     // Expo push (native app) — only send to currently active staff
     try {
       const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
-      await sendVisitPush(expoTokens, [dispatcherId], '🚗 お客様来店', '長押し・Apple Watch で応答を選べます');
+      // 得意度が低い人には、即決定の設定の秒数まで送らない
+      await sendVisitPush(expoTokens, [dispatcherId, ...(await gatedIdsNow(event))], '🚗 お客様来店', '長押し・Apple Watch で応答を選べます');
     } catch { /* ignore */ }
 
-    // 2回目・3回目の通知（未応答の人だけ）
+    // 2回目・3回目の通知（未応答の人だけ）。秒数は即決定の設定（10・20秒）に合わせる
+    const repushAt = repushTimesSec(await getFastRules(redis)).map(s => s * 1000);
     after(async () => {
       let waited = 0;
-      for (const [i, delay] of REPUSH_DELAYS_MS.entries()) {
-        await new Promise(r => setTimeout(r, delay - waited));
-        waited = delay;
+      for (const [i, delay] of repushAt.entries()) {
+        await new Promise(r => setTimeout(r, delay - waited + 300)); // 少し遅らせ、秒数ちょうどの判定を確実に
+        waited = delay + 300;
         await repushToPending(event.id, `🚗 お客様来店（${i + 2}回目）`, '長押し・Apple Watch で応答を選べます').catch(() => {});
       }
     });

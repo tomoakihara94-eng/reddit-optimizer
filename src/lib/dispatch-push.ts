@@ -1,5 +1,7 @@
 import { STAFF, WINDOW_MS, isQuietHours } from './dispatch-config';
-import { getRedis, getActiveMutes, EVENT_KEY, EXPO_TOKENS_KEY, PRESSES_KEY, type DispatchEvent } from './dispatch-redis';
+import { getRedis, getActiveMutes, getAffinityTable, EVENT_KEY, EXPO_TOKENS_KEY, PRESSES_KEY, type DispatchEvent } from './dispatch-redis';
+import { getFastRules, blockedAffinity, gatedStaffIds } from './dispatch-fast';
+import { finalizeIfDecided } from './dispatch-result';
 
 const ACTIVE_STAFF_IDS: Set<string> = new Set(STAFF.map(s => s.id));
 const PUSH_TTL_SECONDS = 120;
@@ -37,16 +39,43 @@ export async function sendVisitPush(
   });
 }
 
-// 同じ来店で、まだ応答していない営業にだけもう一度通知する（差配者と応答済みの人は除く）
+// 即決定の設定で、まだ通知しない人（その時点で得意度が低い人）の ID
+export async function gatedIdsNow(event: DispatchEvent, now = Date.now()): Promise<string[]> {
+  const redis = getRedis();
+  const rules = await getFastRules(redis);
+  const blocked = blockedAffinity(rules, (now - event.startedAt) / 1000);
+  if (blocked <= 0 || !event.customerType) return [];
+  return gatedStaffIds([...ACTIVE_STAFF_IDS], await getAffinityTable(redis), event.customerType, blocked);
+}
+
+// 同じ来店で、まだ応答していない営業にだけもう一度通知する（差配者・応答済み・得意度でまだ止めている人は除く）
+// 先に当選が決まるか確かめ、決まっていれば送らない
 export async function repushToPending(eventId: string, title: string, body: string) {
   const redis = getRedis();
   const event = await redis.get<DispatchEvent>(EVENT_KEY);
   if (!event || event.id !== eventId || event.status !== 'active') return;
   if (Date.now() > event.startedAt + WINDOW_MS) return;
+  if (await finalizeIfDecided(redis, event)) return;
   const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
   const pressedIds = Object.keys((await redis.hgetall(PRESSES_KEY)) ?? {}).map(k => k.split('::')[0]);
-  await sendVisitPush(expoTokens, [event.dispatcherId, ...pressedIds], title, body);
+  await sendVisitPush(expoTokens, [event.dispatcherId, ...pressedIds, ...(await gatedIdsNow(event))], title, body);
 }
 
-// 来店通知は計3回（0秒・10秒・20秒）。2回目以降は未応答の人だけ
-export const REPUSH_DELAYS_MS = [10_000, 20_000];
+// 30秒たっても当選者がいないとき、未応答の全員に通知を送り続ける（差配者のアプリが定期的に呼ぶ）
+// 間隔は Redis のロックで守り、上限の分数を過ぎたら送らない。送ったら true
+export async function keepNotifying(): Promise<boolean> {
+  const redis = getRedis();
+  const event = await redis.get<DispatchEvent>(EVENT_KEY);
+  if (!event || event.status !== 'active') return false;
+  const elapsed = Date.now() - event.startedAt;
+  if (elapsed <= WINDOW_MS) return false;
+  if (await finalizeIfDecided(redis, event)) return false;
+  const { keepNotify } = await getFastRules(redis);
+  if (keepNotify.maxMin <= 0 || elapsed > WINDOW_MS + keepNotify.maxMin * 60_000) return false;
+  const locked = await redis.set(`dispatch:keepnotify:${event.id}`, '1', { nx: true, ex: keepNotify.everySec });
+  if (!locked) return false;
+  const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
+  const pressedIds = Object.keys((await redis.hgetall(PRESSES_KEY)) ?? {}).map(k => k.split('::')[0]);
+  await sendVisitPush(expoTokens, [event.dispatcherId, ...pressedIds], '🚗 お客様がお待ちです', 'まだ担当が決まっていません。応答をお願いします');
+  return true;
+}

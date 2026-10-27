@@ -180,3 +180,60 @@ test('掲示板: 新しい順に並び、20件まで、削除できる', async (
   assert.equal((await listPosts(redis, 'notice'))[0].body, 'お知らせ20');
   assert.equal((await listPosts(redis, 'president')).length, 0, '欄は別々');
 });
+
+// ─── 即決定方式 ───
+test('即決定: 36点以上はすぐ、33点以上は10秒後、30点以上は20秒後に決まる', async () => {
+  const { DEFAULT_FAST_RULES: R } = await import('./dispatch-fast');
+  const ev = event();
+  const decide = (sec: number, presses: Press[]) =>
+    at(after(sec), () => determineWinner(ev, presses, {}, {}, {}, R))?.id ?? null;
+  // いくぜ40点 → 0秒からでも決定
+  assert.equal(decide(2, [press('a', 1, 'いくぜ')]), 'a');
+  // 行けたら行きたい30＋好調6 = 36 → すぐ決定（コンディションも点に入る）
+  assert.equal(at(after(2), () => determineWinner(ev, [press('a', 1, '行けたら行きたい')], { a: '好調' }, {}, {}, R))?.id, 'a');
+  // 34点（30＋絶好調8は38なので、30＋普通4 = 34）: 10秒まで待つ
+  const p34 = [press('b', 1, '行けたら行きたい')];
+  const c34 = { b: '普通' };
+  assert.equal(at(after(9), () => determineWinner(ev, p34, c34, {}, {}, R)), null);
+  assert.equal(at(after(10), () => determineWinner(ev, p34, c34, {}, {}, R))?.id, 'b');
+  // 31点（30＋不調... 30＋2 = 32）: 20秒まで待つ
+  const p32 = [press('c', 1, '行けたら行きたい')];
+  const c32 = { c: '不調' };
+  assert.equal(at(after(19), () => determineWinner(ev, p32, c32, {}, {}, R)), null);
+  assert.equal(at(after(20), () => determineWinner(ev, p32, c32, {}, {}, R))?.id, 'c');
+  // 20点（普通）: 30秒まで決まらず、30秒後に通常どおり決まる
+  assert.equal(decide(25, [press('d', 1, '普通')]), null);
+  assert.equal(decide(31, [press('d', 1, '普通')]), 'd');
+});
+
+test('即決定: 決まるときはその時点の最高点の人。「対応中」は対象外。オフなら30秒まで待つ', async () => {
+  const { DEFAULT_FAST_RULES: R } = await import('./dispatch-fast');
+  const ev = event();
+  const presses = [press('a', 1, '普通'), press('b', 2, 'いくぜ'), press('c', 3, '対応中')];
+  assert.equal(at(after(4), () => determineWinner(ev, presses, {}, {}, {}, R))?.id, 'b');
+  assert.equal(at(after(4), () => determineWinner(ev, [press('c', 1, '対応中')], {}, {}, {}, R)), null);
+  assert.equal(at(after(4), () => determineWinner(ev, presses, {}, {}, {}, { ...R, enabled: false })), null);
+});
+
+test('得意度で通知を遅らせる: 5以下は10秒まで、3以下は20秒まで送らない', async () => {
+  const { DEFAULT_FAST_RULES: R, blockedAffinity, gatedStaffIds, repushTimesSec } = await import('./dispatch-fast');
+  assert.equal(blockedAffinity(R, 0), 5);
+  assert.equal(blockedAffinity(R, 9.9), 5);
+  assert.equal(blockedAffinity(R, 10), 3);
+  assert.equal(blockedAffinity(R, 20), 0);
+  assert.equal(blockedAffinity({ ...R, enabled: false }, 0), 0);
+  const aff = { a: { '軽自動車': 5 }, b: { '軽自動車': 3 }, c: { '軽自動車': 8 } };
+  assert.deepEqual(gatedStaffIds(['a', 'b', 'c', 'd'], aff, '軽自動車', 5), ['a', 'b']); // d は未設定=10
+  assert.deepEqual(gatedStaffIds(['a', 'b', 'c'], aff, '軽自動車', 3), ['b']);
+  assert.deepEqual(gatedStaffIds(['a', 'b'], aff, undefined, 5), [], 'タイプ未選択なら止めない');
+  assert.deepEqual(repushTimesSec(R), [10, 20]);
+});
+
+test('即決定の設定の検査（おかしな値は受け付けない）', async () => {
+  const { DEFAULT_FAST_RULES: R, validateFastRules } = await import('./dispatch-fast');
+  assert.deepEqual(validateFastRules(R), R);
+  assert.equal(validateFastRules({ ...R, tiers: [R.tiers[1], R.tiers[0], R.tiers[2]] }), null, '秒数が逆順');
+  assert.equal(validateFastRules({ ...R, tiers: [{ minScore: 36, afterSec: 30 }, R.tiers[1], R.tiers[2]] }), null, '30秒以上');
+  assert.equal(validateFastRules({ ...R, gates: [{ maxAffinity: 11 }, R.gates[1]] }), null);
+  assert.equal(validateFastRules({ ...R, keepNotify: { everySec: 1, maxMin: 5 } }), null);
+});

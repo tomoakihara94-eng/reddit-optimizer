@@ -29,6 +29,15 @@
 - 30秒以内に誰もいなければ、30秒後に最初に応答した人
 - 差配者本人（`event.dispatcherId`、旧仕様の名残）は対象外
 
+## 即決定方式（`src/lib/dispatch-fast.ts`、Redis `dispatch:fast_rules`、管理者画面「当選の設定 → 即決定」）
+
+- 3段階: 例「36点以上は0秒から／33点以上は10秒後から／30点以上は20秒後から」その場で最高点の人に決定（`determineWinner` に `fastRules` を渡す）
+- 得意度での通知の遅れ: そのお客様タイプの得意度が「5以下は2段目の秒数まで／3以下は3段目の秒数まで」通知しない（`blockedAffinity`・`gatedIdsNow`）
+- 再通知の時刻は2段目・3段目の秒数（`repushTimesSec`）。再通知の前に `finalizeIfDecided` で当選を確かめる
+- 30秒たっても当選者がいなければ、差配者のアプリが5秒ごとに `POST /keep-notify` を呼び、サーバーが「everySec 秒ごと・maxMin 分まで」未応答者に送る
+- 応答（`/press`）のたびに `finalizeIfDecided` を呼ぶので、即決定はその場で確定する
+- 設定がない・壊れているときは `DEFAULT_FAST_RULES`
+
 ## 通知が届かない条件（`src/lib/dispatch-push.ts` の `sendVisitPush`）
 
 - 夜間: 日本時間 18:00〜翌 8:15（`isQuietHours`）
@@ -56,6 +65,8 @@
 | `dispatch:finalize:<eventId>` | 当選確定のロック（二重記録防止） | 5分 |
 | `dispatch:staff_names` | 営業ID → 表示名（管理者が変更。なければ config の名前） | 保持 |
 | `dispatch:board:notice` / `dispatch:board:president` | 掲示板（周知事項 / 社長は何を考えているのか）。新しい順に最大20件 | 保持 |
+| `dispatch:fast_rules` | 即決定方式の設定（JSON） | 保持 |
+| `dispatch:keepnotify:<eventId>` | 送り続ける通知の間隔ロック | everySec 秒 |
 | `dispatch:notify_log` | 来店通知の送信記録 最新10件 | 1日 |
 
 ## 公開 API（暗証番号なし）
@@ -65,7 +76,7 @@
 ## 管理者（暗証番号）
 
 - 暗証番号は Vercel の環境変数 `DISPATCH_ADMIN_PIN`。ヘッダー `X-Admin-Pin` で照合（`src/lib/dispatch-admin.ts`）
-- 必要な API: `/admin-verify`、`/affinity`、`/sales-units`、`/results`、`/staff-name`
+- 必要な API: `/admin-verify`、`/affinity`、`/sales-units`、`/results`、`/staff-name`、`/fast-rules`
 - 変更は `vercel env rm` → `vercel env add` → 本番再公開。反映まで10秒ほどかかる
 - **未対応**: `/notify` 自体は暗証番号不要（古いアプリ・外部から送れる）
 
