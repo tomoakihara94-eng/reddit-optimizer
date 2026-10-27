@@ -32,6 +32,7 @@ export const AFFINITY_KEY     = 'dispatch:affinity'; // staffId → { タイプ:
 export const MUTES_KEY        = 'dispatch:mutes'; // staffId → 通知を止める期限(ms)。「対応中（行けない）」で設定
 export const SALES_UNITS_KEY  = 'dispatch:sales_units'; // staffId → 実績（台数）。管理者画面で入力
 export const STAFF_NAMES_KEY  = 'dispatch:staff_names'; // staffId → 表示名。管理者が営業画面から変更
+export const MUTE_REASONS_KEY = 'dispatch:mute_reasons'; // staffId → 60分を超えて止めた理由
 export const NOTIFY_LOG_KEY   = 'dispatch:notify_log';
 
 export async function getAffinityTable(redis: Redis = getRedis()): Promise<Record<string, Record<string, number>>> {
@@ -64,4 +65,13 @@ export async function getStaff(redis: Redis = getRedis()): Promise<StaffMember[]
   } catch {
     return [...STAFF]; // Redis に届かないときは初期の名前
   }
+}
+
+// 通知を止めている人の理由（止めている人の分だけ）
+export async function getActiveMuteReasons(redis: Redis = getRedis()): Promise<Record<string, string>> {
+  const [mutes, reasons] = await Promise.all([
+    getActiveMutes(redis),
+    redis.hgetall(MUTE_REASONS_KEY).then(r => (r ?? {}) as Record<string, string>).catch(() => ({} as Record<string, string>)),
+  ]);
+  return Object.fromEntries(Object.entries(reasons).filter(([id]) => id in mutes));
 }

@@ -41,6 +41,9 @@ export const DEFAULT_RESPONSE: Response = '普通'; // 応答を送らない旧�
 // 「対応中（行けない）」を押した人は、来店通知を止める（既定10分、10〜60分で選び直せる）
 export const MUTE_DEFAULT_MIN = 10;
 export const MUTE_OPTIONS_MIN = [10, 20, 30, 40, 50, 60];
+// 60分を超えて止めるときは、分数と理由を自分で入力する（理由は差配者画面に表示）
+export const MUTE_CUSTOM_MAX_MIN = 720;
+export const MUTE_REASON_MAX = 100;
 // 当選（差配）された営業は、接客中なので来店通知を30分止める（本人が再開できる）
 export const WINNER_MUTE_MIN = 30;
 // 営業が自分で「来店通知 OFF」にしたとき（ON に戻すまで）。期限は実質無期限

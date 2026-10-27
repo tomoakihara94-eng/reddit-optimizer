@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRedis, getStaff, EVENT_KEY, PRESSES_KEY, MUTES_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
+import { getRedis, getStaff, EVENT_KEY, PRESSES_KEY, MUTES_KEY, MUTE_REASONS_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
 import { RESPONSES, DEFAULT_RESPONSE, MUTE_DEFAULT_MIN, type Response } from '@/lib/dispatch-config';
 import { finalizeIfDecided } from '@/lib/dispatch-result';
 
@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
   await redis.hset(PRESSES_KEY, { [key]: JSON.stringify({ t: Date.now(), r, ...(v ? { v } : {}) }) });
   if (r === '対応中') {
     await redis.hset(MUTES_KEY, { [staffId]: Date.now() + MUTE_DEFAULT_MIN * 60_000 });
+    await redis.hdel(MUTE_REASONS_KEY, staffId);
   }
 
   await finalizeIfDecided(redis, event); // 即決定・30秒経過のどちらでも、決まればここで確定

@@ -44,7 +44,8 @@
 - `dispatch:mutes` に期限がある人
   - 「対応中（行けない）」を押した → 10分（`/mute` で 10〜60分に変更・0で再開）
   - 当選した → 30分（本人が再開できる）
-  - 営業が「来店通知 OFF」 → 実質無期限（`MUTE_OFF_MS`）
+  - 営業が「来店通知 OFF」 → 10〜60分（10分刻み）、または 61〜720分＋理由（`dispatch:mute_reasons`、差配者画面に表示）
+  - 1.1.32 以前のアプリの「OFF」→ 実質無期限（`MUTE_OFF_MS`）
 - すでに応答した人（再送時）
 - 同じ端末が複数の営業IDに登録されている場合は1通だけ（`/register-expo` で古い登録を消す）
 
@@ -67,6 +68,7 @@
 | `dispatch:board:notice` / `dispatch:board:president` | 掲示板（周知事項 / 社長は何を考えているのか）。新しい順に最大20件 | 保持 |
 | `dispatch:fast_rules` | 即決定方式の設定（JSON） | 保持 |
 | `dispatch:keepnotify:<eventId>` | 送り続ける通知の間隔ロック | everySec 秒 |
+| `dispatch:mute_reasons` | 営業ID → 60分を超えて止めた理由（status の muteReasons で返す） | 保持 |
 | `dispatch:notify_log` | 来店通知の送信記録 最新10件 | 1日 |
 
 ## 公開 API（暗証番号なし）

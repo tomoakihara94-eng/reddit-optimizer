@@ -39,6 +39,7 @@ function mockRedis(init: Record<string, unknown> = {}) {
     lrange: async (k: string) => store[k] ?? [],
     expire: async () => 1,
     del: async (k: string) => { delete store[k]; },
+    hdel: async (k: string, ...f: string[]) => { for (const x of f) delete (store[k] ?? {})[x]; },
   };
   return redis;
 }
@@ -236,4 +237,14 @@ test('即決定の設定の検査（おかしな値は受け付けない）', as
   assert.equal(validateFastRules({ ...R, tiers: [{ minScore: 36, afterSec: 30 }, R.tiers[1], R.tiers[2]] }), null, '30秒以上');
   assert.equal(validateFastRules({ ...R, gates: [{ maxAffinity: 11 }, R.gates[1]] }), null);
   assert.equal(validateFastRules({ ...R, keepNotify: { everySec: 1, maxMin: 5 } }), null);
+});
+
+test('通知を止めた理由は、止めている人の分だけ返る', async () => {
+  const { getActiveMuteReasons } = await import('./dispatch-redis');
+  const now = Date.now();
+  const r = mockRedis({
+    'dispatch:mutes': { a: now + 60_000, b: now - 1 },        // b はもう期限切れ
+    'dispatch:mute_reasons': { a: '会議のため', b: '古い理由' },
+  });
+  assert.deepEqual(await getActiveMuteReasons(r), { a: '会議のため' });
 });
