@@ -55,11 +55,12 @@
 | `dispatch:results:YYYY-MM-DD` | その日（JST）の当選内訳 | 180日 |
 | `dispatch:finalize:<eventId>` | 当選確定のロック（二重記録防止） | 5分 |
 | `dispatch:staff_names` | 営業ID → 表示名（管理者が変更。なければ config の名前） | 保持 |
+| `dispatch:board:notice` / `dispatch:board:president` | 掲示板（周知事項 / 社長は何を考えているのか）。新しい順に最大20件 | 保持 |
 | `dispatch:notify_log` | 来店通知の送信記録 最新10件 | 1日 |
 
 ## 公開 API（暗証番号なし）
 
-`/config`（共通設定）、`/status`、`/notify`、`/press`、`/mute`、`/staff-condition`、`/register-expo` など
+`/config`（共通設定）、`/board` の GET（掲示板。POST/DELETE は管理者）、`/status`、`/notify`、`/press`、`/mute`、`/staff-condition`、`/register-expo` など
 
 ## 管理者（暗証番号）
 

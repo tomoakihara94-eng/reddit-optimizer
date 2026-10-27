@@ -160,3 +160,23 @@ test('営業の名前は Redis の変更分で上書きされ、ID は変わら�
   assert.equal(staff.find(s => s.id === 'asakura')?.name, '浅倉');
   assert.equal(staff.length, (await import('./dispatch-config')).STAFF.length);
 });
+
+// ─── 掲示板 ───
+test('掲示板: 新しい順に並び、20件まで、削除できる', async () => {
+  const { addPost, listPosts, deletePost } = await import('./dispatch-board');
+  const store: Record<string, string[]> = {};
+  const redis: any = {
+    lpush: async (k: string, v: string) => { (store[k] ??= []).unshift(v); },
+    rpush: async (k: string, ...v: string[]) => { (store[k] ??= []).push(...v); },
+    ltrim: async (k: string, a: number, b: number) => { store[k] = (store[k] ?? []).slice(a, b + 1); },
+    lrange: async (k: string, a: number, b: number) => (store[k] ?? []).slice(a, b + 1),
+    del: async (k: string) => { delete store[k]; },
+  };
+  for (let i = 0; i < 22; i++) await addPost(redis, 'notice', `お知らせ${i}`, 1000 + i);
+  const posts = await listPosts(redis, 'notice');
+  assert.equal(posts.length, 20);
+  assert.equal(posts[0].body, 'お知らせ21');
+  assert.ok(await deletePost(redis, 'notice', posts[0].id));
+  assert.equal((await listPosts(redis, 'notice'))[0].body, 'お知らせ20');
+  assert.equal((await listPosts(redis, 'president')).length, 0, '欄は別々');
+});
