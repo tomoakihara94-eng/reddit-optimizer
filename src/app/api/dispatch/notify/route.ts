@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server';
-import { getRedis, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
-import { STAFF, CUSTOMER_TYPES } from '@/lib/dispatch-config';
+import { getRedis, pushText, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
+import { STAFF, CUSTOMER_TYPES, INQUIRY_SOURCES, INQUIRY_LINES } from '@/lib/dispatch-config';
 import { sendVisitPush, repushToPending, gatedIdsNow } from '@/lib/dispatch-push';
 import { getFastRules, repushTimesSec } from '@/lib/dispatch-fast';
 
@@ -11,8 +11,15 @@ const ACTIVE_STAFF_IDS: Set<string> = new Set(STAFF.map(s => s.id));
 export async function POST(req: NextRequest) {
   try {
     const redis = getRedis();
-    const body = await req.json().catch(() => ({})) as { dispatcherId?: string; customerType?: string };
-    const customerType = (CUSTOMER_TYPES as readonly string[]).includes(body.customerType ?? '') ? body.customerType : undefined;
+    const body = await req.json().catch(() => ({})) as {
+      dispatcherId?: string; customerType?: string; kind?: string; source?: string; line?: string;
+    };
+    // 問い合わせ: サイトと内線の両方が正しいときだけ。そうでなければ来店として扱う
+    const inquiry = body.kind === 'inquiry'
+      && (INQUIRY_SOURCES as readonly string[]).includes(body.source ?? '')
+      && (INQUIRY_LINES as readonly string[]).includes(body.line ?? '');
+    if (body.kind === 'inquiry' && !inquiry) return NextResponse.json({ error: 'invalid inquiry' }, { status: 400 });
+    const customerType = !inquiry && (CUSTOMER_TYPES as readonly string[]).includes(body.customerType ?? '') ? body.customerType : undefined;
     const dispatcherId = body.dispatcherId && ACTIVE_STAFF_IDS.has(body.dispatcherId) ? body.dispatcherId : undefined;
 
     // ログ記録（最新10件）
@@ -30,6 +37,7 @@ export async function POST(req: NextRequest) {
       status: 'active',
       ...(dispatcherId ? { dispatcherId } : {}),
       ...(customerType ? { customerType } : {}),
+      ...(inquiry ? { kind: 'inquiry' as const, source: body.source, line: body.line } : {}),
     };
     await redis.set(EVENT_KEY, event, { ex: 3600 });
     await redis.del(PRESSES_KEY);
@@ -62,17 +70,18 @@ export async function POST(req: NextRequest) {
     try {
       const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
       // 得意度が低い人には、即決定の設定の秒数まで送らない
-      await sendVisitPush(expoTokens, [dispatcherId, ...(await gatedIdsNow(event))], '🚗 お客様来店', '長押し・Apple Watch で応答を選べます');
+      const { title, body: text } = pushText(event, 'first');
+      await sendVisitPush(expoTokens, [dispatcherId, ...(await gatedIdsNow(event))], title, text);
     } catch { /* ignore */ }
 
     // 2回目・3回目の通知（未応答の人だけ）。秒数は即決定の設定（10・20秒）に合わせる
     const repushAt = repushTimesSec(await getFastRules(redis)).map(s => s * 1000);
     after(async () => {
       let waited = 0;
-      for (const [i, delay] of repushAt.entries()) {
+      for (const delay of repushAt) {
         await new Promise(r => setTimeout(r, delay - waited + 300)); // 少し遅らせ、秒数ちょうどの判定を確実に
         waited = delay + 300;
-        await repushToPending(event.id, `🚗 お客様来店（${i + 2}回目）`, '長押し・Apple Watch で応答を選べます').catch(() => {});
+        await repushToPending(event.id).catch(() => {});
       }
     });
 

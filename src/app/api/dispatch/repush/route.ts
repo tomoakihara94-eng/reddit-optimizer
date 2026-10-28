@@ -42,7 +42,7 @@ export async function POST() {
   }
 
   // Expo push — 未応答の営業だけ
-  await repushToPending(event.id, '🚗 お客様来店中！', '長押し・Apple Watch で応答を選べます').catch(() => {});
+  await repushToPending(event.id).catch(() => {});
 
   return NextResponse.json({ success: true });
 }

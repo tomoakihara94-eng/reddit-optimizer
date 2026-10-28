@@ -248,3 +248,28 @@ test('通知を止めた理由は、止めている人の分だけ返る', async
   });
   assert.deepEqual(await getActiveMuteReasons(r), { a: '会議のため' });
 });
+
+// ─── 問い合わせ（TEL） ───
+test('問い合わせは得意度の代わりに TEL を掛ける。記録に種類・サイト・内線が残る', async () => {
+  const redis = mockRedis({
+    'dispatch:presses': Object.fromEntries([rawPress('asakura', 2, 'いくぜ'), rawPress('yamato', 3, 'いくぜ')]),
+    'dispatch:tel': { asakura: 3 },                      // 浅倉は TEL 3（×0.3）、大和は未入力（×1.0）
+    'dispatch:affinity': { yamato: { '軽自動車': 1 } },  // 来店の得意度は問い合わせでは使わない
+  });
+  const ev = event({ kind: 'inquiry', source: 'カーセンサー', line: '内線5' });
+  const w = await atAsync(after(40), () => finalizeIfDecided(redis, ev));
+  assert.equal(w?.id, 'yamato');
+  const [r] = await getResults(redis, jstDate(START));
+  assert.equal(r.kind, 'inquiry');
+  assert.equal(r.source, 'カーセンサー');
+  assert.equal(r.line, '内線5');
+  assert.equal(r.rows.find(x => x.id === 'asakura')?.affinityLevel, 3);
+});
+
+test('通知の文言は来店と問い合わせで分かれる', async () => {
+  const { pushText } = await import('./dispatch-redis');
+  assert.equal(pushText(event(), 'first').title, '🚗 お客様来店');
+  const t = pushText(event({ kind: 'inquiry', source: 'グーネット', line: '内線7' }), 'first');
+  assert.equal(t.title, '📞 お問い合わせ');
+  assert.ok(t.body.startsWith('グーネット・内線7'));
+});

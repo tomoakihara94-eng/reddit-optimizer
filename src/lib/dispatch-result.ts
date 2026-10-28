@@ -1,5 +1,5 @@
 import type { Redis } from '@upstash/redis';
-import { EVENT_KEY, PRESSES_KEY, STAFF_CONDITIONS_KEY, MUTES_KEY, MUTE_REASONS_KEY, getAffinityTable, getSalesUnits, type DispatchEvent } from './dispatch-redis';
+import { EVENT_KEY, PRESSES_KEY, STAFF_CONDITIONS_KEY, MUTES_KEY, MUTE_REASONS_KEY, getAffinityTable, getTelTable, scoringContext, getSalesUnits, type DispatchEvent } from './dispatch-redis';
 import { WINDOW_MS, WINNER_MUTE_MIN } from './dispatch-config';
 import { getFastRules } from './dispatch-fast';
 import { determineWinner, parsePresses, scoreBreakdown, type Press, type ScoreBreakdown } from './dispatch-winner';
@@ -18,6 +18,9 @@ export type DispatchResult = {
   startedAt: number;
   assignedAt: number;
   customerType: string | null;
+  kind?: 'visit' | 'inquiry';
+  source?: string;
+  line?: string;
   winnerId: string;
   winnerName: string;
   rows: ResultRow[];
@@ -35,10 +38,11 @@ function buildResult(
   event: DispatchEvent, presses: Press[], winner: Press,
   staffConditions: Record<string, string>, affinity: Awaited<ReturnType<typeof getAffinityTable>>,
   salesUnits: Record<string, number>,
+  scoringType: string | undefined = event.customerType,
 ): DispatchResult {
   const windowEnd = event.startedAt + WINDOW_MS;
   const row = (p: Press, status: ResultRow['status'], note?: string): ResultRow => ({
-    ...scoreBreakdown(p, staffConditions, event.customerType, affinity, salesUnits),
+    ...scoreBreakdown(p, staffConditions, scoringType, affinity, salesUnits),
     rank: null, id: p.id, name: p.name,
     pressedAfterSec: Math.round((p.time - event.startedAt) / 100) / 10,
     status, ...(note ? { note } : {}), ...(p.via ? { via: p.via } : {}),
@@ -59,6 +63,7 @@ function buildResult(
   return {
     eventId: event.id, startedAt: event.startedAt, assignedAt: Date.now(),
     customerType: event.customerType ?? null,
+    ...(event.kind === 'inquiry' ? { kind: 'inquiry' as const, source: event.source, line: event.line } : {}),
     winnerId: winner.id, winnerName: winner.name,
     rows: [...ranked, ...excluded],
   };
@@ -73,12 +78,14 @@ export async function finalizeIfDecided(redis: Redis, event: DispatchEvent): Pro
   const affinity = await getAffinityTable(redis);
   const salesUnits = await getSalesUnits(redis);
   const fastRules = await getFastRules(redis);
-  const winner = determineWinner(event, presses, staffConditions, affinity, salesUnits, fastRules);
+  const ctx = scoringContext(event, affinity, await getTelTable(redis));
+  const scored = { ...event, customerType: ctx.customerType };
+  const winner = determineWinner(scored, presses, staffConditions, ctx.affinity, salesUnits, fastRules);
   if (!winner) return null;
 
   const locked = await redis.set(`dispatch:finalize:${event.id}`, '1', { nx: true, ex: 300 });
   if (locked) {
-    const result = buildResult(event, presses, winner, staffConditions, affinity, salesUnits);
+    const result = buildResult(event, presses, winner, staffConditions, ctx.affinity, salesUnits, ctx.customerType);
     const key = resultsKey(jstDate(event.startedAt));
     await redis.rpush(key, JSON.stringify(result));
     await redis.expire(key, RESULT_TTL_SECONDS);

@@ -1,5 +1,5 @@
 import { STAFF, WINDOW_MS, isQuietHours } from './dispatch-config';
-import { getRedis, getActiveMutes, getAffinityTable, EVENT_KEY, EXPO_TOKENS_KEY, PRESSES_KEY, type DispatchEvent } from './dispatch-redis';
+import { getRedis, getActiveMutes, getAffinityTable, getTelTable, scoringContext, pushText, EVENT_KEY, EXPO_TOKENS_KEY, PRESSES_KEY, type DispatchEvent } from './dispatch-redis';
 import { getFastRules, blockedAffinity, gatedStaffIds } from './dispatch-fast';
 import { finalizeIfDecided } from './dispatch-result';
 
@@ -44,13 +44,15 @@ export async function gatedIdsNow(event: DispatchEvent, now = Date.now()): Promi
   const redis = getRedis();
   const rules = await getFastRules(redis);
   const blocked = blockedAffinity(rules, (now - event.startedAt) / 1000);
-  if (blocked <= 0 || !event.customerType) return [];
-  return gatedStaffIds([...ACTIVE_STAFF_IDS], await getAffinityTable(redis), event.customerType, blocked);
+  if (blocked <= 0) return [];
+  const ctx = scoringContext(event, await getAffinityTable(redis), await getTelTable(redis));
+  if (!ctx.customerType) return [];
+  return gatedStaffIds([...ACTIVE_STAFF_IDS], ctx.affinity, ctx.customerType, blocked);
 }
 
 // 同じ来店で、まだ応答していない営業にだけもう一度通知する（差配者・応答済み・得意度でまだ止めている人は除く）
 // 先に当選が決まるか確かめ、決まっていれば送らない
-export async function repushToPending(eventId: string, title: string, body: string) {
+export async function repushToPending(eventId: string) {
   const redis = getRedis();
   const event = await redis.get<DispatchEvent>(EVENT_KEY);
   if (!event || event.id !== eventId || event.status !== 'active') return;
@@ -58,6 +60,7 @@ export async function repushToPending(eventId: string, title: string, body: stri
   if (await finalizeIfDecided(redis, event)) return;
   const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
   const pressedIds = Object.keys((await redis.hgetall(PRESSES_KEY)) ?? {}).map(k => k.split('::')[0]);
+  const { title, body } = pushText(event, 'again');
   await sendVisitPush(expoTokens, [event.dispatcherId, ...pressedIds, ...(await gatedIdsNow(event))], title, body);
 }
 
@@ -76,6 +79,7 @@ export async function keepNotifying(): Promise<boolean> {
   if (!locked) return false;
   const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
   const pressedIds = Object.keys((await redis.hgetall(PRESSES_KEY)) ?? {}).map(k => k.split('::')[0]);
-  await sendVisitPush(expoTokens, [event.dispatcherId, ...pressedIds], '🚗 お客様がお待ちです', 'まだ担当が決まっていません。応答をお願いします');
+  const { title, body } = pushText(event, 'keep');
+  await sendVisitPush(expoTokens, [event.dispatcherId, ...pressedIds], title, body);
   return true;
 }

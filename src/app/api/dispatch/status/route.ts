@@ -18,15 +18,18 @@ export async function GET(req: Request) {
   const conditions = rawConditions as Record<string, string>;
   const staffConditions = ((await redis.hgetall(STAFF_CONDITIONS_KEY)) ?? {}) as Record<string, string>;
 
+  // 来店 / 問い合わせ（問い合わせはサイト・内線も営業全員に見せる）
+  const kindInfo = event.kind === 'inquiry' ? { kind: 'inquiry', source: event.source, line: event.line } : { kind: 'visit' };
+
   if (event.status === 'assigned') {
     const customerType = staffId && staffId === event.winner?.id ? event.customerType ?? null : undefined;
-    return NextResponse.json({ status: 'assigned', winner: event.winner, eventId: event.id, conditions, mutes, muteReasons, ...(customerType !== undefined ? { customerType } : {}) });
+    return NextResponse.json({ status: 'assigned', winner: event.winner, eventId: event.id, ...kindInfo, conditions, mutes, muteReasons, ...(customerType !== undefined ? { customerType } : {}) });
   }
 
   const winner = await finalizeIfDecided(redis, event);
   if (winner) {
     const customerType = staffId && staffId === winner.id ? event.customerType ?? null : undefined;
-    return NextResponse.json({ status: 'assigned', winner, eventId: event.id, conditions, mutes, muteReasons, ...(customerType !== undefined ? { customerType } : {}) });
+    return NextResponse.json({ status: 'assigned', winner, eventId: event.id, ...kindInfo, conditions, mutes, muteReasons, ...(customerType !== undefined ? { customerType } : {}) });
   }
 
   const raw = (await redis.hgetall(PRESSES_KEY)) ?? {};
@@ -42,6 +45,7 @@ export async function GET(req: Request) {
     dispatcherId: event.dispatcherId ?? null,
     mutes,
     muteReasons,
+    ...kindInfo,
     conditions,
   });
 }

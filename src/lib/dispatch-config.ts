@@ -97,6 +97,10 @@ export const SALES_UNITS_WEIGHT = 0.1;
 export const CUSTOMER_TYPES = ['軽自動車', '普通車', 'オークション探し', '？', 'バン・トラック'] as const;
 export type CustomerType = typeof CUSTOMER_TYPES[number];
 
+// 問い合わせ（電話）。差配者がサイトと内線を選んで通知する。得点は得意度の代わりに TEL（1〜10）を掛ける
+export const INQUIRY_SOURCES = ['カーセンサー', 'グーネット', 'HP'] as const;
+export const INQUIRY_LINES = ['内線5', '内線6', '内線7', '内線8'] as const;
+
 // お客様タイプ別の得意度（1〜10）。管理者画面から入力し Redis に保存。係数 = 得意度 × 0.1
 export const AFFINITY_MIN = 1;
 export const AFFINITY_MAX = 10;
