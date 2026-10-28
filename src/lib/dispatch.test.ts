@@ -273,3 +273,20 @@ test('通知の文言は来店と問い合わせで分かれる', async () => {
   assert.equal(t.title, '📞 お問い合わせ');
   assert.ok(t.body.startsWith('グーネット・内線7'));
 });
+
+// ─── 差配者名称 ───
+test('差配者名称の検査（空・重複・長すぎ・多すぎは受け付けない）', async () => {
+  const { DEFAULT_LABELS: L, validateLabels } = await import('./dispatch-labels');
+  assert.deepEqual(validateLabels(L), L);
+  assert.deepEqual(validateLabels({ ...L, phoneReceivers: [' 内海 ', '平賀'] })?.phoneReceivers, ['内海', '平賀'], '前後の空白は取る');
+  assert.equal(validateLabels({ ...L, visitDispatchers: [] }), null);
+  assert.equal(validateLabels({ ...L, visitDispatchers: ['平賀', '平賀'] }), null);
+  assert.equal(validateLabels({ ...L, inquiryLines: ['あ'.repeat(13)] }), null);
+  assert.equal(validateLabels({ ...L, inquirySources: Array.from({ length: 13 }, (_, i) => `S${i}`) }), null);
+});
+
+test('通知に差配者・電話を受けた人が入る', async () => {
+  const { pushText } = await import('./dispatch-redis');
+  assert.ok(pushText(event({ dispatchedBy: '平賀' }), 'first').body.startsWith('差配：平賀'));
+  assert.ok(pushText(event({ kind: 'inquiry', source: 'HP', line: '内線6', dispatchedBy: '内海' }), 'first').body.startsWith('HP・内線6（受付：内海）'));
+});

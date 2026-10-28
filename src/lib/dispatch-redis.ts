@@ -22,6 +22,7 @@ export type DispatchEvent = {
   kind?: 'visit' | 'inquiry'; // 来店 / 問い合わせ（なければ来店）
   source?: string; // 問い合わせのサイト（カーセンサー等）
   line?: string;   // 問い合わせの内線（内線5等）
+  dispatchedBy?: string; // 差配した人（来店）／電話を受けた人（問い合わせ）
   winner?: { id: string; name: string; rank: string };
 };
 
@@ -104,10 +105,11 @@ export function scoringContext(
 // 通知のタイトルと本文（来店 / 問い合わせ）
 export function pushText(event: DispatchEvent, round: 'first' | 'again' | 'keep'): { title: string; body: string } {
   if (event.kind === 'inquiry') {
-    const where = [event.source, event.line].filter(Boolean).join('・');
+    const where = [event.source, event.line].filter(Boolean).join('・') + (event.dispatchedBy ? `（受付：${event.dispatchedBy}）` : '');
     const title = round === 'keep' ? '📞 お問い合わせ（まだ担当なし）' : round === 'again' ? '📞 お問い合わせ（再通知）' : '📞 お問い合わせ';
     return { title, body: `${where}　長押し・Apple Watch で応答を選べます` };
   }
   if (round === 'keep') return { title: '🚗 お客様がお待ちです', body: 'まだ担当が決まっていません。応答をお願いします' };
-  return { title: round === 'again' ? '🚗 お客様来店（再通知）' : '🚗 お客様来店', body: '長押し・Apple Watch で応答を選べます' };
+  const by = event.dispatchedBy ? `差配：${event.dispatchedBy}　` : '';
+  return { title: round === 'again' ? '🚗 お客様来店（再通知）' : '🚗 お客様来店', body: `${by}長押し・Apple Watch で応答を選べます` };
 }

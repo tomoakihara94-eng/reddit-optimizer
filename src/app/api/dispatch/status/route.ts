@@ -19,7 +19,10 @@ export async function GET(req: Request) {
   const staffConditions = ((await redis.hgetall(STAFF_CONDITIONS_KEY)) ?? {}) as Record<string, string>;
 
   // 来店 / 問い合わせ（問い合わせはサイト・内線も営業全員に見せる）
-  const kindInfo = event.kind === 'inquiry' ? { kind: 'inquiry', source: event.source, line: event.line } : { kind: 'visit' };
+  const kindInfo = {
+    ...(event.kind === 'inquiry' ? { kind: 'inquiry', source: event.source, line: event.line } : { kind: 'visit' }),
+    ...(event.dispatchedBy ? { dispatchedBy: event.dispatchedBy } : {}),
+  };
 
   if (event.status === 'assigned') {
     const customerType = staffId && staffId === event.winner?.id ? event.customerType ?? null : undefined;

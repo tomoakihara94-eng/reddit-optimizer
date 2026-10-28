@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getRedis, pushText, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
-import { STAFF, CUSTOMER_TYPES, INQUIRY_SOURCES, INQUIRY_LINES } from '@/lib/dispatch-config';
+import { STAFF, CUSTOMER_TYPES } from '@/lib/dispatch-config';
+import { getLabels } from '@/lib/dispatch-labels';
 import { sendVisitPush, repushToPending, gatedIdsNow } from '@/lib/dispatch-push';
 import { getFastRules, repushTimesSec } from '@/lib/dispatch-fast';
 
@@ -12,12 +13,16 @@ export async function POST(req: NextRequest) {
   try {
     const redis = getRedis();
     const body = await req.json().catch(() => ({})) as {
-      dispatcherId?: string; customerType?: string; kind?: string; source?: string; line?: string;
+      dispatcherId?: string; customerType?: string; kind?: string; source?: string; line?: string; dispatchedBy?: string;
     };
+    const labels = await getLabels(redis);
+    // 差配した人・電話を受けた人（1.1.35 以降のアプリが送る。名前は管理者が変えられるので文字数だけ確かめる）
+    const dispatchedBy = typeof body.dispatchedBy === 'string' && body.dispatchedBy.trim() && body.dispatchedBy.trim().length <= 20
+      ? body.dispatchedBy.trim() : undefined;
     // 問い合わせ: サイトと内線の両方が正しいときだけ。そうでなければ来店として扱う
     const inquiry = body.kind === 'inquiry'
-      && (INQUIRY_SOURCES as readonly string[]).includes(body.source ?? '')
-      && (INQUIRY_LINES as readonly string[]).includes(body.line ?? '');
+      && labels.inquirySources.includes(body.source ?? '')
+      && labels.inquiryLines.includes(body.line ?? '');
     if (body.kind === 'inquiry' && !inquiry) return NextResponse.json({ error: 'invalid inquiry' }, { status: 400 });
     const customerType = !inquiry && (CUSTOMER_TYPES as readonly string[]).includes(body.customerType ?? '') ? body.customerType : undefined;
     const dispatcherId = body.dispatcherId && ACTIVE_STAFF_IDS.has(body.dispatcherId) ? body.dispatcherId : undefined;
@@ -38,6 +43,7 @@ export async function POST(req: NextRequest) {
       ...(dispatcherId ? { dispatcherId } : {}),
       ...(customerType ? { customerType } : {}),
       ...(inquiry ? { kind: 'inquiry' as const, source: body.source, line: body.line } : {}),
+      ...(dispatchedBy ? { dispatchedBy } : {}),
     };
     await redis.set(EVENT_KEY, event, { ex: 3600 });
     await redis.del(PRESSES_KEY);

@@ -21,6 +21,7 @@ export type DispatchResult = {
   kind?: 'visit' | 'inquiry';
   source?: string;
   line?: string;
+  dispatchedBy?: string;
   winnerId: string;
   winnerName: string;
   rows: ResultRow[];
@@ -64,6 +65,7 @@ function buildResult(
     eventId: event.id, startedAt: event.startedAt, assignedAt: Date.now(),
     customerType: event.customerType ?? null,
     ...(event.kind === 'inquiry' ? { kind: 'inquiry' as const, source: event.source, line: event.line } : {}),
+    ...(event.dispatchedBy ? { dispatchedBy: event.dispatchedBy } : {}),
     winnerId: winner.id, winnerName: winner.name,
     rows: [...ranked, ...excluded],
   };
