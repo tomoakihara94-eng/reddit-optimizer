@@ -22,6 +22,7 @@ export type DispatchResult = {
   source?: string;
   line?: string;
   dispatchedBy?: string;
+  note?: string;
   winnerId: string;
   winnerName: string;
   rows: ResultRow[];
@@ -66,6 +67,7 @@ function buildResult(
     customerType: event.customerType ?? null,
     ...(event.kind === 'inquiry' ? { kind: 'inquiry' as const, source: event.source, line: event.line } : {}),
     ...(event.dispatchedBy ? { dispatchedBy: event.dispatchedBy } : {}),
+    ...(event.note ? { note: event.note } : {}),
     winnerId: winner.id, winnerName: winner.name,
     rows: [...ranked, ...excluded],
   };

@@ -13,8 +13,10 @@ export async function POST(req: NextRequest) {
   try {
     const redis = getRedis();
     const body = await req.json().catch(() => ({})) as {
-      dispatcherId?: string; customerType?: string; kind?: string; source?: string; line?: string; dispatchedBy?: string;
+      dispatcherId?: string; customerType?: string; kind?: string; source?: string; line?: string; dispatchedBy?: string; note?: string;
     };
+    // 共有事項（任意、200文字まで）
+    const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 200) : undefined;
     const labels = await getLabels(redis);
     // 差配した人・電話を受けた人（1.1.35 以降のアプリが送る。名前は管理者が変えられるので文字数だけ確かめる）
     const dispatchedBy = typeof body.dispatchedBy === 'string' && body.dispatchedBy.trim() && body.dispatchedBy.trim().length <= 20
@@ -44,6 +46,7 @@ export async function POST(req: NextRequest) {
       ...(customerType ? { customerType } : {}),
       ...(inquiry ? { kind: 'inquiry' as const, source: body.source, line: body.line } : {}),
       ...(dispatchedBy ? { dispatchedBy } : {}),
+      ...(note ? { note } : {}),
     };
     await redis.set(EVENT_KEY, event, { ex: 3600 });
     await redis.del(PRESSES_KEY);

@@ -23,6 +23,7 @@ export type DispatchEvent = {
   source?: string; // 問い合わせのサイト（カーセンサー等）
   line?: string;   // 問い合わせの内線（内線5等）
   dispatchedBy?: string; // 差配した人（来店）／電話を受けた人（問い合わせ）
+  note?: string;         // 共有事項（差配者が入力。営業全員に見せる）
   winner?: { id: string; name: string; rank: string };
 };
 
@@ -102,14 +103,21 @@ export function scoringContext(
   return { customerType: event.customerType, affinity };
 }
 
+// 通知本文に入れる共有事項（長いときは先頭だけ）
+function noteLine(event: DispatchEvent) {
+  if (!event.note) return '';
+  const n = event.note.replace(/\s+/g, ' ');
+  return `　📝${n.length > 40 ? n.slice(0, 40) + '…' : n}`;
+}
+
 // 通知のタイトルと本文（来店 / 問い合わせ）
 export function pushText(event: DispatchEvent, round: 'first' | 'again' | 'keep'): { title: string; body: string } {
   if (event.kind === 'inquiry') {
     const where = [event.source, event.line].filter(Boolean).join('・') + (event.dispatchedBy ? `（受付：${event.dispatchedBy}）` : '');
     const title = round === 'keep' ? '📞 お問い合わせ（まだ担当なし）' : round === 'again' ? '📞 お問い合わせ（再通知）' : '📞 お問い合わせ';
-    return { title, body: `${where}　長押し・Apple Watch で応答を選べます` };
+    return { title, body: `${where}${noteLine(event)}　長押し・Apple Watch で応答を選べます` };
   }
   if (round === 'keep') return { title: '🚗 お客様がお待ちです', body: 'まだ担当が決まっていません。応答をお願いします' };
   const by = event.dispatchedBy ? `差配：${event.dispatchedBy}　` : '';
-  return { title: round === 'again' ? '🚗 お客様来店（再通知）' : '🚗 お客様来店', body: `${by}長押し・Apple Watch で応答を選べます` };
+  return { title: round === 'again' ? '🚗 お客様来店（再通知）' : '🚗 お客様来店', body: `${by}${noteLine(event).trim()}${event.note ? '　' : ''}長押し・Apple Watch で応答を選べます` };
 }

@@ -290,3 +290,11 @@ test('通知に差配者・電話を受けた人が入る', async () => {
   assert.ok(pushText(event({ dispatchedBy: '平賀' }), 'first').body.startsWith('差配：平賀'));
   assert.ok(pushText(event({ kind: 'inquiry', source: 'HP', line: '内線6', dispatchedBy: '内海' }), 'first').body.startsWith('HP・内線6（受付：内海）'));
 });
+
+test('共有事項は通知の本文に入り、長いときは先頭だけ', async () => {
+  const { pushText } = await import('./dispatch-redis');
+  assert.ok(pushText(event({ dispatchedBy: '平賀', note: 'ご夫婦・試乗希望' }), 'first').body.includes('📝ご夫婦・試乗希望'));
+  const long = pushText(event({ kind: 'inquiry', source: 'HP', line: '内線5', note: 'あ'.repeat(60) }), 'first').body;
+  assert.ok(long.includes('あ'.repeat(40) + '…'));
+  assert.ok(!pushText(event(), 'first').body.includes('📝'));
+});

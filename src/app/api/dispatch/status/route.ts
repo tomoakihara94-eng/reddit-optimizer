@@ -22,6 +22,7 @@ export async function GET(req: Request) {
   const kindInfo = {
     ...(event.kind === 'inquiry' ? { kind: 'inquiry', source: event.source, line: event.line } : { kind: 'visit' }),
     ...(event.dispatchedBy ? { dispatchedBy: event.dispatchedBy } : {}),
+    ...(event.note ? { note: event.note } : {}),
   };
 
   if (event.status === 'assigned') {
