@@ -37,6 +37,12 @@
 - 通知の文言は `pushText`（📞 お問い合わせ・サイト・内線）
 - 結果の記録にも kind / source / line が残る
 
+## 差配者名称（`src/lib/dispatch-labels.ts`、Redis `dispatch:labels`）
+
+- 差配者画面のボタンの名前: 来店の差配者 / 電話を受けた人 / サイト / 内線。管理者画面「差配者名称」で編集（`POST /labels`）
+- `/config` が返し、`/notify` は問い合わせのサイト・内線をこの一覧で検査する
+- 送信時の `dispatchedBy`（差配した人・電話を受けた人）は event・status・結果・通知本文に入る
+
 ## 即決定方式（`src/lib/dispatch-fast.ts`、Redis `dispatch:fast_rules`、管理者画面「当選の設定 → 即決定」）
 
 - 3段階: 例「36点以上は0秒から／33点以上は10秒後から／30点以上は20秒後から」その場で最高点の人に決定（`determineWinner` に `fastRules` を渡す）
@@ -78,6 +84,7 @@
 | `dispatch:keepnotify:<eventId>` | 送り続ける通知の間隔ロック | everySec 秒 |
 | `dispatch:mute_reasons` | 営業ID → 60分を超えて止めた理由（status の muteReasons で返す） | 保持 |
 | `dispatch:tel` | 営業ID → TEL（1〜10）。問い合わせの得点に掛ける | 保持 |
+| `dispatch:labels` | 差配者名称（JSON） | 保持 |
 | `dispatch:notify_log` | 来店通知の送信記録 最新10件 | 1日 |
 
 ## 公開 API（暗証番号なし）
@@ -87,7 +94,7 @@
 ## 管理者（暗証番号）
 
 - 暗証番号は Vercel の環境変数 `DISPATCH_ADMIN_PIN`。ヘッダー `X-Admin-Pin` で照合（`src/lib/dispatch-admin.ts`）
-- 必要な API: `/admin-verify`、`/affinity`、`/sales-units`、`/results`、`/staff-name`、`/fast-rules`、`/tel`
+- 必要な API: `/admin-verify`、`/affinity`、`/sales-units`、`/results`、`/staff-name`、`/fast-rules`、`/tel`、`/labels` の POST
 - 変更は `vercel env rm` → `vercel env add` → 本番再公開。反映まで10秒ほどかかる
 - **未対応**: `/notify` 自体は暗証番号不要（古いアプリ・外部から送れる）
 
