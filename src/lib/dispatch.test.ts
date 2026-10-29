@@ -298,3 +298,21 @@ test('共有事項は通知の本文に入り、長いときは先頭だけ', as
   assert.ok(long.includes('あ'.repeat(40) + '…'));
   assert.ok(!pushText(event(), 'first').body.includes('📝'));
 });
+
+test('問い合わせはサイトなしでも通知の文言が崩れない', async () => {
+  const { pushText } = await import('./dispatch-redis');
+  const t = pushText(event({ kind: 'inquiry', line: '保留5', dispatchedBy: '平賀' }), 'first');
+  assert.ok(t.body.startsWith('保留5（受付：平賀）'));
+});
+
+test('問い合わせでもお客様タイプは記録され、得点には TEL を使う', async () => {
+  const redis = mockRedis({
+    'dispatch:presses': Object.fromEntries([rawPress('asakura', 2, 'いくぜ')]),
+    'dispatch:affinity': { asakura: { '軽自動車': 1 } },
+  });
+  const ev = event({ kind: 'inquiry', line: '保留5', customerType: '軽自動車' });
+  await atAsync(after(40), () => finalizeIfDecided(redis, ev));
+  const [r] = await getResults(redis, jstDate(START));
+  assert.equal(r.customerType, '軽自動車');
+  assert.equal(r.rows[0].affinityLevel, 10, '得意度1ではなく TEL（未入力=10）');
+});

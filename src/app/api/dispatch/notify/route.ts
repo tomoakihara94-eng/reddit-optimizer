@@ -21,12 +21,12 @@ export async function POST(req: NextRequest) {
     // 差配した人・電話を受けた人（1.1.35 以降のアプリが送る。名前は管理者が変えられるので文字数だけ確かめる）
     const dispatchedBy = typeof body.dispatchedBy === 'string' && body.dispatchedBy.trim() && body.dispatchedBy.trim().length <= 20
       ? body.dispatchedBy.trim() : undefined;
-    // 問い合わせ: サイトと内線の両方が正しいときだけ。そうでなければ来店として扱う
-    const inquiry = body.kind === 'inquiry'
-      && labels.inquirySources.includes(body.source ?? '')
-      && labels.inquiryLines.includes(body.line ?? '');
+    // 問い合わせ: 内線は必須、サイトは任意（送るなら一覧にあるもの）
+    const sourceOk = !body.source || labels.inquirySources.includes(body.source);
+    const inquiry = body.kind === 'inquiry' && sourceOk && labels.inquiryLines.includes(body.line ?? '');
     if (body.kind === 'inquiry' && !inquiry) return NextResponse.json({ error: 'invalid inquiry' }, { status: 400 });
-    const customerType = !inquiry && (CUSTOMER_TYPES as readonly string[]).includes(body.customerType ?? '') ? body.customerType : undefined;
+    // お客様タイプ（来店・問い合わせとも。担当者以外には見せない）
+    const customerType = (CUSTOMER_TYPES as readonly string[]).includes(body.customerType ?? '') ? body.customerType : undefined;
     const dispatcherId = body.dispatcherId && ACTIVE_STAFF_IDS.has(body.dispatcherId) ? body.dispatcherId : undefined;
 
     // ログ記録（最新10件）
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       status: 'active',
       ...(dispatcherId ? { dispatcherId } : {}),
       ...(customerType ? { customerType } : {}),
-      ...(inquiry ? { kind: 'inquiry' as const, source: body.source, line: body.line } : {}),
+      ...(inquiry ? { kind: 'inquiry' as const, ...(body.source ? { source: body.source } : {}), line: body.line } : {}),
       ...(dispatchedBy ? { dispatchedBy } : {}),
       ...(note ? { note } : {}),
     };

@@ -31,8 +31,8 @@
 
 ## 問い合わせ（電話）
 
-- 差配者がサイト（カーセンサー／グーネット／HP）と内線（5〜8）を選び `POST /notify { kind: 'inquiry', source, line }`
-- event に `kind: 'inquiry'`, `source`, `line`。status は種類・サイト・内線を全員に返す（お客様タイプと違い隠さない）
+- 差配者が内線（必須）・お客様タイプ（必須、アプリ側で強制）・サイト（任意）を選び `POST /notify { kind: 'inquiry', line, customerType, source? }`（1.1.37〜。サイトなしでも受け付ける）
+- event に `kind: 'inquiry'`, `line`, `customerType`, `source?`。status は種類・サイト・内線を全員に返す。お客様タイプは来店と同じく当選者本人にだけ返す
 - 得点は得意度の代わりに TEL（`dispatch:tel`、営業ごと 1〜10、未入力 10）を掛ける（`scoringContext`）。即決定の通知の遅らせも TEL で判断
 - 通知の文言は `pushText`（📞 お問い合わせ・サイト・内線）
 - 結果の記録にも kind / source / line が残る
