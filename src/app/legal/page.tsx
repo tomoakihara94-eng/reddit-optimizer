@@ -4,7 +4,7 @@ export default function Legal() {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-4 py-4">
           <a href="/" className="text-sm text-orange-500 hover:text-orange-600 font-medium">
-            ← Reddit投稿最適化ツールに戻る
+            ← トップへ戻る
           </a>
         </div>
       </header>
