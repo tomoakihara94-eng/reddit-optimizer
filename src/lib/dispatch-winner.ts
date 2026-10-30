@@ -27,16 +27,18 @@ export type ScoreBreakdown = {
   response: Response; responsePts: number;
   condition: string | null; conditionPts: number;
   units: number; unitsPts: number;
-  affinityLevel: number; base: number; score: number;
+  affinityLevel: number; telLevel?: number; base: number; score: number;
 };
 
 // 得点 =（応答 ＋ コンディション ＋ 実績×0.1）× 得意度×0.1
+// 問い合わせは tel（営業ごとの TEL）を渡し、さらに × TEL×0.1（未入力は 10）
 export function scoreBreakdown(
   p: Press,
   staffConditions: Record<string, string>,
   customerType?: string,
   affinity: AffinityTable = {},
   salesUnits: Record<string, number> = SALES_UNITS,
+  tel?: Record<string, number>,
 ): ScoreBreakdown {
   const condition = staffConditions[p.id] ?? null;
   const conditionPts = STAFF_CONDITIONS[condition as StaffCondition] ?? 0;
@@ -45,10 +47,12 @@ export function scoreBreakdown(
   const responsePts = RESPONSES[p.response];
   const base = responsePts + conditionPts + unitsPts;
   const affinityLevel = customerType ? affinity[p.id]?.[customerType as CustomerType] ?? AFFINITY_DEFAULT : AFFINITY_DEFAULT;
+  const telLevel = tel ? tel[p.id] ?? AFFINITY_DEFAULT : undefined;
   const round = (n: number) => Math.round(n * 100) / 100;
   return {
     response: p.response, responsePts, condition, conditionPts, units, unitsPts: round(unitsPts),
-    affinityLevel, base: round(base), score: round(base * affinityLevel * AFFINITY_WEIGHT),
+    affinityLevel, ...(telLevel !== undefined ? { telLevel } : {}), base: round(base),
+    score: round(base * affinityLevel * AFFINITY_WEIGHT * (telLevel !== undefined ? telLevel * AFFINITY_WEIGHT : 1)),
   };
 }
 
@@ -58,8 +62,9 @@ export function scoreOf(
   customerType?: string,
   affinity: AffinityTable = {},
   salesUnits: Record<string, number> = SALES_UNITS,
+  tel?: Record<string, number>,
 ): number {
-  return scoreBreakdown(p, staffConditions, customerType, affinity, salesUnits).score;
+  return scoreBreakdown(p, staffConditions, customerType, affinity, salesUnits, tel).score;
 }
 
 export function determineWinner(
@@ -69,13 +74,14 @@ export function determineWinner(
   affinity: AffinityTable = {},
   salesUnits: Record<string, number> = SALES_UNITS,
   fastRules?: FastRules,
+  tel?: Record<string, number>,
 ): Press | null {
   // 差配者本人と「対応中」の人は当選対象外
   const eligible = presses.filter(p => p.id !== event.dispatcherId && p.response !== '対応中');
   if (eligible.length === 0) return null;
   const now = Date.now();
   const windowEnd = event.startedAt + WINDOW_MS;
-  const score = (p: Press) => scoreOf(p, staffConditions, event.customerType, affinity, salesUnits);
+  const score = (p: Press) => scoreOf(p, staffConditions, event.customerType, affinity, salesUnits, tel);
 
   // 即決定: 30秒を待たず、決めた秒数以降に決めた点数以上の応答があれば、その時点の最高点の人に決める
   if (now <= windowEnd) {

@@ -33,7 +33,9 @@
 
 - 差配者が内線（必須）・お客様タイプ（必須、アプリ側で強制）・サイト（任意）を選び `POST /notify { kind: 'inquiry', line, customerType, source? }`（1.1.37〜。サイトなしでも受け付ける）
 - event に `kind: 'inquiry'`, `line`, `customerType`, `source?`。status は種類・サイト・内線を全員に返す。お客様タイプは来店と同じく当選者本人にだけ返す
-- 得点は得意度の代わりに TEL（`dispatch:tel`、営業ごと 1〜10、未入力 10）を掛ける（`scoringContext`）。即決定の通知の遅らせも TEL で判断
+- 得点 =（応答＋調子＋実績×0.1）× 得意度×0.1 × TEL×0.1（1.1.38〜。得意度はそのお客様タイプのもの、タイプなし＝古いアプリは 10 扱い。TEL は `dispatch:tel`、未入力 10）。`determineWinner`/`scoreBreakdown` に tel を渡す。結果の行に `affinityLevel` と `telLevel`
+- 即決定の「通知を遅らせる」判定は TEL だけ（`scoringContext`、ユーザー指定）
+- 掛ける値が2つになり点数が下がるので、即決定の点数（36点など）には届きにくい
 - 通知の文言は `pushText`（📞 お問い合わせ・サイト・内線）
 - 結果の記録にも kind / source / line が残る
 
@@ -89,7 +91,7 @@
 
 ## 公開 API（暗証番号なし）
 
-`/config`（共通設定）、`/board` の GET（掲示板。POST/DELETE は管理者）、`/status`、`/notify`、`/press`、`/mute`、`/staff-condition`、`/register-expo` など
+`/config`（共通設定）、`/result?eventId=`（今の担当決定1件の計算結果。営業画面の「アルゴリズム結果」。今の event と一致するときだけ返す。お客様タイプも含む＝ユーザー指定）、`/board` の GET（掲示板。POST/DELETE は管理者）、`/status`、`/notify`、`/press`、`/mute`、`/staff-condition`、`/register-expo` など
 
 ## 管理者（暗証番号）
 

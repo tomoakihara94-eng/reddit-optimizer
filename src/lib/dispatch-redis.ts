@@ -93,6 +93,7 @@ export async function getTelTable(redis: Redis = getRedis()): Promise<Record<str
 }
 
 // 得点で使う「タイプと得意度表」。問い合わせのときは TEL を得意度として扱う
+// 即決定の「通知を遅らせる」判定用。問い合わせは TEL だけで判断する（得点は dispatch-result で 得意度×TEL）
 export const TEL_TYPE = '__TEL__';
 export function scoringContext(
   event: DispatchEvent, affinity: Record<string, Record<string, number>>, tel: Record<string, number>,

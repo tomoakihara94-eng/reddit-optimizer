@@ -250,11 +250,11 @@ test('通知を止めた理由は、止めている人の分だけ返る', async
 });
 
 // ─── 問い合わせ（TEL） ───
-test('問い合わせは得意度の代わりに TEL を掛ける。記録に種類・サイト・内線が残る', async () => {
+test('問い合わせはタイプがなければ得意度×1.0 で TEL を掛ける。記録に種類・サイト・内線が残る', async () => {
   const redis = mockRedis({
     'dispatch:presses': Object.fromEntries([rawPress('asakura', 2, 'いくぜ'), rawPress('yamato', 3, 'いくぜ')]),
     'dispatch:tel': { asakura: 3 },                      // 浅倉は TEL 3（×0.3）、大和は未入力（×1.0）
-    'dispatch:affinity': { yamato: { '軽自動車': 1 } },  // 来店の得意度は問い合わせでは使わない
+    'dispatch:affinity': { yamato: { '軽自動車': 1 } },  // タイプなし（古いアプリ）なので得意度は 10 扱い
   });
   const ev = event({ kind: 'inquiry', source: 'カーセンサー', line: '内線5' });
   const w = await atAsync(after(40), () => finalizeIfDecided(redis, ev));
@@ -263,7 +263,8 @@ test('問い合わせは得意度の代わりに TEL を掛ける。記録に種
   assert.equal(r.kind, 'inquiry');
   assert.equal(r.source, 'カーセンサー');
   assert.equal(r.line, '内線5');
-  assert.equal(r.rows.find(x => x.id === 'asakura')?.affinityLevel, 3);
+  assert.equal(r.rows.find(x => x.id === 'asakura')?.telLevel, 3);
+  assert.equal(r.rows.find(x => x.id === 'asakura')?.affinityLevel, 10);
 });
 
 test('通知の文言は来店と問い合わせで分かれる', async () => {
@@ -305,14 +306,30 @@ test('問い合わせはサイトなしでも通知の文言が崩れない', as
   assert.ok(t.body.startsWith('保留5（受付：平賀）'));
 });
 
-test('問い合わせでもお客様タイプは記録され、得点には TEL を使う', async () => {
+test('問い合わせの得点は（応答＋調子＋実績×0.1）× 得意度×0.1 × TEL×0.1', async () => {
   const redis = mockRedis({
-    'dispatch:presses': Object.fromEntries([rawPress('asakura', 2, 'いくぜ')]),
-    'dispatch:affinity': { asakura: { '軽自動車': 1 } },
+    'dispatch:presses': Object.fromEntries([rawPress('asakura', 2, 'いくぜ'), rawPress('yamato', 3, 'いくぜ')]),
+    'dispatch:affinity': { asakura: { '軽自動車': 5 }, yamato: { '軽自動車': 8 } },
+    'dispatch:tel': { asakura: 10, yamato: 5 },        // 浅倉 ×0.5×1.0=0.5、大和 ×0.8×0.5=0.4
   });
   const ev = event({ kind: 'inquiry', line: '保留5', customerType: '軽自動車' });
-  await atAsync(after(40), () => finalizeIfDecided(redis, ev));
+  const w = await atAsync(after(40), () => finalizeIfDecided(redis, ev));
+  assert.equal(w?.id, 'asakura');
   const [r] = await getResults(redis, jstDate(START));
   assert.equal(r.customerType, '軽自動車');
-  assert.equal(r.rows[0].affinityLevel, 10, '得意度1ではなく TEL（未入力=10）');
+  const y = r.rows.find(x => x.id === 'yamato')!;
+  assert.equal(y.affinityLevel, 8);
+  assert.equal(y.telLevel, 5);
+  assert.equal(y.score, Math.round(y.base * 0.8 * 0.5 * 100) / 100);
+});
+
+test('来店の得点には TEL を掛けない', async () => {
+  const redis = mockRedis({
+    'dispatch:presses': Object.fromEntries([rawPress('asakura', 2, 'いくぜ')]),
+    'dispatch:tel': { asakura: 1 },
+  });
+  await atAsync(after(40), () => finalizeIfDecided(redis, event({ customerType: '軽自動車' })));
+  const [r] = await getResults(redis, jstDate(START));
+  assert.equal(r.rows[0].telLevel, undefined);
+  assert.equal(r.rows[0].score, r.rows[0].base);
 });
