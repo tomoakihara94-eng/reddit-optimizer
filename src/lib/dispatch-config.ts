@@ -50,8 +50,8 @@ export const WINNER_MUTE_MIN = 30;
 export const MUTE_OFF = -1;
 export const MUTE_OFF_MS = 10 * 365 * 24 * 3600_000;
 
-// 夜間は営業に来店通知を送らない（日本時間 18:00〜翌 8:15）
-export const QUIET_START = { h: 18, m: 0 };
+// 夜間は営業に来店通知を送らない（日本時間 19:00〜翌 8:15）
+export const QUIET_START = { h: 19, m: 0 };
 export const QUIET_END   = { h: 8,  m: 15 };
 export function isQuietHours(now = Date.now()) {
   const d = new Date(now + 9 * 3600_000); // JST

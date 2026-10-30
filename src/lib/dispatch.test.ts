@@ -133,12 +133,12 @@ test('管理者画面で入力した実績が、初期値より優先される',
 });
 
 // ─── 夜間 ───
-test('夜間（日本時間 18:00〜翌8:15）の判定', () => {
+test('夜間（日本時間 19:00〜翌8:15）の判定', () => {
   const jst = (h: number, m: number) => Date.UTC(2026, 9, 20, h - 9, m);
   assert.equal(isQuietHours(jst(8, 14)), true);
   assert.equal(isQuietHours(jst(8, 15)), false);
-  assert.equal(isQuietHours(jst(17, 59)), false);
-  assert.equal(isQuietHours(jst(18, 0)), true);
+  assert.equal(isQuietHours(jst(18, 59)), false);
+  assert.equal(isQuietHours(jst(19, 0)), true);
   assert.equal(isQuietHours(jst(0, 0)), true);
 });
 
@@ -150,7 +150,7 @@ test('GET /config はアプリが使う一覧を返す（スタッフ・応答�
   assert.ok(body.staff.every((s: { id: string; name: string }) => s.id && s.name));
   assert.deepEqual(body.responses.find((r: { value: string }) => r.value === '対応中'),
     { value: '対応中', label: '対応中（行けない）', points: 0 });
-  assert.deepEqual(body.quiet, { start: { h: 18, m: 0 }, end: { h: 8, m: 15 } });
+  assert.deepEqual(body.quiet, { start: { h: 19, m: 0 }, end: { h: 8, m: 15 } });
   assert.equal(body.windowSec, 30);
 });
 
