@@ -57,19 +57,19 @@ test('得点 =（応答 + コンディション + 実績×0.1）× 得意度×0.
 });
 
 test('得意度・実績・コンディションが未設定なら 10 / 0 / 0 扱い', () => {
-  const b = scoreBreakdown(press('nobody', 1, '普通'), {}, '普通車', {}, {});
+  const b = scoreBreakdown(press('nobody', 1, '今は無理かも'), {}, '普通車', {}, {});
   assert.equal(b.affinityLevel, 10);
-  assert.equal(b.score, 20);
+  assert.equal(b.score, 10);
 });
 
 // ─── 当選者 ───
 test('30秒以内に応答した人の中で最高得点が当選', () => {
-  const w = at(after(40), () => determineWinner(event(), [press('a', 1, '普通'), press('b', 5, 'いくぜ')], {}, {}, {}));
+  const w = at(after(40), () => determineWinner(event(), [press('a', 1, '今は無理かも'), press('b', 5, 'いくぜ')], {}, {}, {}));
   assert.equal(w?.id, 'b');
 });
 
 test('同点なら早押し', () => {
-  const w = at(after(40), () => determineWinner(event(), [press('a', 5, '普通'), press('b', 1, '普通')], {}, {}, {}));
+  const w = at(after(40), () => determineWinner(event(), [press('a', 5, '今は無理かも'), press('b', 1, '今は無理かも')], {}, {}, {}));
   assert.equal(w?.id, 'b');
 });
 
@@ -81,9 +81,9 @@ test('「対応中」は当選しない。対応中だけなら当選なし', ()
 });
 
 test('30秒以内の応答が優先。誰もいなければ30秒後の最初の人', () => {
-  const w1 = at(after(40), () => determineWinner(event(), [press('a', 2, '普通'), press('b', 35, 'いくぜ')], {}, {}, {}));
+  const w1 = at(after(40), () => determineWinner(event(), [press('a', 2, '今は無理かも'), press('b', 35, 'いくぜ')], {}, {}, {}));
   assert.equal(w1?.id, 'a');
-  const w2 = at(after(40), () => determineWinner(event(), [press('a', 38, '普通'), press('b', 35, '普通')], {}, {}, {}));
+  const w2 = at(after(40), () => determineWinner(event(), [press('a', 38, '今は無理かも'), press('b', 35, '今は無理かも')], {}, {}, {}));
   assert.equal(w2?.id, 'b');
 });
 
@@ -93,17 +93,19 @@ test('30秒たつまでは当選を決めない', () => {
 });
 
 test('お客様タイプ別の得意度で逆転する', () => {
-  const presses = [press('a', 1, 'いくぜ'), press('b', 2, '普通')];
-  const aff = { a: { '軽自動車': 3 } };
+  const presses = [press('a', 1, 'いくぜ'), press('b', 2, '今は無理かも')];
+  const aff = { a: { '軽自動車': 2 } };
   const w = at(after(40), () => determineWinner(event({ customerType: '軽自動車' }), presses, {}, aff, {}));
-  assert.equal(w?.id, 'b'); // a: 40×0.3=12 < b: 20
+  assert.equal(w?.id, 'b'); // a: 40×0.2=8 < b: 10
   const w2 = at(after(40), () => determineWinner(event({ customerType: '普通車' }), presses, {}, aff, {}));
   assert.equal(w2?.id, 'a');
 });
 
-test('押下データは旧形式（時刻の数値）も読める。応答は「普通」扱い', () => {
+test('押下データは旧形式（時刻の数値）も読める。応答は「いける」扱い。廃止した「普通」も「いける」', () => {
   const [p] = parsePresses({ 'ito::伊藤::B': after(3) });
-  assert.equal(p.response, '普通');
+  assert.equal(p.response, '行けたら行きたい');
+  const [q] = parsePresses({ 'ito::伊藤::B': JSON.stringify({ t: after(3), r: '普通' }) });
+  assert.equal(q.response, '行けたら行きたい');
   assert.equal(p.time, after(3));
 });
 
@@ -149,7 +151,9 @@ test('GET /config はアプリが使う一覧を返す（スタッフ・応答�
   assert.ok(body.staff.length > 0);
   assert.ok(body.staff.every((s: { id: string; name: string }) => s.id && s.name));
   assert.deepEqual(body.responses.find((r: { value: string }) => r.value === '対応中'),
-    { value: '対応中', label: '対応中（行けない）', points: 0 });
+    { value: '対応中', label: 'いけない', points: -20 });
+  assert.deepEqual(body.responses.map((r: { label: string; points: number }) => `${r.label}${r.points}`),
+    ['いくぜ40', 'いける30', 'きびしい10', 'いけない-20']);
   assert.deepEqual(body.quiet, { start: { h: 19, m: 0 }, end: { h: 8, m: 15 } });
   assert.equal(body.windowSec, 30);
 });
@@ -203,14 +207,14 @@ test('即決定: 36点以上はすぐ、33点以上は10秒後、30点以上は2
   assert.equal(at(after(19), () => determineWinner(ev, p32, c32, {}, {}, R)), null);
   assert.equal(at(after(20), () => determineWinner(ev, p32, c32, {}, {}, R))?.id, 'c');
   // 20点（普通）: 30秒まで決まらず、30秒後に通常どおり決まる
-  assert.equal(decide(25, [press('d', 1, '普通')]), null);
-  assert.equal(decide(31, [press('d', 1, '普通')]), 'd');
+  assert.equal(decide(25, [press('d', 1, '今は無理かも')]), null);
+  assert.equal(decide(31, [press('d', 1, '今は無理かも')]), 'd');
 });
 
 test('即決定: 決まるときはその時点の最高点の人。「対応中」は対象外。オフなら30秒まで待つ', async () => {
   const { DEFAULT_FAST_RULES: R } = await import('./dispatch-fast');
   const ev = event();
-  const presses = [press('a', 1, '普通'), press('b', 2, 'いくぜ'), press('c', 3, '対応中')];
+  const presses = [press('a', 1, '今は無理かも'), press('b', 2, 'いくぜ'), press('c', 3, '対応中')];
   assert.equal(at(after(4), () => determineWinner(ev, presses, {}, {}, {}, R))?.id, 'b');
   assert.equal(at(after(4), () => determineWinner(ev, [press('c', 1, '対応中')], {}, {}, {}, R)), null);
   assert.equal(at(after(4), () => determineWinner(ev, presses, {}, {}, {}, { ...R, enabled: false })), null);
@@ -236,7 +240,9 @@ test('即決定の設定の検査（おかしな値は受け付けない）', as
   assert.equal(validateFastRules({ ...R, tiers: [R.tiers[1], R.tiers[0], R.tiers[2]] }), null, '秒数が逆順');
   assert.equal(validateFastRules({ ...R, tiers: [{ minScore: 36, afterSec: 30 }, R.tiers[1], R.tiers[2]] }), null, '30秒以上');
   assert.equal(validateFastRules({ ...R, gates: [{ maxAffinity: 11 }, R.gates[1]] }), null);
-  assert.equal(validateFastRules({ ...R, keepNotify: { everySec: 1, maxMin: 5 } }), null);
+  assert.equal(validateFastRules({ ...R, keepNotify: { everySec: 1, untilSec: 50 } }), null);
+  assert.equal(validateFastRules({ ...R, keepNotify: { everySec: 5, untilSec: 20 } }), null, '30秒より前に終了はできない');
+  assert.deepEqual(validateFastRules({ ...R, keepNotify: { everySec: 15, maxMin: 5 } })?.keepNotify, { everySec: 5, untilSec: 50 }, '旧形式は既定値に');
 });
 
 test('通知を止めた理由は、止めている人の分だけ返る', async () => {
@@ -332,4 +338,14 @@ test('来店の得点には TEL を掛けない', async () => {
   const [r] = await getResults(redis, jstDate(START));
   assert.equal(r.rows[0].telLevel, undefined);
   assert.equal(r.rows[0].score, r.rows[0].base);
+});
+
+test('30秒後も誰も（いけない以外）答えていなければ、50秒までの応答で決める。50秒を過ぎたら担当なし', async () => {
+  const { DEFAULT_FAST_RULES: R, closeSec } = await import('./dispatch-fast');
+  assert.equal(closeSec(R), 50);
+  const ev = event();
+  const decide = (sec: number, presses: Press[]) => at(after(sec), () => determineWinner(ev, presses, {}, {}, {}, R))?.id ?? null;
+  assert.equal(decide(45, [press('a', 5, '対応中'), press('b', 42, '今は無理かも')]), 'b');
+  assert.equal(decide(55, [press('a', 5, '対応中'), press('b', 52, 'いくぜ')]), null, '受付終了後の応答では決めない');
+  assert.equal(decide(60, [press('a', 5, '対応中')]), null);
 });

@@ -28,17 +28,28 @@ export const STAFF: readonly StaffMember[] = [
 // 得点が同じなら先に押した人。
 
 // 来店通知の後に営業が選ぶ応答
+// 応答は4択（2026-10-31〜）。値（キー）は古いアプリ・記録との互換のため変えず、表示名を RESPONSE_LABELS で付ける
+//   いくぜ 40 ／ いける 30 ／ きびしい 10 ／ いけない −20（いけない＝「対応中」は当選対象外。点数は結果の表示だけ）
 export const RESPONSES = {
   'いくぜ':           40,
   '行けたら行きたい': 30,
-  '普通':             20,
   '今は無理かも':     10,
-  '対応中':            0,
+  '対応中':          -20,
 } as const;
 export type Response = keyof typeof RESPONSES;
-export const DEFAULT_RESPONSE: Response = '普通'; // 応答を送らない旧クライアント（Web版など）用
+export const RESPONSE_LABELS: Record<Response, string> = {
+  'いくぜ': 'いくぜ', '行けたら行きたい': 'いける', '今は無理かも': 'きびしい', '対応中': 'いけない',
+};
+// 廃止した応答（古いアプリの通知ボタン・記録）を今の応答に読み替える
+const LEGACY_RESPONSES: Record<string, Response> = { '普通': '行けたら行きたい' };
+export const DEFAULT_RESPONSE: Response = '行けたら行きたい'; // 応答を送らない旧クライアント（Web版など）用
+export function toResponse(r: unknown): Response {
+  if (typeof r !== 'string') return DEFAULT_RESPONSE;
+  if (r in RESPONSES) return r as Response;
+  return LEGACY_RESPONSES[r] ?? DEFAULT_RESPONSE;
+}
 
-// 「対応中（行けない）」を押した人は、来店通知を止める（既定10分、10〜60分で選び直せる）
+// 「いけない」（値は対応中）を押した人は、来店通知を止める（既定10分、10〜60分で選び直せる）
 export const MUTE_DEFAULT_MIN = 10;
 export const MUTE_OPTIONS_MIN = [10, 20, 30, 40, 50, 60];
 // 60分を超えて止めるときは、分数と理由を自分で入力する（理由は差配者画面に表示）

@@ -74,7 +74,7 @@ export async function keepNotifying(): Promise<boolean> {
   if (elapsed <= WINDOW_MS) return false;
   if (await finalizeIfDecided(redis, event)) return false;
   const { keepNotify } = await getFastRules(redis);
-  if (keepNotify.maxMin <= 0 || elapsed > WINDOW_MS + keepNotify.maxMin * 60_000) return false;
+  if (elapsed > keepNotify.untilSec * 1000) return false; // 受付終了
   const locked = await redis.set(`dispatch:keepnotify:${event.id}`, '1', { nx: true, ex: keepNotify.everySec });
   if (!locked) return false;
   const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};

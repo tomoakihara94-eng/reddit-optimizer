@@ -21,7 +21,9 @@
 得点 =（応答 + コンディション + 実績台数 × 0.1）× 得意度 × 0.1
 ```
 
-- 応答: いくぜ40 / 行けたら行きたい30 / 普通20 / 今は無理かも10 / 対応中0（**対応中は当選対象外**）
+- 応答（2026-10-31〜 4択）: いくぜ40 / いける30 / きびしい10 / いけない−20（**いけないは当選対象外**、−20は結果の表示だけ。10分の通知停止も従来どおり）
+  - 値は互換のため旧名のまま（いける=`行けたら行きたい`、きびしい=`今は無理かも`、いけない=`対応中`）。表示名は `RESPONSE_LABELS` で `/config` が返す
+  - 廃止した「普通」（古いアプリの通知ボタン・記録）は `toResponse` で「いける」に読み替える
 - コンディション: 絶好調8 / 好調6 / 普通4 / 不調2 / 絶不調0（来店前に営業が選ぶ。未選択0）
 - 実績: `dispatch:sales_units`（管理者画面で入力）。未入力の人は `SALES_UNITS`（config）の初期値
 - 得意度: `dispatch:affinity` の お客様タイプ別 1〜10。未入力は 10（×1.0）
@@ -50,7 +52,9 @@
 - 3段階: 例「36点以上は0秒から／33点以上は10秒後から／30点以上は20秒後から」その場で最高点の人に決定（`determineWinner` に `fastRules` を渡す）
 - 得意度での通知の遅れ: そのお客様タイプの得意度が「5以下は2段目の秒数まで／3以下は3段目の秒数まで」通知しない（`blockedAffinity`・`gatedIdsNow`）
 - 再通知の時刻は2段目・3段目の秒数（`repushTimesSec`）。再通知の前に `finalizeIfDecided` で当選を確かめる
-- 30秒たっても当選者がいなければ、差配者のアプリが5秒ごとに `POST /keep-notify` を呼び、サーバーが「everySec 秒ごと・maxMin 分まで」未応答者に送る
+- 30秒たっても当選者がいなければ（＝いけない以外の応答がない）、差配者のアプリが5秒ごとに `POST /keep-notify` を呼び、サーバーが「everySec 秒ごと・来店通知から untilSec 秒まで」（既定 5秒・50秒）未応答者に送る
+- untilSec を過ぎても決まらなければ受付終了: 担当なし（ユーザー指定「差配者が対応」）。`/status` は `closed: true`、`/press` は `closed` で断る、`determineWinner` は締切後の応答を数えない（`closeSec`）
+- 保存済みの旧形式（maxMin 分まで）や古い管理者画面からの保存は、送り続けの部分だけ既定値（5秒・50秒）になる
 - 応答（`/press`）のたびに `finalizeIfDecided` を呼ぶので、即決定はその場で確定する
 - 設定がない・壊れているときは `DEFAULT_FAST_RULES`
 
@@ -91,12 +95,12 @@
 
 ## 公開 API（暗証番号なし）
 
-`/config`（共通設定）、`/result?eventId=`（今の担当決定1件の計算結果。営業画面の「アルゴリズム結果」。今の event と一致するときだけ返す。お客様タイプも含む＝ユーザー指定）、`/board` の GET（掲示板。POST/DELETE は管理者）、`/status`、`/notify`、`/press`、`/mute`、`/staff-condition`、`/register-expo` など
+`/config`（共通設定）、`/results` の GET（日ごとの計算結果。2026-10-31〜 営業も見られるよう暗証番号なし）、`/result?eventId=`（今の担当決定1件の計算結果。営業画面の「アルゴリズム結果」。今の event と一致するときだけ返す。お客様タイプも含む＝ユーザー指定）、`/board` の GET（掲示板。POST/DELETE は管理者）、`/status`、`/notify`、`/press`、`/mute`、`/staff-condition`、`/register-expo` など
 
 ## 管理者（暗証番号）
 
 - 暗証番号は Vercel の環境変数 `DISPATCH_ADMIN_PIN`。ヘッダー `X-Admin-Pin` で照合（`src/lib/dispatch-admin.ts`）
-- 必要な API: `/admin-verify`、`/affinity`、`/sales-units`、`/results`、`/staff-name`、`/fast-rules`、`/tel`、`/labels` の POST
+- 必要な API: `/admin-verify`、`/affinity`、`/sales-units`、`/staff-name`、`/fast-rules`、`/tel`、`/labels` の POST
 - 変更は `vercel env rm` → `vercel env add` → 本番再公開。反映まで10秒ほどかかる
 - **未対応**: `/notify` 自体は暗証番号不要（古いアプリ・外部から送れる）
 

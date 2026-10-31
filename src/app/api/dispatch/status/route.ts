@@ -3,6 +3,7 @@ import { getRedis, getActiveMutes, getActiveMuteReasons, EVENT_KEY, PRESSES_KEY,
 import { parsePresses } from '@/lib/dispatch-winner';
 import { finalizeIfDecided } from '@/lib/dispatch-result';
 import { WINDOW_MS, isQuietHours } from '@/lib/dispatch-config';
+import { getFastRules, closeSec } from '@/lib/dispatch-fast';
 
 export async function GET(req: Request) {
   // 営業アプリは自分の staffId を付けて問い合わせる。当選者本人にだけお客様タイプを返す
@@ -40,9 +41,12 @@ export async function GET(req: Request) {
   const presses = parsePresses(raw as Record<string, unknown>);
 
   const remaining = Math.max(0, Math.ceil((event.startedAt + WINDOW_MS - Date.now()) / 1000));
+  // 受付終了（keepNotify.untilSec を過ぎても担当なし）。差配者が「次のお客様」で終える
+  const closed = Date.now() > event.startedAt + closeSec(await getFastRules(redis)) * 1000;
   return NextResponse.json({
     status: 'active',
     remaining,
+    ...(closed ? { closed: true } : {}),
     pressedIds: presses.map(p => p.id),
     responses: Object.fromEntries(presses.map(p => [p.id, p.response])),
     staffConditions,

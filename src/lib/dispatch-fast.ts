@@ -4,19 +4,20 @@ import { WINDOW_MS, AFFINITY_DEFAULT } from './dispatch-config';
 // 即決定方式。管理者画面「当選の設定 → 即決定」で変更し、Redis に保存する
 //   tiers[i]: 来店通知から afterSec 秒以降、minScore 点以上の応答があればその場で当選を決める
 //   gates[i]: 得意度（そのお客様タイプ）が maxAffinity 以下の人には、tiers[i+1] の秒数まで来店通知を送らない
-//   keepNotify: 30秒たっても当選者がいなければ、everySec 秒ごとに maxMin 分まで通知を送り続ける
+//   keepNotify: 30秒たっても当選者がいなければ、everySec 秒ごとに 来店通知から untilSec 秒まで通知を送り続ける。
+//               untilSec を過ぎても決まらなければ受付終了（担当なし・差配者が対応）
 export type FastRules = {
   enabled: boolean;
   tiers: { minScore: number; afterSec: number }[];
   gates: { maxAffinity: number }[];
-  keepNotify: { everySec: number; maxMin: number };
+  keepNotify: { everySec: number; untilSec: number };
 };
 
 export const DEFAULT_FAST_RULES: FastRules = {
   enabled: true,
   tiers: [{ minScore: 36, afterSec: 0 }, { minScore: 33, afterSec: 10 }, { minScore: 30, afterSec: 20 }],
   gates: [{ maxAffinity: 5 }, { maxAffinity: 3 }],
-  keepNotify: { everySec: 15, maxMin: 5 },
+  keepNotify: { everySec: 5, untilSec: 50 },
 };
 
 export const FAST_RULES_KEY = 'dispatch:fast_rules';
@@ -36,13 +37,18 @@ export function validateFastRules(x: unknown): FastRules | null {
     if (i > 0 && sec < r.tiers[i - 1].afterSec) return null; // 秒数は 1→2→3 の順に増える
   }
   for (const g of r.gates) { const a = int(g?.maxAffinity); if (!(a >= 0 && a <= 10)) return null; }
-  const every = int(r.keepNotify?.everySec), max = int(r.keepNotify?.maxMin);
-  if (!(every >= 5 && every <= 120) || !(max >= 0 && max <= 30)) return null;
+  // 旧形式（maxMin 分まで。1.1.38 以前の管理者画面・保存済みの設定）は新しい既定値に置き換える
+  let keepNotify = DEFAULT_FAST_RULES.keepNotify;
+  if (r.keepNotify && 'untilSec' in r.keepNotify) {
+    const every = int(r.keepNotify.everySec), until = int(r.keepNotify.untilSec);
+    if (!(every >= 5 && every <= 60) || !(until >= windowSec && until <= 300)) return null;
+    keepNotify = { everySec: every, untilSec: until };
+  }
   return {
     enabled: r.enabled,
     tiers: r.tiers.map(t => ({ minScore: Number(t.minScore), afterSec: t.afterSec })),
     gates: r.gates.map(g => ({ maxAffinity: g.maxAffinity })),
-    keepNotify: { everySec: every, maxMin: max },
+    keepNotify,
   };
 }
 
@@ -54,6 +60,11 @@ export async function getFastRules(redis: Redis): Promise<FastRules> {
   } catch {
     return DEFAULT_FAST_RULES;
   }
+}
+
+// 受付終了の秒数（来店通知から）。これを過ぎても担当が決まらなければ担当なし
+export function closeSec(rules: FastRules): number {
+  return Math.max(WINDOW_MS / 1000, rules.keepNotify.untilSec);
 }
 
 // 来店通知から elapsedSec 秒の時点で、通知を止めている得意度の上限（この値以下の人には送らない）。0 なら全員に送る

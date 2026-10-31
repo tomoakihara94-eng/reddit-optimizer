@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getRedis, getStaff } from '@/lib/dispatch-redis';
 import { getLabels } from '@/lib/dispatch-labels';
 import {
-  RESPONSES, MUTE_CUSTOM_MAX_MIN, STAFF_CONDITIONS, CUSTOMER_TYPES, MUTE_OPTIONS_MIN, QUIET_START, QUIET_END, WINDOW_MS,
+  RESPONSES, RESPONSE_LABELS, type Response, MUTE_CUSTOM_MAX_MIN, STAFF_CONDITIONS, CUSTOMER_TYPES, MUTE_OPTIONS_MIN, QUIET_START, QUIET_END, WINDOW_MS,
 } from '@/lib/dispatch-config';
 
 // アプリが起動時に読む共通の設定。スタッフ一覧などをサーバーだけで管理するため（アプリ側は予備の初期値のみ）
@@ -10,7 +10,7 @@ import {
 export async function GET() {
   const staff = await getStaff();
   const labels = await getLabels(getRedis());
-  const label = (r: string) => (r === '対応中' ? '対応中（行けない）' : r);
+  const label = (r: string) => RESPONSE_LABELS[r as Response] ?? r;
   const body = {
     version: 1,
     staff: staff.map(({ id, name }) => ({ id, name })),

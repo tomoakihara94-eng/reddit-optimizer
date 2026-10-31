@@ -1,10 +1,10 @@
 import {
-  WINDOW_MS, RESPONSES, DEFAULT_RESPONSE, STAFF_CONDITIONS, SALES_UNITS, SALES_UNITS_WEIGHT,
+  WINDOW_MS, RESPONSES, DEFAULT_RESPONSE, toResponse, STAFF_CONDITIONS, SALES_UNITS, SALES_UNITS_WEIGHT,
   AFFINITY_DEFAULT, AFFINITY_WEIGHT, type AffinityTable,
   type Response, type StaffCondition, type CustomerType,
 } from './dispatch-config';
 import type { DispatchEvent } from './dispatch-redis';
-import type { FastRules } from './dispatch-fast';
+import { closeSec, type FastRules } from './dispatch-fast';
 
 export type Press = { id: string; name: string; rank: string; time: number; response: Response; via?: 'app' | 'notification' };
 
@@ -16,7 +16,7 @@ export function parsePresses(raw: Record<string, unknown>): Press[] {
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch { /* 数値文字列 */ } }
     if (v && typeof v === 'object') {
       const { t, r, v: via } = v as { t: number; r?: string; v?: 'app' | 'notification' };
-      const response = r && r in RESPONSES ? (r as Response) : DEFAULT_RESPONSE;
+      const response = toResponse(r);
       return { id, name, rank, time: Number(t), response, ...(via ? { via } : {}) };
     }
     return { id, name, rank, time: Number(v), response: DEFAULT_RESPONSE };
@@ -93,7 +93,9 @@ export function determineWinner(
   }
 
   const within = eligible.filter(p => p.time <= windowEnd);
-  const after  = eligible.filter(p => p.time > windowEnd);
+  // 30秒後の応答は「受付終了」（keepNotify.untilSec）までのものだけ。それを過ぎたら担当は決めない（差配者が対応）
+  const closeAt = fastRules ? event.startedAt + closeSec(fastRules) * 1000 : Infinity;
+  const after  = eligible.filter(p => p.time > windowEnd && p.time <= closeAt);
 
   if (within.length > 0) {
     return within.sort((a, b) => score(b) - score(a) || a.time - b.time)[0];

@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRedis } from '@/lib/dispatch-redis';
-import { isAdmin } from '@/lib/dispatch-admin';
 import { getResults, jstDate } from '@/lib/dispatch-result';
 
-// 当選の計算結果（管理者のみ）
+// 当選の計算結果（2026-10-31〜 営業も見られるよう暗証番号なし。編集の API は引き続き管理者のみ）
 //   ?date=YYYY-MM-DD … その日（日本時間）の全結果
 //   ?eventId=…       … 1回分の結果
 export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const redis = getRedis();
   const url = new URL(req.url);
   const eventId = url.searchParams.get('eventId');
