@@ -349,3 +349,17 @@ test('30秒後も誰も（いけない以外）答えていなければ、50秒�
   assert.equal(decide(55, [press('a', 5, '対応中'), press('b', 52, 'いくぜ')]), null, '受付終了後の応答では決めない');
   assert.equal(decide(60, [press('a', 5, '対応中')]), null);
 });
+
+// ─── 通知の登録（1人の名前は1台のスマホだけ） ───
+test('別のスマホで登録済みの名前は取れない。管理者なら引き継げる。同じスマホは1人だけ', async () => {
+  const { registerToken, unregisterToken } = await import('./dispatch-tokens');
+  const redis = mockRedis({ 'dispatch:expo_tokens': { kakizaki: 'tokA', oba: 'tokB' } });
+  assert.deepEqual(await registerToken(redis, 'kakizaki', 'tokB', false), { taken: true });
+  assert.equal(redis.store['dispatch:expo_tokens'].kakizaki, 'tokA', '上書きされない');
+  assert.deepEqual(await registerToken(redis, 'kakizaki', 'tokA', false), { taken: false, removed: [] }, '同じスマホの再登録はOK');
+  assert.deepEqual(await registerToken(redis, 'kakizaki', 'tokB', true), { taken: false, removed: ['oba'] }, '管理者は引き継ぎ、tokB の大庭は消える');
+  assert.deepEqual(redis.store['dispatch:expo_tokens'], { kakizaki: 'tokB' });
+  assert.equal(await unregisterToken(redis, 'kakizaki', 'tokZ', false), false, '別のスマホからは消せない');
+  assert.equal(await unregisterToken(redis, 'kakizaki', 'tokB', false), true);
+  assert.deepEqual(redis.store['dispatch:expo_tokens'], {});
+});

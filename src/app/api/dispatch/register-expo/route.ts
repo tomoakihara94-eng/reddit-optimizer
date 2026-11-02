@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRedis, EXPO_TOKENS_KEY } from '@/lib/dispatch-redis';
+import { getRedis } from '@/lib/dispatch-redis';
+import { isAdmin } from '@/lib/dispatch-admin';
+import { registerToken } from '@/lib/dispatch-tokens';
 
+// 営業の通知の登録。その名前が別のスマホで登録済みなら 409 taken（上書きしない）
+// 管理者の暗証番号（X-Admin-Pin）付きなら、このスマホに引き継ぐ（機種変更・入れ直し用）
 export async function POST(req: NextRequest) {
   const { staffId, token } = await req.json() as { staffId: string; token: string };
-  const redis = getRedis();
-  // 同じ端末が別の営業の名前でも登録されたままだと、その名前で応答が記録されてしまうため消す
-  const all = ((await redis.hgetall(EXPO_TOKENS_KEY)) ?? {}) as Record<string, string>;
-  const stale = Object.entries(all).filter(([id, t]) => t === token && id !== staffId).map(([id]) => id);
-  if (stale.length > 0) await redis.hdel(EXPO_TOKENS_KEY, ...stale);
-  await redis.hset(EXPO_TOKENS_KEY, { [staffId]: token });
-  return NextResponse.json({ success: true, removed: stale });
+  if (!staffId || !token) return NextResponse.json({ error: 'staffId and token required' }, { status: 400 });
+  const r = await registerToken(getRedis(), staffId, token, isAdmin(req));
+  if (r.taken) return NextResponse.json({ error: 'taken' }, { status: 409 });
+  return NextResponse.json({ success: true, removed: r.removed });
 }
