@@ -363,3 +363,9 @@ test('別のスマホで登録済みの名前は取れない。管理者なら�
   assert.equal(await unregisterToken(redis, 'kakizaki', 'tokB', false), true);
   assert.deepEqual(redis.store['dispatch:expo_tokens'], {});
 });
+
+test('問い合わせで当選しても通知は止めない（来店は30分止める）', async () => {
+  const redis = mockRedis({ 'dispatch:presses': Object.fromEntries([rawPress('oori', 2, 'いくぜ')]) });
+  await atAsync(after(40), () => finalizeIfDecided(redis, event({ kind: 'inquiry', line: '保留5', customerType: '軽自動車' })));
+  assert.equal(redis.store['dispatch:mutes']?.oori, undefined);
+});

@@ -95,9 +95,12 @@ export async function finalizeIfDecided(redis: Redis, event: DispatchEvent): Pro
     await redis.expire(key, RESULT_TTL_SECONDS);
     await redis.set(EVENT_KEY, { ...event, status: 'assigned', winner }, { ex: 3600 });
     await redis.del(PRESSES_KEY);
-    // 当選者は30分、来店通知を止める（本人が「通知を再開」で戻せる）
-    await redis.hset(MUTES_KEY, { [winner.id]: Date.now() + WINNER_MUTE_MIN * 60_000 });
-    await redis.hdel(MUTE_REASONS_KEY, winner.id);
+    // 来店の当選者は30分、来店通知を止める（本人が「通知を再開」で戻せる）
+    // 問い合わせ（電話）の当選者は止めない（2026-11-04 ユーザー指定。電話対応は短く、すぐ次を受けられるため）
+    if (event.kind !== 'inquiry') {
+      await redis.hset(MUTES_KEY, { [winner.id]: Date.now() + WINNER_MUTE_MIN * 60_000 });
+      await redis.hdel(MUTE_REASONS_KEY, winner.id);
+    }
   }
   return winner;
 }
