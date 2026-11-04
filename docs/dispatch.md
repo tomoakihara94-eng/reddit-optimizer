@@ -71,6 +71,15 @@
 - **1人の名前は1台のスマホだけ**（2026-11-02〜、`src/lib/dispatch-tokens.ts`）: `/register-expo` は、その名前が別のトークンで登録済みなら 409 `taken` で断る（上書きしない）。管理者の暗証番号付きなら引き継ぐ。`/unregister-expo` は token 付きならそのスマホの登録のときだけ消す（管理者は必ず、どちらもなしの古いアプリは従来どおり）
   - 背景: 別のスマホで同じ名前を選ぶと、黙って通知がそちらに移っていた
   - 機種変更・入れ直しでトークンが変わると taken になる → アプリで暗証番号を入れて引き継ぐか、管理者画面で登録を解除
+  - `/unregister-expo` はトークンも暗証番号もない（1.1.39 以前のアプリ）呼び出しでは消さない（2026-11-04〜）。古いアプリで差配者に切り替える・名前を選び直すと、本人の別のスマホの登録まで消していたため（千原さん・基成さんの登録が消えていた）
+
+## 送信記録（`src/lib/dispatch-pushlog.ts`、2026-11-04〜）
+
+- `dispatch:push_log`: 通知を送るたびに `{ t, eventId, stage(最初/再通知/送り続け), sent, skipped(営業ID→理由), tickets(営業ID→ok:ticketId / error:内容), error }`。最大300件・3日
+  - 理由: 未登録 / 通知OFF / 差配者 / 応答済み / 得意度・TELで遅らせ中 / 同じスマホ / 夜間（`planPush`）
+- `dispatch:token_log`: 登録の新規・引き継ぎ・断った（taken）・削除（deleted / not this device / legacy ignored）。毎回の同じ登録は残さない。最大300件・14日
+- `GET /push-log`（暗証番号なし・トークンは含まない）で読む。`?receipts=1` で直近30回分の Expo receipt（Apple まで届いたか。24時間以内）も付ける
+- 「鳴らない」と言われたら: push_log でその人が sent か skipped か → sent なら tickets/receipts → ok なら端末側（マナーモード・集中モード・通知設定）
 
 ## Redis キー（`src/lib/dispatch-redis.ts`）
 
@@ -95,6 +104,8 @@
 | `dispatch:tel` | 営業ID → TEL（1〜10）。問い合わせの得点に掛ける | 保持 |
 | `dispatch:labels` | 差配者名称（JSON） | 保持 |
 | `dispatch:notify_log` | 来店通知の送信記録 最新10件 | 1日 |
+| `dispatch:push_log` | 通知ごとの送り先・送らない理由・Expo の返事 | 300件・3日 |
+| `dispatch:token_log` | 通知の登録の変更 | 300件・14日 |
 
 ## 公開 API（暗証番号なし）
 

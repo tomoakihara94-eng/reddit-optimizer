@@ -2,6 +2,7 @@ import { STAFF, WINDOW_MS, isQuietHours } from './dispatch-config';
 import { getRedis, getActiveMutes, getAffinityTable, getTelTable, scoringContext, pushText, EVENT_KEY, EXPO_TOKENS_KEY, PRESSES_KEY, type DispatchEvent } from './dispatch-redis';
 import { getFastRules, blockedAffinity, gatedStaffIds } from './dispatch-fast';
 import { finalizeIfDecided } from './dispatch-result';
+import { planPush, recordPush, type PushLog, type SkipReason } from './dispatch-pushlog';
 
 const ACTIVE_STAFF_IDS: Set<string> = new Set(STAFF.map(s => s.id));
 const PUSH_TTL_SECONDS = 120;
@@ -13,30 +14,51 @@ export const VISIT_CATEGORY_ID = 'dispatch_visit';
 const VISIT_SOUND = 'raiten.wav';
 
 // Expo push をスタッフごとに送る。data.staffId を付けて、通知ボタンの応答が誰のものか分かるようにする
+// exclude: 送らない人 → 理由。送った・送らなかった・Expo の返事は dispatch:push_log に残す
 export async function sendVisitPush(
   expoTokens: Record<string, unknown>,
-  excludeIds: (string | undefined)[],
+  exclude: Record<string, SkipReason>,
   title: string,
   body: string,
+  meta: { eventId?: string; stage: string } = { stage: '?' },
 ) {
-  if (isQuietHours()) return; // 夜間（19:00〜翌8:15）は通知しない
-  const muted = await getActiveMutes(); // 「対応中（行けない）」で通知を止めている人
-  const seen = new Set<string>(); // 同端末で複数スタッフIDに登録されている場合の重複排除
-  const messages = Object.entries(expoTokens)
-    .filter(([staffId]) => ACTIVE_STAFF_IDS.has(staffId) && !excludeIds.includes(staffId) && !(staffId in muted))
-    .filter(([, token]) => !seen.has(token as string) && !!seen.add(token as string))
-    .map(([staffId, to]) => ({
-      to, sound: VISIT_SOUND, title, body, ttl: PUSH_TTL_SECONDS,
+  const redis = getRedis();
+  const muted = await getActiveMutes(redis); // 「いけない」・通知OFF・来店の当選で止めている人
+  const { targets, skipped } = planPush(
+    [...ACTIVE_STAFF_IDS], expoTokens as Record<string, string>, exclude, muted, isQuietHours(), // 夜間（19:00〜翌8:15）は送らない
+  );
+  const log: PushLog = { t: Date.now(), ...meta, sent: targets.map(x => x.staffId), skipped };
+  if (targets.length > 0) {
+    const messages = targets.map(({ staffId, token }) => ({
+      to: token, sound: VISIT_SOUND, title, body, ttl: PUSH_TTL_SECONDS,
       categoryId: VISIT_CATEGORY_ID,
       interruptionLevel: 'time-sensitive', // 集中モード中でも届く（アプリ側に権限が必要）
       data: { staffId },
     }));
-  if (messages.length === 0) return;
-  await fetch('https://exp.host/--/api/v2/push/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify(messages),
-  });
+    try {
+      const res = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(messages),
+      });
+      const json = await res.json().catch(() => null) as { data?: { status: string; id?: string; message?: string; details?: { error?: string } }[] } | null;
+      if (!res.ok) log.error = `HTTP ${res.status}`;
+      log.tickets = Object.fromEntries(targets.map((x, i) => {
+        const d = json?.data?.[i];
+        return [x.staffId, !d ? 'unknown' : d.status === 'ok' ? `ok:${d.id ?? ''}` : `error:${d.details?.error ?? d.message ?? ''}`];
+      }));
+    } catch (e) {
+      log.error = String(e).slice(0, 200);
+    }
+  }
+  await recordPush(redis, log);
+}
+
+// 理由つきの「送らない人」を作る
+export function excludeOf(...groups: [(string | undefined)[], SkipReason][]): Record<string, SkipReason> {
+  const out: Record<string, SkipReason> = {};
+  for (const [ids, reason] of groups) for (const id of ids) if (id && !out[id]) out[id] = reason;
+  return out;
 }
 
 // 即決定の設定で、まだ通知しない人（その時点で得意度が低い人）の ID
@@ -61,7 +83,8 @@ export async function repushToPending(eventId: string) {
   const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
   const pressedIds = Object.keys((await redis.hgetall(PRESSES_KEY)) ?? {}).map(k => k.split('::')[0]);
   const { title, body } = pushText(event, 'again');
-  await sendVisitPush(expoTokens, [event.dispatcherId, ...pressedIds, ...(await gatedIdsNow(event))], title, body);
+  const exclude = excludeOf([[event.dispatcherId], '差配者'], [pressedIds, '応答済み'], [await gatedIdsNow(event), '得意度・TELで遅らせ中']);
+  await sendVisitPush(expoTokens, exclude, title, body, { eventId: event.id, stage: `再通知 ${Math.round((Date.now() - event.startedAt) / 1000)}秒` });
 }
 
 // 30秒たっても当選者がいないとき、未応答の全員に通知を送り続ける（差配者のアプリが定期的に呼ぶ）
@@ -80,6 +103,7 @@ export async function keepNotifying(): Promise<boolean> {
   const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
   const pressedIds = Object.keys((await redis.hgetall(PRESSES_KEY)) ?? {}).map(k => k.split('::')[0]);
   const { title, body } = pushText(event, 'keep');
-  await sendVisitPush(expoTokens, [event.dispatcherId, ...pressedIds], title, body);
+  const exclude = excludeOf([[event.dispatcherId], '差配者'], [pressedIds, '応答済み']);
+  await sendVisitPush(expoTokens, exclude, title, body, { eventId: event.id, stage: `送り続け ${Math.round(elapsed / 1000)}秒` });
   return true;
 }

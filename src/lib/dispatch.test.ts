@@ -356,11 +356,13 @@ test('別のスマホで登録済みの名前は取れない。管理者なら�
   const redis = mockRedis({ 'dispatch:expo_tokens': { kakizaki: 'tokA', oba: 'tokB' } });
   assert.deepEqual(await registerToken(redis, 'kakizaki', 'tokB', false), { taken: true });
   assert.equal(redis.store['dispatch:expo_tokens'].kakizaki, 'tokA', '上書きされない');
-  assert.deepEqual(await registerToken(redis, 'kakizaki', 'tokA', false), { taken: false, removed: [] }, '同じスマホの再登録はOK');
-  assert.deepEqual(await registerToken(redis, 'kakizaki', 'tokB', true), { taken: false, removed: ['oba'] }, '管理者は引き継ぎ、tokB の大庭は消える');
+  assert.deepEqual(await registerToken(redis, 'kakizaki', 'tokA', false), { taken: false, removed: [], changed: false }, '同じスマホの再登録はOK（記録しない）');
+  assert.deepEqual(await registerToken(redis, 'kakizaki', 'tokB', true), { taken: false, removed: ['oba'], changed: true }, '管理者は引き継ぎ、tokB の大庭は消える');
   assert.deepEqual(redis.store['dispatch:expo_tokens'], { kakizaki: 'tokB' });
-  assert.equal(await unregisterToken(redis, 'kakizaki', 'tokZ', false), false, '別のスマホからは消せない');
-  assert.equal(await unregisterToken(redis, 'kakizaki', 'tokB', false), true);
+  assert.equal(await unregisterToken(redis, 'kakizaki', 'tokZ', false), 'not this device', '別のスマホからは消せない');
+  assert.equal(await unregisterToken(redis, 'kakizaki', undefined, false), 'legacy ignored', '古いアプリ（トークンなし）からは消せない');
+  assert.equal(redis.store['dispatch:expo_tokens'].kakizaki, 'tokB');
+  assert.equal(await unregisterToken(redis, 'kakizaki', 'tokB', false), 'deleted');
   assert.deepEqual(redis.store['dispatch:expo_tokens'], {});
 });
 
@@ -368,4 +370,14 @@ test('問い合わせで当選しても通知は止めない（来店は30分止
   const redis = mockRedis({ 'dispatch:presses': Object.fromEntries([rawPress('oori', 2, 'いくぜ')]) });
   await atAsync(after(40), () => finalizeIfDecided(redis, event({ kind: 'inquiry', line: '保留5', customerType: '軽自動車' })));
   assert.equal(redis.store['dispatch:mutes']?.oori, undefined);
+});
+
+test('通知の送り先と送らない理由（未登録・通知OFF・差配者・同じスマホ・夜間）', async () => {
+  const { planPush } = await import('./dispatch-pushlog');
+  const tokens = { a: 't1', b: 't2', c: 't3', d: 't1' };
+  const p = planPush(['a', 'b', 'c', 'd', 'e'], tokens, { b: '差配者' }, { c: Date.now() + 60_000 }, false);
+  assert.deepEqual(p.targets.map(x => x.staffId), ['a']);
+  assert.deepEqual(p.skipped, { b: '差配者', c: '通知OFF', d: '同じスマホ', e: '未登録' });
+  const q = planPush(['a'], tokens, {}, {}, true);
+  assert.deepEqual([q.targets.length, q.skipped.a], [0, '夜間']);
 });

@@ -7,21 +7,27 @@ import { EXPO_TOKENS_KEY } from './dispatch-redis';
 // 登録する。その名前が別のスマホで登録済みなら 'taken'（admin なら引き継ぐ）
 export async function registerToken(
   redis: Redis, staffId: string, token: string, admin: boolean,
-): Promise<{ taken: true } | { taken: false; removed: string[] }> {
+): Promise<{ taken: true } | { taken: false; removed: string[]; changed: boolean }> {
   const all = ((await redis.hgetall(EXPO_TOKENS_KEY)) ?? {}) as Record<string, string>;
   if (all[staffId] && all[staffId] !== token && !admin) return { taken: true };
   const removed = Object.entries(all).filter(([id, t]) => t === token && id !== staffId).map(([id]) => id);
   if (removed.length > 0) await redis.hdel(EXPO_TOKENS_KEY, ...removed);
-  await redis.hset(EXPO_TOKENS_KEY, { [staffId]: token });
-  return { taken: false, removed };
+  const changed = all[staffId] !== token || removed.length > 0; // 毎回の同じ登録ではない
+  if (all[staffId] !== token) await redis.hset(EXPO_TOKENS_KEY, { [staffId]: token });
+  return { taken: false, removed, changed };
 }
 
-// 消す。token 付きならそのスマホの登録のときだけ（admin は必ず、どちらもなしは古いアプリ用に従来どおり）
-export async function unregisterToken(redis: Redis, staffId: string, token: string | undefined, admin: boolean): Promise<boolean> {
-  if (token && !admin) {
+// 消す。token 付きならそのスマホの登録のときだけ、admin は必ず
+// どちらもなし（1.1.39 以前のアプリ）は消さない（2026-11-04〜）: 古いアプリで「差配者」に切り替えたり名前を選び直したりすると、
+// 別のスマホ（本人）の登録まで消していたため。同じスマホの別の名前の登録は registerToken が消すので残らない
+export async function unregisterToken(
+  redis: Redis, staffId: string, token: string | undefined, admin: boolean,
+): Promise<'deleted' | 'not this device' | 'legacy ignored'> {
+  if (!admin) {
+    if (!token) return 'legacy ignored';
     const all = ((await redis.hgetall(EXPO_TOKENS_KEY)) ?? {}) as Record<string, string>;
-    if (all[staffId] && all[staffId] !== token) return false;
+    if (all[staffId] && all[staffId] !== token) return 'not this device';
   }
   await redis.hdel(EXPO_TOKENS_KEY, staffId);
-  return true;
+  return 'deleted';
 }
