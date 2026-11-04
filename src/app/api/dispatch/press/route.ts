@@ -3,6 +3,7 @@ import { getRedis, getStaff, EVENT_KEY, PRESSES_KEY, MUTES_KEY, MUTE_REASONS_KEY
 import { toResponse, MUTE_DEFAULT_MIN, type Response } from '@/lib/dispatch-config';
 import { getFastRules, closeSec } from '@/lib/dispatch-fast';
 import { finalizeIfDecided } from '@/lib/dispatch-result';
+import { markResponded } from '@/lib/dispatch-stats';
 
 export async function POST(req: NextRequest) {
   const { staffId, response, via } = await req.json() as { staffId: string; response?: string; via?: string };
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
   if (existing) return NextResponse.json({ error: 'already pressed' }, { status: 400 });
 
   await redis.hset(PRESSES_KEY, { [key]: JSON.stringify({ t: Date.now(), r, ...(v ? { v } : {}) }) });
+  await markResponded(redis, event, staffId, r); // 投票率
   if (r === '対応中') {
     await redis.hset(MUTES_KEY, { [staffId]: Date.now() + MUTE_DEFAULT_MIN * 60_000 });
     await redis.hdel(MUTE_REASONS_KEY, staffId);

@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
       const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
       // 得意度が低い人には、即決定の設定の秒数まで送らない
       const { title, body: text } = pushText(event, 'first');
-      await sendVisitPush(expoTokens, excludeOf([[dispatcherId], '差配者'], [await gatedIdsNow(event), '得意度・TELで遅らせ中']), title, text, { eventId: event.id, stage: '最初' });
+      await sendVisitPush(expoTokens, excludeOf([[dispatcherId], '差配者'], [await gatedIdsNow(event), '得意度・TELで遅らせ中']), title, text, { eventId: event.id, startedAt: event.startedAt, stage: '最初' });
     } catch { /* ignore */ }
 
     // 2回目・3回目の通知（未応答の人だけ）。秒数は即決定の設定（10・20秒）に合わせる

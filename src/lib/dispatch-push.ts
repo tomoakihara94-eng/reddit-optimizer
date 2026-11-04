@@ -3,6 +3,7 @@ import { getRedis, getActiveMutes, getAffinityTable, getTelTable, scoringContext
 import { getFastRules, blockedAffinity, gatedStaffIds } from './dispatch-fast';
 import { finalizeIfDecided } from './dispatch-result';
 import { planPush, recordPush, type PushLog, type SkipReason } from './dispatch-pushlog';
+import { markNotified } from './dispatch-stats';
 
 const ACTIVE_STAFF_IDS: Set<string> = new Set(STAFF.map(s => s.id));
 const PUSH_TTL_SECONDS = 120;
@@ -20,14 +21,15 @@ export async function sendVisitPush(
   exclude: Record<string, SkipReason>,
   title: string,
   body: string,
-  meta: { eventId?: string; stage: string } = { stage: '?' },
+  meta: { eventId?: string; startedAt?: number; stage: string } = { stage: '?' },
 ) {
   const redis = getRedis();
   const muted = await getActiveMutes(redis); // 「いけない」・通知OFF・来店の当選で止めている人
   const { targets, skipped } = planPush(
     [...ACTIVE_STAFF_IDS], expoTokens as Record<string, string>, exclude, muted, isQuietHours(), // 夜間（19:00〜翌8:15）は送らない
   );
-  const log: PushLog = { t: Date.now(), ...meta, sent: targets.map(x => x.staffId), skipped };
+  const { startedAt, ...where } = meta;
+  const log: PushLog = { t: Date.now(), ...where, sent: targets.map(x => x.staffId), skipped };
   if (targets.length > 0) {
     const messages = targets.map(({ staffId, token }) => ({
       to: token, sound: VISIT_SOUND, title, body, ttl: PUSH_TTL_SECONDS,
@@ -52,6 +54,8 @@ export async function sendVisitPush(
     }
   }
   await recordPush(redis, log);
+  // 投票率の分母（この回で通知が届いた人）
+  if (meta.eventId && startedAt) await markNotified(redis, { id: meta.eventId, startedAt }, log.sent);
 }
 
 // 理由つきの「送らない人」を作る
@@ -84,7 +88,7 @@ export async function repushToPending(eventId: string) {
   const pressedIds = Object.keys((await redis.hgetall(PRESSES_KEY)) ?? {}).map(k => k.split('::')[0]);
   const { title, body } = pushText(event, 'again');
   const exclude = excludeOf([[event.dispatcherId], '差配者'], [pressedIds, '応答済み'], [await gatedIdsNow(event), '得意度・TELで遅らせ中']);
-  await sendVisitPush(expoTokens, exclude, title, body, { eventId: event.id, stage: `再通知 ${Math.round((Date.now() - event.startedAt) / 1000)}秒` });
+  await sendVisitPush(expoTokens, exclude, title, body, { eventId: event.id, startedAt: event.startedAt, stage: `再通知 ${Math.round((Date.now() - event.startedAt) / 1000)}秒` });
 }
 
 // 30秒たっても当選者がいないとき、未応答の全員に通知を送り続ける（差配者のアプリが定期的に呼ぶ）
@@ -104,6 +108,6 @@ export async function keepNotifying(): Promise<boolean> {
   const pressedIds = Object.keys((await redis.hgetall(PRESSES_KEY)) ?? {}).map(k => k.split('::')[0]);
   const { title, body } = pushText(event, 'keep');
   const exclude = excludeOf([[event.dispatcherId], '差配者'], [pressedIds, '応答済み']);
-  await sendVisitPush(expoTokens, exclude, title, body, { eventId: event.id, stage: `送り続け ${Math.round(elapsed / 1000)}秒` });
+  await sendVisitPush(expoTokens, exclude, title, body, { eventId: event.id, startedAt: event.startedAt, stage: `送り続け ${Math.round(elapsed / 1000)}秒` });
   return true;
 }

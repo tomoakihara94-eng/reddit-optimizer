@@ -40,6 +40,8 @@ function mockRedis(init: Record<string, unknown> = {}) {
     expire: async () => 1,
     del: async (k: string) => { delete store[k]; },
     hdel: async (k: string, ...f: string[]) => { for (const x of f) delete (store[k] ?? {})[x]; },
+    sadd: async (k: string, m: string) => { const set: Set<string> = (store[k] ??= new Set()); const had = set.has(m); set.add(m); return had ? 0 : 1; },
+    hincrby: async (k: string, f: string, n: number) => { const h = (store[k] ??= {}); h[f] = (Number(h[f]) || 0) + n; return h[f]; },
   };
   return redis;
 }
@@ -380,4 +382,19 @@ test('通知の送り先と送らない理由（未登録・通知OFF・差配�
   assert.deepEqual(p.skipped, { b: '差配者', c: '通知OFF', d: '同じスマホ', e: '未登録' });
   const q = planPush(['a'], tokens, {}, {}, true);
   assert.deepEqual([q.targets.length, q.skipped.a], [0, '夜間']);
+});
+
+test('投票率: 同じ回の再通知は1回と数え、通知の前にアプリで答えた人も分母に入る。いけないも投票', async () => {
+  const { markNotified, markResponded, getStats } = await import('./dispatch-stats');
+  const redis = mockRedis();
+  const ev = { id: 'e1', startedAt: START };
+  await markNotified(redis, ev, ['a', 'b']);
+  await markNotified(redis, ev, ['a', 'b']);          // 再通知
+  await markResponded(redis, ev, 'a', 'いくぜ');
+  await markResponded(redis, ev, 'c', '対応中');      // 通知なしでアプリから
+  await markNotified(redis, { id: 'e2', startedAt: START }, ['a']);
+  const rows = Object.fromEntries((await getStats(redis, [jstDate(START)])).map(r => [r.id, r]));
+  assert.deepEqual([rows.a.notified, rows.a.responded], [2, 1]);
+  assert.deepEqual([rows.b.notified, rows.b.responded], [1, 0]);
+  assert.deepEqual([rows.c.notified, rows.c.responded, rows.c.byResponse['対応中']], [1, 1, 1]);
 });

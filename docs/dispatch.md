@@ -82,6 +82,13 @@
 - `POST /test-expo { staffId }`: その1人にだけテスト通知（30秒に1回、夜間・通知OFFでも送る）。結果は push_log の stage 'テスト'
 - 「鳴らない」と言われたら: push_log でその人が sent か skipped か → sent なら tickets/receipts → ok なら端末側（マナーモード・集中モード・通知設定）
 
+## 投票率（`src/lib/dispatch-stats.ts`、2026-11-04〜）
+
+- 投票率 = 応答した回数 ÷ 通知が届いた回数（営業ごと・日ごと）。`GET /stats?days=1|7|30`（管理者）
+- 分母: `sendVisitPush` が送った人（`markNotified`。同じ回の再通知は `dispatch:notified:<eventId>` で1回だけ）＋通知の前にアプリで応答した人。通知OFF・夜間・未登録は送らないので入らない（ユーザー指定）
+- 分子: `/press` のたび（`markResponded`）。「いけない」も投票（ユーザー指定）。内訳 `<id>:r:<応答>`
+- 公開より前の分はない。送ってすぐ取り消した回も「届いた」に入る
+
 ## Redis キー（`src/lib/dispatch-redis.ts`）
 
 | キー | 中身 | 寿命 |
@@ -107,6 +114,8 @@
 | `dispatch:notify_log` | 来店通知の送信記録 最新10件 | 1日 |
 | `dispatch:push_log` | 通知ごとの送り先・送らない理由・Expo の返事 | 300件・3日 |
 | `dispatch:token_log` | 通知の登録の変更 | 300件・14日 |
+| `dispatch:stats:YYYY-MM-DD` | 投票率の集計（`<id>:n` / `<id>:r` / `<id>:r:<応答>`） | 180日 |
+| `dispatch:notified:<eventId>` | その回で数えた人 | 1日 |
 
 ## 公開 API（暗証番号なし）
 
@@ -115,7 +124,7 @@
 ## 管理者（暗証番号）
 
 - 暗証番号は Vercel の環境変数 `DISPATCH_ADMIN_PIN`。ヘッダー `X-Admin-Pin` で照合（`src/lib/dispatch-admin.ts`）
-- 必要な API: `/admin-verify`、`/affinity`、`/sales-units`、`/staff-name`、`/fast-rules`、`/tel`、`/labels` の POST
+- 必要な API: `/admin-verify`、`/stats`、`/affinity`、`/sales-units`、`/staff-name`、`/fast-rules`、`/tel`、`/labels` の POST
 - 変更は `vercel env rm` → `vercel env add` → 本番再公開。反映まで10秒ほどかかる
 - **未対応**: `/notify` 自体は暗証番号不要（古いアプリ・外部から送れる）
 
