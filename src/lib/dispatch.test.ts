@@ -395,6 +395,18 @@ test('投票率: 同じ回の再通知は1回と数え、通知の前にアプ�
   await markNotified(redis, { id: 'e2', startedAt: START }, ['a']);
   const rows = Object.fromEntries((await getStats(redis, [jstDate(START)])).map(r => [r.id, r]));
   assert.deepEqual([rows.a.notified, rows.a.responded], [2, 1]);
-  assert.deepEqual([rows.b.notified, rows.b.responded], [1, 0]);
+  assert.equal(rows.b, undefined, 'b は1回も応答していないので休み扱い');
   assert.deepEqual([rows.c.notified, rows.c.responded, rows.c.byResponse['対応中']], [1, 1, 1]);
+});
+
+test('投票率: 1回も応答しなかった日は休みとして数えない', async () => {
+  const { markNotified, markResponded, getStats } = await import('./dispatch-stats');
+  const redis = mockRedis();
+  const day1 = START, day2 = START + 86400_000;
+  await markNotified(redis, { id: 'x1', startedAt: day1 }, ['a']);
+  await markNotified(redis, { id: 'x2', startedAt: day1 }, ['a']);
+  await markResponded(redis, { id: 'x2', startedAt: day1 }, 'a', 'いくぜ');
+  await markNotified(redis, { id: 'y1', startedAt: day2 }, ['a']);   // 2日目は応答なし＝休み
+  const [a] = await getStats(redis, [jstDate(day1), jstDate(day2)]);
+  assert.deepEqual([a.days, a.notified, a.responded], [1, 2, 1]);
 });

@@ -88,6 +88,8 @@
 - 分母: `sendVisitPush` が送った人（`markNotified`。同じ回の再通知は `dispatch:notified:<eventId>` で1回だけ）＋通知の前にアプリで応答した人。通知OFF・夜間・未登録は送らないので入らない（ユーザー指定）
 - 分子: `/press` のたび（`markResponded`）。「いけない」も投票（ユーザー指定）。内訳 `<id>:r:<応答>`
 - 公開より前の分はない。送ってすぐ取り消した回も「届いた」に入る
+- **出勤日だけ**: 1回も応答しなかった日は休みとみなし、その日の通知は数えない（`getStats`、ユーザー指定）。`days` = 出勤日数
+- **専用パスワード**: `/stats` は管理者の暗証番号に加えて `X-Stats-Pin`（Vercel 環境変数 `DISPATCH_STATS_PIN`）が必要。未設定なら 503（誰も見られない）
 
 ## Redis キー（`src/lib/dispatch-redis.ts`）
 
