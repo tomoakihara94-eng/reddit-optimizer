@@ -31,6 +31,11 @@
 - 30秒以内に誰もいなければ、30秒後に最初に応答した人
 - 差配者本人（`event.dispatcherId`、旧仕様の名残）は対象外
 
+## 結果の決まり方（実況コメント用、2026-11-06〜）
+
+- `DispatchResult.decision = { mode: 'fast' | 'window' | 'late', decidedSec, tier? }`（`buildResult`）。fast は即決定で、当たった段（tier）も残す
+- アプリの `lib/commentary.ts` が結果から全員分の実況コメントを作る（古い結果は decision なしなので秒数から推測）
+
 ## 問い合わせ（電話）
 
 - 差配者が内線（必須）・お客様タイプ（必須、アプリ側で強制）・サイト（任意）を選び `POST /notify { kind: 'inquiry', line, customerType, source? }`（1.1.37〜。サイトなしでも受け付ける）

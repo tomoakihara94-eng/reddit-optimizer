@@ -410,3 +410,18 @@ test('投票率: 1回も応答しなかった日は休みとして数えない',
   const [a] = await getStats(redis, [jstDate(day1), jstDate(day2)]);
   assert.deepEqual([a.days, a.notified, a.responded], [1, 2, 1]);
 });
+
+test('結果に決まり方が残る（即決定は条件つき・30秒で最高点・30秒後の最初の応答）', async () => {
+  const { DEFAULT_FAST_RULES: R } = await import('./dispatch-fast');
+  const r1 = mockRedis({ 'dispatch:presses': Object.fromEntries([rawPress('oori', 2, 'いくぜ')]), 'dispatch:fast_rules': JSON.stringify(R) });
+  await atAsync(after(3), () => finalizeIfDecided(r1, event()));
+  const [a] = await getResults(r1, jstDate(START));
+  assert.equal(a.decision?.mode, 'fast');
+  assert.deepEqual(a.decision?.tier, { minScore: 36, afterSec: 0 });
+  const r2 = mockRedis({ 'dispatch:presses': Object.fromEntries([rawPress('oori', 2, '今は無理かも')]) });
+  await atAsync(after(31), () => finalizeIfDecided(r2, event()));
+  assert.equal((await getResults(r2, jstDate(START)))[0].decision?.mode, 'window');
+  const r3 = mockRedis({ 'dispatch:presses': Object.fromEntries([rawPress('oori', 35, '今は無理かも')]) });
+  await atAsync(after(36), () => finalizeIfDecided(r3, event()));
+  assert.equal((await getResults(r3, jstDate(START)))[0].decision?.mode, 'late');
+});
