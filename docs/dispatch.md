@@ -102,12 +102,13 @@
 
 ## 投票率（`src/lib/dispatch-stats.ts`、2026-11-04〜）
 
-- 投票率 = 応答した回数 ÷ 通知が届いた回数（営業ごと・日ごと）。`GET /stats?days=1|7|30`（管理者）
+- 投票率 = 応答した回数 ÷ 通知が届いた回数（営業ごと・日ごと）。`GET /stats?days=1|7|30`（管理者）が投票率 `rate` と当選率 `winRate` を返す
 - 分母: `sendVisitPush` が送った人（`markNotified`。同じ回の再通知は `dispatch:notified:<eventId>` で1回だけ）＋通知の前にアプリで応答した人。通知OFF・夜間・未登録は送らないので入らない（ユーザー指定）
 - 分子: `/press` のたび（`markResponded`）。「いけない」も投票（ユーザー指定）。内訳 `<id>:r:<応答>`
 - 公開より前の分はない。送ってすぐ取り消した回も「届いた」に入る
 - **出勤日だけ**: 1回も応答しなかった日は休みとみなし、その日の通知は数えない（`getStats`、ユーザー指定）。`days` = 出勤日数
-- **専用パスワード**: `/stats` は管理者の暗証番号に加えて `X-Stats-Pin`（Vercel 環境変数 `DISPATCH_STATS_PIN`）が必要。未設定なら 503（誰も見られない）
+- 専用パスワード（`X-Stats-Pin`）は 2026-11-07 に廃止（ユーザー指定）。管理者の暗証番号だけ。Vercel の `DISPATCH_STATS_PIN` は使っていない
+- **当選率** = 当選回数 ÷ 応答回数（2026-11-07〜）。当選回数は `/stats` が計算結果（`getResults`）から日ごとに数え、出勤日の分だけ足す
 
 ## Redis キー（`src/lib/dispatch-redis.ts`）
 

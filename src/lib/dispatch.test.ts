@@ -409,6 +409,8 @@ test('投票率: 1回も応答しなかった日は休みとして数えない',
   await markNotified(redis, { id: 'y1', startedAt: day2 }, ['a']);   // 2日目は応答なし＝休み
   const [a] = await getStats(redis, [jstDate(day1), jstDate(day2)]);
   assert.deepEqual([a.days, a.notified, a.responded], [1, 2, 1]);
+  const [b] = await getStats(redis, [jstDate(day1), jstDate(day2)], { [jstDate(day1)]: { a: 1 }, [jstDate(day2)]: { a: 5 } });
+  assert.equal(b.wins, 1, '休みの日の当選は数えない（応答がない日は当選もないはず）');
 });
 
 test('結果に決まり方が残る（即決定は条件つき・30秒で最高点・30秒後の最初の応答）', async () => {

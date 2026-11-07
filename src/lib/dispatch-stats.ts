@@ -35,13 +35,13 @@ export async function markResponded(redis: Redis, event: { id: string; startedAt
   } catch { /* 集計の失敗で応答を止めない */ }
 }
 
-export type StatsRow = { id: string; days: number; notified: number; responded: number; byResponse: Record<string, number> };
+export type StatsRow = { id: string; days: number; notified: number; responded: number; wins: number; byResponse: Record<string, number> };
 
 // 期間（日付の配列）の合計。1回も応答しなかった日は休みとみなし、その日の通知は数えない（2026-11-04 ユーザー指定）
-// days = 出勤日（1回以上応答した日）の数
-export async function getStats(redis: Redis, dates: string[]): Promise<StatsRow[]> {
+// days = 出勤日（1回以上応答した日）の数。wins = 当選回数（winsByDate: 日付 → 営業ID → 当選回数。計算結果の記録から数える）
+export async function getStats(redis: Redis, dates: string[], winsByDate: Record<string, Record<string, number>> = {}): Promise<StatsRow[]> {
   const rows: Record<string, StatsRow> = {};
-  const row = (id: string) => (rows[id] ??= { id, days: 0, notified: 0, responded: 0, byResponse: {} });
+  const row = (id: string) => (rows[id] ??= { id, days: 0, notified: 0, responded: 0, wins: 0, byResponse: {} });
   for (const date of dates) {
     const h = ((await redis.hgetall(statsKey(date))) ?? {}) as Record<string, unknown>;
     const day: Record<string, { n: number; r: number; by: Record<string, number> }> = {};
@@ -56,7 +56,7 @@ export async function getStats(redis: Redis, dates: string[]): Promise<StatsRow[
     for (const [id, d] of Object.entries(day)) {
       if (d.r <= 0) continue; // 休み
       const r = row(id);
-      r.days += 1; r.notified += d.n; r.responded += d.r;
+      r.days += 1; r.notified += d.n; r.responded += d.r; r.wins += winsByDate[date]?.[id] ?? 0;
       for (const [k, n] of Object.entries(d.by)) r.byResponse[k] = (r.byResponse[k] ?? 0) + n;
     }
   }
