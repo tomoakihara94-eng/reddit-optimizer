@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getRedis, MUTES_KEY, MUTE_REASONS_KEY } from '@/lib/dispatch-redis';
-import { STAFF, MUTE_OPTIONS_MIN, MUTE_OFF, MUTE_OFF_MS, MUTE_CUSTOM_MAX_MIN, MUTE_REASON_MAX } from '@/lib/dispatch-config';
+import { getRedis, MUTES_KEY, MUTE_REASONS_KEY, isStaffId } from '@/lib/dispatch-redis';
+import { MUTE_OPTIONS_MIN, MUTE_OFF, MUTE_OFF_MS, MUTE_CUSTOM_MAX_MIN, MUTE_REASON_MAX } from '@/lib/dispatch-config';
 
 // 来店通知を止める
 //   minutes: 10〜60（10分刻み）… 理由なし
@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const { staffId, minutes, reason } = await req.json() as { staffId: string; minutes: number; reason?: string };
   const why = typeof reason === 'string' ? reason.trim() : '';
   const custom = Number.isInteger(minutes) && minutes > 60 && minutes <= MUTE_CUSTOM_MAX_MIN;
-  const ok = STAFF.some(s => s.id === staffId) && (
+  const ok = (await isStaffId(staffId)) && (
     minutes === 0 || minutes === MUTE_OFF || MUTE_OPTIONS_MIN.includes(minutes)
     || (custom && why.length >= 1 && why.length <= MUTE_REASON_MAX)
   );

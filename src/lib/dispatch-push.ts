@@ -1,11 +1,10 @@
-import { STAFF, WINDOW_MS, isQuietHours } from './dispatch-config';
-import { getRedis, getActiveMutes, getAffinityTable, getTelTable, scoringContext, pushText, EVENT_KEY, EXPO_TOKENS_KEY, PRESSES_KEY, type DispatchEvent } from './dispatch-redis';
+import { WINDOW_MS, isQuietHours } from './dispatch-config';
+import { getRedis, getStaff, getInquiryOnly, getActiveMutes, getAffinityTable, getTelTable, scoringContext, pushText, EVENT_KEY, EXPO_TOKENS_KEY, PRESSES_KEY, type DispatchEvent } from './dispatch-redis';
 import { getFastRules, blockedAffinity, gatedStaffIds } from './dispatch-fast';
 import { finalizeIfDecided } from './dispatch-result';
 import { planPush, recordPush, type PushLog, type SkipReason } from './dispatch-pushlog';
 import { markNotified } from './dispatch-stats';
 
-const ACTIVE_STAFF_IDS: Set<string> = new Set(STAFF.map(s => s.id));
 const PUSH_TTL_SECONDS = 120;
 
 // アプリ側で登録する通知カテゴリ（「いくぜ」などのボタン付き。Apple Watch でも押せる）
@@ -21,14 +20,19 @@ export async function sendVisitPush(
   exclude: Record<string, SkipReason>,
   title: string,
   body: string,
-  meta: { eventId?: string; startedAt?: number; stage: string } = { stage: '?' },
+  meta: { eventId?: string; startedAt?: number; stage: string; kind?: 'visit' | 'inquiry' } = { stage: '?' },
 ) {
   const redis = getRedis();
   const muted = await getActiveMutes(redis); // 「いけない」・通知OFF・来店の当選で止めている人
+  // 来店の通知は「電話問い合わせだけ受ける」人には送らない
+  if (meta.kind !== 'inquiry') {
+    for (const id of await getInquiryOnly(redis)) if (!exclude[id]) exclude = { ...exclude, [id]: '問い合わせのみ' };
+  }
+  const staffIds = (await getStaff(redis)).map(s => s.id);
   const { targets, skipped } = planPush(
-    [...ACTIVE_STAFF_IDS], expoTokens as Record<string, string>, exclude, muted, isQuietHours(), // 夜間（19:00〜翌8:15）は送らない
+    staffIds, expoTokens as Record<string, string>, exclude, muted, isQuietHours(), // 夜間（19:00〜翌8:15）は送らない
   );
-  const { startedAt, ...where } = meta;
+  const { startedAt, kind: _kind, ...where } = meta;
   const log: PushLog = { t: Date.now(), ...where, sent: targets.map(x => x.staffId), skipped };
   if (targets.length > 0) {
     const messages = targets.map(({ staffId, token }) => ({
@@ -73,7 +77,7 @@ export async function gatedIdsNow(event: DispatchEvent, now = Date.now()): Promi
   if (blocked <= 0) return [];
   const ctx = scoringContext(event, await getAffinityTable(redis), await getTelTable(redis));
   if (!ctx.customerType) return [];
-  return gatedStaffIds([...ACTIVE_STAFF_IDS], ctx.affinity, ctx.customerType, blocked);
+  return gatedStaffIds((await getStaff(redis)).map(s => s.id), ctx.affinity, ctx.customerType, blocked);
 }
 
 // 同じ来店で、まだ応答していない営業にだけもう一度通知する（差配者・応答済み・得意度でまだ止めている人は除く）
@@ -88,7 +92,7 @@ export async function repushToPending(eventId: string) {
   const pressedIds = Object.keys((await redis.hgetall(PRESSES_KEY)) ?? {}).map(k => k.split('::')[0]);
   const { title, body } = pushText(event, 'again');
   const exclude = excludeOf([[event.dispatcherId], '差配者'], [pressedIds, '応答済み'], [await gatedIdsNow(event), '得意度・TELで遅らせ中']);
-  await sendVisitPush(expoTokens, exclude, title, body, { eventId: event.id, startedAt: event.startedAt, stage: `再通知 ${Math.round((Date.now() - event.startedAt) / 1000)}秒` });
+  await sendVisitPush(expoTokens, exclude, title, body, { eventId: event.id, startedAt: event.startedAt, kind: event.kind, stage: `再通知 ${Math.round((Date.now() - event.startedAt) / 1000)}秒` });
 }
 
 // 30秒たっても当選者がいないとき、未応答の全員に通知を送り続ける（差配者のアプリが定期的に呼ぶ）
@@ -108,6 +112,6 @@ export async function keepNotifying(): Promise<boolean> {
   const pressedIds = Object.keys((await redis.hgetall(PRESSES_KEY)) ?? {}).map(k => k.split('::')[0]);
   const { title, body } = pushText(event, 'keep');
   const exclude = excludeOf([[event.dispatcherId], '差配者'], [pressedIds, '応答済み']);
-  await sendVisitPush(expoTokens, exclude, title, body, { eventId: event.id, startedAt: event.startedAt, stage: `送り続け ${Math.round(elapsed / 1000)}秒` });
+  await sendVisitPush(expoTokens, exclude, title, body, { eventId: event.id, startedAt: event.startedAt, kind: event.kind, stage: `送り続け ${Math.round(elapsed / 1000)}秒` });
   return true;
 }

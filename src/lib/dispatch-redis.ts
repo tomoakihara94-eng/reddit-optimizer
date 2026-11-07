@@ -37,6 +37,9 @@ export const AFFINITY_KEY     = 'dispatch:affinity'; // staffId → { タイプ:
 export const MUTES_KEY        = 'dispatch:mutes'; // staffId → 通知を止める期限(ms)。「対応中（行けない）」で設定
 export const SALES_UNITS_KEY  = 'dispatch:sales_units'; // staffId → 実績（台数）。管理者画面で入力
 export const STAFF_NAMES_KEY  = 'dispatch:staff_names'; // staffId → 表示名。管理者が営業画面から変更
+export const STAFF_ADDED_KEY   = 'dispatch:staff_added';   // staffId → 名前。アプリの「営業を追加」で足した人（2026-11-07〜）
+export const STAFF_REMOVED_KEY = 'dispatch:staff_removed'; // staffId → 削除した時刻。最初からの営業も追加した営業も
+export const INQUIRY_ONLY_KEY  = 'dispatch:inquiry_only';  // staffId → '1'。電話問い合わせの通知だけ受ける（本人が戻すまで）
 export const MUTE_REASONS_KEY = 'dispatch:mute_reasons'; // staffId → 60分を超えて止めた理由
 export const TEL_KEY          = 'dispatch:tel'; // staffId → TEL（1〜10）。問い合わせの得点に掛ける
 export const NOTIFY_LOG_KEY   = 'dispatch:notify_log';
@@ -64,13 +67,26 @@ export async function getSalesUnits(redis: Redis = getRedis()): Promise<Record<s
 }
 
 // スタッフ一覧（名前は変更分を反映）。ID は固定、名前だけ Redis で上書きできる
+// 今いる営業 = 最初からの営業（dispatch-config の STAFF）＋ 追加した営業 − 削除した営業。名前は変更分で上書き
 export async function getStaff(redis: Redis = getRedis()): Promise<StaffMember[]> {
   try {
-    const names = ((await redis.hgetall(STAFF_NAMES_KEY)) ?? {}) as Record<string, string>;
-    return STAFF.map(s => (names[s.id] ? { ...s, name: names[s.id] } : s));
+    const names   = ((await redis.hgetall(STAFF_NAMES_KEY)) ?? {}) as Record<string, string>;
+    const added   = ((await redis.hgetall(STAFF_ADDED_KEY)) ?? {}) as Record<string, string>;
+    const removed = ((await redis.hgetall(STAFF_REMOVED_KEY)) ?? {}) as Record<string, unknown>;
+    const all: StaffMember[] = [...STAFF, ...Object.entries(added).map(([id, name]) => ({ id, name: String(name), rank: 'B' as const }))];
+    return all.filter(s => !(s.id in removed)).map(s => (names[s.id] ? { ...s, name: names[s.id] } : s));
   } catch {
     return [...STAFF]; // Redis に届かないときは初期の名前
   }
+}
+
+export async function isStaffId(id: unknown, redis: Redis = getRedis()): Promise<boolean> {
+  return typeof id === 'string' && (await getStaff(redis)).some(s => s.id === id);
+}
+
+// 電話問い合わせだけ受ける営業
+export async function getInquiryOnly(redis: Redis = getRedis()): Promise<string[]> {
+  return Object.keys(((await redis.hgetall(INQUIRY_ONLY_KEY)) ?? {}) as Record<string, unknown>);
 }
 
 // 通知を止めている人の理由（止めている人の分だけ）

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server';
-import { getRedis, pushText, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
-import { STAFF, CUSTOMER_TYPES } from '@/lib/dispatch-config';
+import { getRedis, isStaffId, pushText, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
+import { CUSTOMER_TYPES } from '@/lib/dispatch-config';
 import { getLabels } from '@/lib/dispatch-labels';
 import { sendVisitPush, repushToPending, gatedIdsNow, excludeOf } from '@/lib/dispatch-push';
 import { getFastRules, repushTimesSec } from '@/lib/dispatch-fast';
@@ -8,7 +8,6 @@ import { getFastRules, repushTimesSec } from '@/lib/dispatch-fast';
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 再通知（最大20秒後）まで関数を生かしておく
 
-const ACTIVE_STAFF_IDS: Set<string> = new Set(STAFF.map(s => s.id));
 export async function POST(req: NextRequest) {
   try {
     const redis = getRedis();
@@ -27,7 +26,7 @@ export async function POST(req: NextRequest) {
     if (body.kind === 'inquiry' && !inquiry) return NextResponse.json({ error: 'invalid inquiry' }, { status: 400 });
     // お客様タイプ（来店・問い合わせとも。担当者以外には見せない）
     const customerType = (CUSTOMER_TYPES as readonly string[]).includes(body.customerType ?? '') ? body.customerType : undefined;
-    const dispatcherId = body.dispatcherId && ACTIVE_STAFF_IDS.has(body.dispatcherId) ? body.dispatcherId : undefined;
+    const dispatcherId = body.dispatcherId && (await isStaffId(body.dispatcherId, redis)) ? body.dispatcherId : undefined;
 
     // ログ記録（最新10件）
     const ip = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'unknown';
@@ -80,7 +79,7 @@ export async function POST(req: NextRequest) {
       const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
       // 得意度が低い人には、即決定の設定の秒数まで送らない
       const { title, body: text } = pushText(event, 'first');
-      await sendVisitPush(expoTokens, excludeOf([[dispatcherId], '差配者'], [await gatedIdsNow(event), '得意度・TELで遅らせ中']), title, text, { eventId: event.id, startedAt: event.startedAt, stage: '最初' });
+      await sendVisitPush(expoTokens, excludeOf([[dispatcherId], '差配者'], [await gatedIdsNow(event), '得意度・TELで遅らせ中']), title, text, { eventId: event.id, startedAt: event.startedAt, kind: event.kind, stage: '最初' });
     } catch { /* ignore */ }
 
     // 2回目・3回目の通知（未応答の人だけ）。秒数は即決定の設定（10・20秒）に合わせる

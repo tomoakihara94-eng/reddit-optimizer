@@ -87,6 +87,19 @@
 - `POST /test-expo { staffId }`: その1人にだけテスト通知（30秒に1回、夜間・通知OFFでも送る）。結果は push_log の stage 'テスト'
 - 「鳴らない」と言われたら: push_log でその人が sent か skipped か → sent なら tickets/receipts → ok なら端末側（マナーモード・集中モード・通知設定）
 
+## 営業の追加・削除（`src/lib/dispatch-staff.ts`、2026-11-07〜）
+
+- 今いる営業 = `STAFF`（dispatch-config）＋ `dispatch:staff_added`（ID → 名前）− `dispatch:staff_removed`（ID → 削除時刻）。名前は `dispatch:staff_names` で上書き（`getStaff`）
+- `POST /staff { name }`（管理者）で追加。ID は `s` ＋ 時刻（36進）。同じ名前は不可。`DELETE /staff { staffId }`（管理者）で削除（最初からの営業も可）。通知の登録・停止・問い合わせのみも消す。過去の計算結果は残る
+- 営業IDの検査は `isStaffId`（各 API）。通知の送り先も `getStaff` から（追加した人にも届く）
+- 旧 Web 版（src/app/dispatch/*）は `STAFF` 固定のまま
+
+## 電話問い合わせだけ受ける（2026-11-07〜）
+
+- `POST /inquiry-only { staffId, on }`（本人、暗証番号なし）。`dispatch:inquiry_only`。本人が戻すまで続く（ユーザー指定）
+- 来店の通知（最初・再通知・送り続け）ではこの人を外す（送信記録の理由「問い合わせのみ」）。投票率の分母にも入らない
+- `/status` が `inquiryOnly`（ID の配列）を全員に返す。アプリは来店中の画面を出さない・差配者の一覧に出す
+
 ## 投票率（`src/lib/dispatch-stats.ts`、2026-11-04〜）
 
 - 投票率 = 応答した回数 ÷ 通知が届いた回数（営業ごと・日ごと）。`GET /stats?days=1|7|30`（管理者）
@@ -121,6 +134,9 @@
 | `dispatch:notify_log` | 来店通知の送信記録 最新10件 | 1日 |
 | `dispatch:push_log` | 通知ごとの送り先・送らない理由・Expo の返事 | 300件・3日 |
 | `dispatch:token_log` | 通知の登録の変更 | 300件・14日 |
+| `dispatch:staff_added` | 追加した営業（ID → 名前） | 保持 |
+| `dispatch:staff_removed` | 削除した営業（ID → 時刻） | 保持 |
+| `dispatch:inquiry_only` | 電話問い合わせだけ受ける営業 | 保持 |
 | `dispatch:stats:YYYY-MM-DD` | 投票率の集計（`<id>:n` / `<id>:r` / `<id>:r:<応答>`） | 180日 |
 | `dispatch:notified:<eventId>` | その回で数えた人 | 1日 |
 
@@ -131,7 +147,7 @@
 ## 管理者（暗証番号）
 
 - 暗証番号は Vercel の環境変数 `DISPATCH_ADMIN_PIN`。ヘッダー `X-Admin-Pin` で照合（`src/lib/dispatch-admin.ts`）
-- 必要な API: `/admin-verify`、`/stats`、`/affinity`、`/sales-units`、`/staff-name`、`/fast-rules`、`/tel`、`/labels` の POST
+- 必要な API: `/admin-verify`、`/staff`（追加・削除）、`/stats`、`/affinity`、`/sales-units`、`/staff-name`、`/fast-rules`、`/tel`、`/labels` の POST
 - 変更は `vercel env rm` → `vercel env add` → 本番再公開。反映まで10秒ほどかかる
 - **未対応**: `/notify` 自体は暗証番号不要（古いアプリ・外部から送れる）
 

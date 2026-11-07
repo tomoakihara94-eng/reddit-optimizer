@@ -5,7 +5,7 @@ import type { Redis } from '@upstash/redis';
 export const PUSH_LOG_KEY  = 'dispatch:push_log';   // 新しい順 最大300件、3日
 export const TOKEN_LOG_KEY = 'dispatch:token_log';  // 新しい順 最大300件、14日
 
-export type SkipReason = '未登録' | '通知OFF' | '差配者' | '応答済み' | '得意度・TELで遅らせ中' | '同じスマホ' | '夜間';
+export type SkipReason = '未登録' | '通知OFF' | '差配者' | '応答済み' | '得意度・TELで遅らせ中' | '同じスマホ' | '夜間' | '問い合わせのみ';
 export type PushLog = {
   t: number; eventId?: string; stage: string;
   sent: string[];                        // 送った営業ID

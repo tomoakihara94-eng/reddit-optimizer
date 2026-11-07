@@ -425,3 +425,21 @@ test('結果に決まり方が残る（即決定は条件つき・30秒で最高
   await atAsync(after(36), () => finalizeIfDecided(r3, event()));
   assert.equal((await getResults(r3, jstDate(START)))[0].decision?.mode, 'late');
 });
+
+// ─── 営業の追加・削除、電話問い合わせだけ ───
+test('営業を追加すると一覧に入り、削除すると消えて通知の登録も外れる。同じ名前は追加できない', async () => {
+  const { addStaff, removeStaff } = await import('./dispatch-staff');
+  const { getStaff, isStaffId } = await import('./dispatch-redis');
+  const redis = mockRedis({ 'dispatch:expo_tokens': { asakura: 'tokA' } });
+  const r = await addStaff(redis, '新人', 1_000_000);
+  assert.ok('id' in r);
+  const id = (r as { id: string }).id;
+  assert.ok(await isStaffId(id, redis));
+  assert.equal((await getStaff(redis)).find(s => s.id === id)?.name, '新人');
+  assert.deepEqual(await addStaff(redis, '新人'), { error: 'duplicate' });
+  assert.deepEqual(await addStaff(redis, '浅倉'), { error: 'duplicate' }, '最初からの営業と同じ名前も不可');
+  assert.ok(await removeStaff(redis, 'asakura'));
+  assert.equal(await isStaffId('asakura', redis), false);
+  assert.equal(redis.store['dispatch:expo_tokens'].asakura, undefined);
+  assert.equal(await removeStaff(redis, 'asakura'), false, '二重に消さない');
+});

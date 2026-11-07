@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRedis, getAffinityTable, AFFINITY_KEY } from '@/lib/dispatch-redis';
-import { STAFF, CUSTOMER_TYPES, AFFINITY_MIN, AFFINITY_MAX } from '@/lib/dispatch-config';
+import { getRedis, getAffinityTable, AFFINITY_KEY, isStaffId } from '@/lib/dispatch-redis';
+import { CUSTOMER_TYPES, AFFINITY_MIN, AFFINITY_MAX } from '@/lib/dispatch-config';
 
 import { isAdmin as authorized } from '@/lib/dispatch-admin';
 
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const { staffId, levels } = await req.json() as { staffId: string; levels: Record<string, number> };
-  if (!STAFF.some(s => s.id === staffId) || !levels || typeof levels !== 'object')
+  if (!(await isStaffId(staffId)) || !levels || typeof levels !== 'object')
     return NextResponse.json({ error: 'invalid' }, { status: 400 });
 
   const clean: Record<string, number> = {};
