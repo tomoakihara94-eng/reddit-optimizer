@@ -31,3 +31,12 @@ export async function unregisterToken(
   await redis.hdel(EXPO_TOKENS_KEY, staffId);
   return 'deleted';
 }
+
+// 設定の変更（電話問い合わせだけ・来店通知OFF）が、その営業の名前で登録されているスマホからか（2026-11-08〜）
+//   'ok' 本人のスマホ ／ 'other' 別のスマホ（「別のスマホで使われています」の端末など）／ 'none' トークンなし（古いアプリ）
+//   背景: 1.1.44 以降のアプリから、別の人の名前で「電話問い合わせだけ」をオンにでき、浅倉・柿崎の来店通知が止まっていた
+export async function deviceCheck(redis: Redis, staffId: string, token: unknown): Promise<'ok' | 'other' | 'none'> {
+  if (typeof token !== 'string' || !token) return 'none';
+  const current = await redis.hget<string>(EXPO_TOKENS_KEY, staffId);
+  return current === token ? 'ok' : 'other';
+}

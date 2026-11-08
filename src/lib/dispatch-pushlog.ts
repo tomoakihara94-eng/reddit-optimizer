@@ -13,7 +13,7 @@ export type PushLog = {
   tickets?: Record<string, string>;      // 営業ID → 'ok:<ticketId>' / 'error:<内容>'
   error?: string;                        // Expo への送信自体の失敗
 };
-export type TokenLog = { t: number; action: 'register' | 'unregister'; staffId: string; result: string; ip?: string; ua?: string };
+export type TokenLog = { t: number; action: 'register' | 'unregister' | 'inquiry-only' | 'mute'; staffId: string; result: string; ip?: string; ua?: string };
 
 // 誰に送り、誰に送らないか（理由つき）を決める。同じスマホが複数の名前で登録されていたら1通だけ
 export function planPush(

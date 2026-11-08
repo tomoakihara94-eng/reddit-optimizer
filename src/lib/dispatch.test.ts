@@ -445,3 +445,12 @@ test('営業を追加すると一覧に入り、削除すると消えて通知�
   assert.equal(redis.store['dispatch:expo_tokens'].asakura, undefined);
   assert.equal(await removeStaff(redis, 'asakura'), false, '二重に消さない');
 });
+
+test('設定の変更は本人のスマホだけ（別のスマホは other、トークンなしの古いアプリは none）', async () => {
+  const { deviceCheck } = await import('./dispatch-tokens');
+  const redis: any = { hget: async (_k: string, f: string) => ({ asakura: 'tokA' } as Record<string, string>)[f] ?? null };
+  assert.equal(await deviceCheck(redis, 'asakura', 'tokA'), 'ok');
+  assert.equal(await deviceCheck(redis, 'asakura', 'tokB'), 'other');
+  assert.equal(await deviceCheck(redis, 'kakizaki', 'tokB'), 'other', '登録がない名前も本人とは言えない');
+  assert.equal(await deviceCheck(redis, 'asakura', undefined), 'none');
+});
