@@ -84,7 +84,7 @@
   - 理由: 未登録 / 通知OFF / 差配者 / 応答済み / 得意度・TELで遅らせ中 / 同じスマホ / 夜間（`planPush`）
 - `dispatch:token_log`: 登録の新規・引き継ぎ・断った（taken）・削除（deleted / not this device / legacy ignored）。毎回の同じ登録は残さない。最大300件・14日
 - `GET /push-log`（暗証番号なし・トークンは含まない）で読む。`?receipts=1` で直近30回分の Expo receipt（Apple まで届いたか。24時間以内）も付ける
-- `POST /test-expo { staffId }`: その1人にだけテスト通知（30秒に1回、夜間・通知OFFでも送る）。結果は push_log の stage 'テスト'
+- `POST /test-expo { staffId }`: その1人にだけテスト通知（30秒に1回、夜間・通知OFFでも送る）。結果は push_log の stage 'テスト'。`GET /test-expo?ticket=` で Apple まで届いたか（pending / ok / error）。差配者画面の「テスト」タブが使う
 - 「鳴らない」と言われたら: push_log でその人が sent か skipped か → sent なら tickets/receipts → ok なら端末側（マナーモード・集中モード・通知設定）
 
 ## 営業の追加・削除（`src/lib/dispatch-staff.ts`、2026-11-07〜）

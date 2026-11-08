@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRedis, getStaff, EXPO_TOKENS_KEY } from '@/lib/dispatch-redis';
 import { recordPush } from '@/lib/dispatch-pushlog';
 
-// 1人の営業にだけテスト通知を送る（「通知が来ない」の調査用。2026-11-04〜）
+// 1人の営業にだけテスト通知を送る（「通知が来ない」の調査用。2026-11-04〜、差配者画面の「テスト」タブ 2026-11-08〜）
 //   POST { staffId } … 来店通知と同じ音・同じ形で送る。同じ人には30秒に1回まで。夜間・通知OFFでも送る（調査のため）
 //   結果は dispatch:push_log に stage 'テスト' で残る。Apple まで届いたかは GET /push-log?receipts=1（1分ほど後）
 export async function POST(req: NextRequest) {
@@ -28,4 +28,17 @@ export async function POST(req: NextRequest) {
   const ticket = !d ? `unknown(HTTP ${res.status})` : d.status === 'ok' ? `ok:${d.id ?? ''}` : `error:${d.details?.error ?? d.message ?? ''}`;
   await recordPush(redis, { t: Date.now(), stage: 'テスト', sent: [staffId], skipped: {}, tickets: { [staffId]: ticket } });
   return NextResponse.json({ staffId, ticket });
+}
+
+// テスト通知が Apple まで届いたか（Expo の receipt）。?ticket=<POST で返った ok: の後ろ>
+//   { status: 'pending' }（まだ分からない・数秒〜1分）／ { status: 'ok' }／ { status: 'error', error }
+export async function GET(req: NextRequest) {
+  const ticket = new URL(req.url).searchParams.get('ticket') ?? '';
+  if (!/^[0-9a-f-]{20,60}$/i.test(ticket)) return NextResponse.json({ error: 'invalid ticket' }, { status: 400 });
+  const res = await fetch('https://exp.host/--/api/v2/push/getReceipts', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [ticket] }),
+  }).catch(() => null);
+  const r = (await res?.json().catch(() => null))?.data?.[ticket] as { status: string; message?: string; details?: { error?: string } } | undefined;
+  if (!r) return NextResponse.json({ status: 'pending' });
+  return NextResponse.json(r.status === 'ok' ? { status: 'ok' } : { status: 'error', error: r.details?.error ?? r.message ?? '' });
 }
