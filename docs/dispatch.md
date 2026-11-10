@@ -36,6 +36,17 @@
 - `DispatchResult.decision = { mode: 'fast' | 'window' | 'late', decidedSec, tier? }`（`buildResult`）。fast は即決定で、当たった段（tier）も残す
 - アプリの `lib/commentary.ts` が結果から全員分の実況コメントを作る（古い結果は decision なしなので秒数から推測）
 
+## 担当なしの回も記録（2026-11-11〜、`recordUnassigned`）
+
+- 担当が決まらないまま終わった回（50秒の受付終了・決まる前に `/clear`・次の `/notify` で上書き）も計算結果に残す。`unassigned: true`、`winnerId: ''`、`winnerName: '担当なし'`（古いアプリでもそのまま出るように）、`decision: { mode: 'none', reason: 'closed' | 'cancelled' }`
+- `/clear` と `/notify` は、まず `finalizeIfDecided`（決まる状態なら確定）→ だめなら `recordUnassigned`。`dispatch:finalize:<eventId>` のロックで二重記録しない
+- `/stats` の当選回数には数えない
+
+## 今日の責任者（`src/lib/dispatch-leader.ts`、2026-11-11〜）
+
+- `POST /leader { staffId }`（null で解除、暗証番号なし）。`dispatch:leader:YYYY-MM-DD`（JST、3日）。次の日は未選択
+- `/status` が `leader: { id, name } | null` を全員に返す（差配者画面の右上・営業の待機画面に表示）
+
 ## 問い合わせ（電話）
 
 - 差配者が内線（必須）・お客様タイプ（必須、アプリ側で強制）・サイト（任意）を選び `POST /notify { kind: 'inquiry', line, customerType, source? }`（1.1.37〜。サイトなしでも受け付ける）

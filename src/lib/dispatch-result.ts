@@ -1,7 +1,7 @@
 import type { Redis } from '@upstash/redis';
 import { EVENT_KEY, PRESSES_KEY, STAFF_CONDITIONS_KEY, MUTES_KEY, MUTE_REASONS_KEY, getAffinityTable, getTelTable, getSalesUnits, type DispatchEvent } from './dispatch-redis';
 import { WINDOW_MS, WINNER_MUTE_MIN } from './dispatch-config';
-import { getFastRules, type FastRules } from './dispatch-fast';
+import { getFastRules, closeSec, type FastRules } from './dispatch-fast';
 import { determineWinner, parsePresses, scoreBreakdown, type Press, type ScoreBreakdown } from './dispatch-winner';
 
 export type ResultRow = ScoreBreakdown & {
@@ -27,7 +27,10 @@ export type DispatchResult = {
   winnerName: string;
   rows: ResultRow[];
   // 決まり方（2026-11-06〜。実況コメント用）。fast=即決定（tier の条件で）／window=30秒で最高点／late=30秒後に最初の応答
-  decision?: { mode: 'fast' | 'window' | 'late'; decidedSec: number; tier?: { minScore: number; afterSec: number } };
+  // none=担当なし（2026-11-11〜）: reason closed=受付終了（50秒）／cancelled=決まる前に差配者が「次のお客様」
+  decision?: { mode: 'fast' | 'window' | 'late' | 'none'; decidedSec: number; tier?: { minScore: number; afterSec: number }; reason?: 'closed' | 'cancelled' };
+  // 担当なしの回は true（winnerId は ''、winnerName は '担当なし'。古いアプリでもそのまま表示できるように）
+  unassigned?: boolean;
 };
 
 const RESULT_TTL_SECONDS = 60 * 60 * 24 * 180; // 180日保存
@@ -39,7 +42,7 @@ export function jstDate(ts: number) {
 export const resultsKey = (date: string) => `dispatch:results:${date}`;
 
 function buildResult(
-  event: DispatchEvent, presses: Press[], winner: Press,
+  event: DispatchEvent, presses: Press[], winner: Press | null,
   staffConditions: Record<string, string>, affinity: Awaited<ReturnType<typeof getAffinityTable>>,
   salesUnits: Record<string, number>,
   tel?: Record<string, number>,
@@ -48,8 +51,10 @@ function buildResult(
   const windowEnd = event.startedAt + WINDOW_MS;
   const now = Date.now();
   const decidedSec = Math.round((now - event.startedAt) / 100) / 10;
-  const winnerScore = scoreBreakdown(winner, staffConditions, event.customerType, affinity, salesUnits, tel).score;
-  const decision: NonNullable<DispatchResult['decision']> = now <= windowEnd
+  const winnerScore = winner ? scoreBreakdown(winner, staffConditions, event.customerType, affinity, salesUnits, tel).score : 0;
+  const decision: NonNullable<DispatchResult['decision']> = !winner
+    ? { mode: 'none', decidedSec, reason: fastRules && now > event.startedAt + closeSec(fastRules) * 1000 ? 'closed' : 'cancelled' }
+    : now <= windowEnd
     ? { mode: 'fast', decidedSec, ...(() => {
         const tier = fastRules?.tiers.find(t => now - event.startedAt >= t.afterSec * 1000 && winnerScore >= t.minScore);
         return tier ? { tier: { minScore: tier.minScore, afterSec: tier.afterSec } } : {};
@@ -72,7 +77,7 @@ function buildResult(
     .sort((a, b) => a.pressedAfterSec - b.pressedAfterSec);
 
   const ranked = [...within, ...late].map((r, i) => ({
-    ...r, rank: i + 1, status: r.id === winner.id ? 'winner' as const : r.status,
+    ...r, rank: i + 1, status: r.id === winner?.id ? 'winner' as const : r.status,
   }));
   return {
     eventId: event.id, startedAt: event.startedAt, assignedAt: Date.now(),
@@ -80,9 +85,10 @@ function buildResult(
     ...(event.kind === 'inquiry' ? { kind: 'inquiry' as const, source: event.source, line: event.line } : {}),
     ...(event.dispatchedBy ? { dispatchedBy: event.dispatchedBy } : {}),
     ...(event.note ? { note: event.note } : {}),
-    winnerId: winner.id, winnerName: winner.name,
+    winnerId: winner?.id ?? '', winnerName: winner?.name ?? '担当なし',
     rows: [...ranked, ...excluded],
     decision,
+    ...(winner ? {} : { unassigned: true }),
   };
 }
 
@@ -116,6 +122,21 @@ export async function finalizeIfDecided(redis: Redis, event: DispatchEvent): Pro
     }
   }
   return winner;
+}
+
+// 担当が決まらないまま終わった回（受付終了・決まる前の「次のお客様」・次の通知で上書き）も記録する（2026-11-11〜）
+// すでに確定（記録）済みの回はロックで弾くので二重にならない
+export async function recordUnassigned(redis: Redis, event: DispatchEvent | null): Promise<boolean> {
+  if (!event || event.status !== 'active') return false;
+  if (!(await redis.set(`dispatch:finalize:${event.id}`, '1', { nx: true, ex: 300 }))) return false;
+  const presses = parsePresses(((await redis.hgetall(PRESSES_KEY)) ?? {}) as Record<string, unknown>);
+  const staffConditions = ((await redis.hgetall(STAFF_CONDITIONS_KEY)) ?? {}) as Record<string, string>;
+  const tel = event.kind === 'inquiry' ? await getTelTable(redis) : undefined;
+  const result = buildResult(event, presses, null, staffConditions, await getAffinityTable(redis), await getSalesUnits(redis), tel, await getFastRules(redis));
+  const key = resultsKey(jstDate(event.startedAt));
+  await redis.rpush(key, JSON.stringify(result));
+  await redis.expire(key, RESULT_TTL_SECONDS);
+  return true;
 }
 
 export async function getResults(redis: Redis, date: string): Promise<DispatchResult[]> {

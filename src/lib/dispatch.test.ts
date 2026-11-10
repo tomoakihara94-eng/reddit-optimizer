@@ -29,6 +29,8 @@ function mockRedis(init: Record<string, unknown> = {}) {
   const redis: any = {
     store,
     hgetall: async (k: string) => store[k] ?? null,
+    get: async (k: string) => store[k] ?? null,
+    hget: async (k: string, f: string) => store[k]?.[f] ?? null,
     hset: async (k: string, o: object) => { store[k] = { ...(store[k] ?? {}), ...o }; },
     set: async (k: string, v: unknown, o?: { nx?: boolean }) => {
       if (o?.nx && k in store) return null;
@@ -453,4 +455,26 @@ test('設定の変更は本人のスマホだけ（別のスマホは other、�
   assert.equal(await deviceCheck(redis, 'asakura', 'tokB'), 'other');
   assert.equal(await deviceCheck(redis, 'kakizaki', 'tokB'), 'other', '登録がない名前も本人とは言えない');
   assert.equal(await deviceCheck(redis, 'asakura', undefined), 'none');
+});
+
+test('担当が決まらないまま終えた回も「担当なし」で記録する（二重には記録しない）', async () => {
+  const { recordUnassigned } = await import('./dispatch-result');
+  const redis = mockRedis({ 'dispatch:presses': Object.fromEntries([rawPress('oori', 5, '対応中')]) });
+  const ev = event();
+  assert.equal(await atAsync(after(55), () => recordUnassigned(redis, ev)), true);
+  assert.equal(await atAsync(after(56), () => recordUnassigned(redis, ev)), false);
+  const [r] = await getResults(redis, jstDate(START));
+  assert.equal(r.unassigned, true);
+  assert.equal(r.winnerName, '担当なし');
+  assert.equal(r.decision?.mode, 'none');
+  assert.equal(r.rows[0].status, 'excluded');
+});
+
+test('今日の責任者は日付ごと（次の日は未選択）。いない営業は選べない', async () => {
+  const { setLeader, getLeader } = await import('./dispatch-leader');
+  const redis = mockRedis();
+  assert.equal(await setLeader(redis, 'asakura', START), true);
+  assert.deepEqual(await getLeader(redis, START), { id: 'asakura', name: '浅倉' });
+  assert.equal(await getLeader(redis, START + 86400_000), null);
+  assert.equal(await setLeader(redis, 'nobody', START), false);
 });

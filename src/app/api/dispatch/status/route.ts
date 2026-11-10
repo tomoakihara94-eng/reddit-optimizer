@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getRedis, getActiveMutes, getActiveMuteReasons, getInquiryOnly, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, STAFF_CONDITIONS_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
 import { parsePresses } from '@/lib/dispatch-winner';
 import { finalizeIfDecided } from '@/lib/dispatch-result';
+import { getLeader } from '@/lib/dispatch-leader';
 import { WINDOW_MS, isQuietHours } from '@/lib/dispatch-config';
 import { getFastRules, closeSec } from '@/lib/dispatch-fast';
 
@@ -14,7 +15,8 @@ export async function GET(req: Request) {
   const muteReasons = await getActiveMuteReasons(redis).catch(() => ({}));
   const quiet = isQuietHours(); // 差配者画面に「夜間は通知なし」を出すため
   const inquiryOnly = await getInquiryOnly(redis).catch(() => []); // 電話問い合わせだけ受ける営業
-  if (!event) return NextResponse.json({ status: 'idle', mutes, muteReasons, inquiryOnly, quiet }, { headers: { 'Cache-Control': 'no-store' } });
+  const leader = await getLeader(redis).catch(() => null);          // 今日の責任者
+  if (!event) return NextResponse.json({ status: 'idle', mutes, muteReasons, inquiryOnly, leader, quiet }, { headers: { 'Cache-Control': 'no-store' } });
 
   const rawConditions = (await redis.hgetall(CONDITIONS_KEY)) ?? {};
   const conditions = rawConditions as Record<string, string>;
@@ -29,13 +31,13 @@ export async function GET(req: Request) {
 
   if (event.status === 'assigned') {
     const customerType = staffId && staffId === event.winner?.id ? event.customerType ?? null : undefined;
-    return NextResponse.json({ status: 'assigned', winner: event.winner, eventId: event.id, ...kindInfo, conditions, mutes, muteReasons, inquiryOnly, ...(customerType !== undefined ? { customerType } : {}) });
+    return NextResponse.json({ status: 'assigned', winner: event.winner, eventId: event.id, ...kindInfo, conditions, mutes, muteReasons, inquiryOnly, leader, ...(customerType !== undefined ? { customerType } : {}) });
   }
 
   const winner = await finalizeIfDecided(redis, event);
   if (winner) {
     const customerType = staffId && staffId === winner.id ? event.customerType ?? null : undefined;
-    return NextResponse.json({ status: 'assigned', winner, eventId: event.id, ...kindInfo, conditions, mutes, muteReasons, inquiryOnly, ...(customerType !== undefined ? { customerType } : {}) });
+    return NextResponse.json({ status: 'assigned', winner, eventId: event.id, ...kindInfo, conditions, mutes, muteReasons, inquiryOnly, leader, ...(customerType !== undefined ? { customerType } : {}) });
   }
 
   const raw = (await redis.hgetall(PRESSES_KEY)) ?? {};
@@ -55,6 +57,7 @@ export async function GET(req: Request) {
     mutes,
     muteReasons,
     inquiryOnly,
+    leader,
     ...kindInfo,
     conditions,
   });

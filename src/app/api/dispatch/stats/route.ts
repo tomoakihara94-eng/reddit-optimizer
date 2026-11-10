@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   const winsByDate: Record<string, Record<string, number>> = {};
   for (const date of dates) {
     for (const r of await getResults(redis, date)) {
+      if (r.unassigned || !r.winnerId) continue; // 担当なしの回は当選に数えない
       const w = (winsByDate[date] ??= {});
       w[r.winnerId] = (w[r.winnerId] ?? 0) + 1;
     }

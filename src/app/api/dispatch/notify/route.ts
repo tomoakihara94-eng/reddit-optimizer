@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { getRedis, isStaffId, pushText, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
 import { CUSTOMER_TYPES } from '@/lib/dispatch-config';
 import { getLabels } from '@/lib/dispatch-labels';
+import { finalizeIfDecided, recordUnassigned } from '@/lib/dispatch-result';
 import { sendVisitPush, repushToPending, gatedIdsNow, excludeOf } from '@/lib/dispatch-push';
 import { getFastRules, repushTimesSec } from '@/lib/dispatch-fast';
 
@@ -36,6 +37,10 @@ export async function POST(req: NextRequest) {
     await redis.lpush(NOTIFY_LOG_KEY, logEntry);
     await redis.ltrim(NOTIFY_LOG_KEY, 0, 9);
     await redis.expire(NOTIFY_LOG_KEY, 86400);
+
+    // 前の回が担当なしのまま残っていたら、計算結果に「担当なし」で残してから上書きする
+    const prev = await redis.get<DispatchEvent>(EVENT_KEY);
+    if (prev?.status === 'active' && !(await finalizeIfDecided(redis, prev))) await recordUnassigned(redis, prev);
 
     const event: DispatchEvent = {
       id: Date.now().toString(),
