@@ -73,6 +73,7 @@
 - 保存済みの旧形式（maxMin 分まで）や古い管理者画面からの保存は、送り続けの部分だけ既定値（5秒・50秒）になる
 - 応答（`/press`）のたびに `finalizeIfDecided` を呼ぶので、即決定はその場で確定する
 - 設定がない・壊れているときは `DEFAULT_FAST_RULES`
+- **来店と問い合わせで別々**（2026-11-14〜）: 問い合わせの回は `dispatch:fast_rules_inquiry`（なければ来店用）。`getFastRules(redis, event.kind)` を全部の場所（即決定・通知の遅らせ・再通知の秒数・送り続け・受付終了）で使う。`/fast-rules?kind=inquiry` で読み書き（kind なし＝来店、古いアプリ）
 
 ## 通知が届かない条件（`src/lib/dispatch-push.ts` の `sendVisitPush`）
 
@@ -140,7 +141,8 @@
 | `dispatch:finalize:<eventId>` | 当選確定のロック（二重記録防止） | 5分 |
 | `dispatch:staff_names` | 営業ID → 表示名（管理者が変更。なければ config の名前） | 保持 |
 | `dispatch:board:notice` / `dispatch:board:president` | 掲示板（周知事項 / 社長は何を考えているのか）。新しい順に最大20件 | 保持 |
-| `dispatch:fast_rules` | 即決定方式の設定（JSON） | 保持 |
+| `dispatch:fast_rules` | 即決定方式の設定（来店、JSON） | 保持 |
+| `dispatch:fast_rules_inquiry` | 即決定方式の設定（問い合わせ。なければ来店用） | 保持 |
 | `dispatch:keepnotify:<eventId>` | 送り続ける通知の間隔ロック | everySec 秒 |
 | `dispatch:mute_reasons` | 営業ID → 60分を超えて止めた理由（status の muteReasons で返す） | 保持 |
 | `dispatch:tel` | 営業ID → TEL（1〜10）。問い合わせの得点に掛ける | 保持 |

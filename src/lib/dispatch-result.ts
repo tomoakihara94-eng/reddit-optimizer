@@ -100,7 +100,7 @@ export async function finalizeIfDecided(redis: Redis, event: DispatchEvent): Pro
   const staffConditions = ((await redis.hgetall(STAFF_CONDITIONS_KEY)) ?? {}) as Record<string, string>;
   const affinity = await getAffinityTable(redis);
   const salesUnits = await getSalesUnits(redis);
-  const fastRules = await getFastRules(redis);
+  const fastRules = await getFastRules(redis, event.kind);
   // 問い合わせは お客様タイプの得意度 × TEL（来店は得意度だけ）
   const tel = event.kind === 'inquiry' ? await getTelTable(redis) : undefined;
   const winner = determineWinner(event, presses, staffConditions, affinity, salesUnits, fastRules, tel);
@@ -132,7 +132,7 @@ export async function recordUnassigned(redis: Redis, event: DispatchEvent | null
   const presses = parsePresses(((await redis.hgetall(PRESSES_KEY)) ?? {}) as Record<string, unknown>);
   const staffConditions = ((await redis.hgetall(STAFF_CONDITIONS_KEY)) ?? {}) as Record<string, string>;
   const tel = event.kind === 'inquiry' ? await getTelTable(redis) : undefined;
-  const result = buildResult(event, presses, null, staffConditions, await getAffinityTable(redis), await getSalesUnits(redis), tel, await getFastRules(redis));
+  const result = buildResult(event, presses, null, staffConditions, await getAffinityTable(redis), await getSalesUnits(redis), tel, await getFastRules(redis, event.kind));
   const key = resultsKey(jstDate(event.startedAt));
   await redis.rpush(key, JSON.stringify(result));
   await redis.expire(key, RESULT_TTL_SECONDS);

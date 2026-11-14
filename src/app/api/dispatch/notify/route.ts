@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
     } catch { /* ignore */ }
 
     // 2回目・3回目の通知（未応答の人だけ）。秒数は即決定の設定（10・20秒）に合わせる
-    const repushAt = repushTimesSec(await getFastRules(redis)).map(s => s * 1000);
+    const repushAt = repushTimesSec(await getFastRules(redis, event.kind)).map(s => s * 1000);
     after(async () => {
       let waited = 0;
       for (const delay of repushAt) {

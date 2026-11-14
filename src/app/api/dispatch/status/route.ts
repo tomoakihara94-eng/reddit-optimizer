@@ -45,7 +45,7 @@ export async function GET(req: Request) {
 
   const remaining = Math.max(0, Math.ceil((event.startedAt + WINDOW_MS - Date.now()) / 1000));
   // 受付終了（keepNotify.untilSec を過ぎても担当なし）。差配者が「次のお客様」で終える
-  const closed = Date.now() > event.startedAt + closeSec(await getFastRules(redis)) * 1000;
+  const closed = Date.now() > event.startedAt + closeSec(await getFastRules(redis, event.kind)) * 1000;
   return NextResponse.json({
     status: 'active',
     remaining,

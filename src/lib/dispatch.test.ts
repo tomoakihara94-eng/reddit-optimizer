@@ -478,3 +478,14 @@ test('今日の責任者は日付ごと（次の日は未選択）。いない�
   assert.equal(await getLeader(redis, START + 86400_000), null);
   assert.equal(await setLeader(redis, 'nobody', START), false);
 });
+
+test('即決定の設定は来店と問い合わせで別々（問い合わせ用がなければ来店用）', async () => {
+  const { DEFAULT_FAST_RULES: R, getFastRules } = await import('./dispatch-fast');
+  const visit = { ...R, tiers: [{ minScore: 40, afterSec: 0 }, R.tiers[1], R.tiers[2]] };
+  const redis = mockRedis({ 'dispatch:fast_rules': JSON.stringify(visit) });
+  assert.equal((await getFastRules(redis, 'inquiry')).tiers[0].minScore, 40, 'まだ問い合わせ用がない');
+  redis.store['dispatch:fast_rules_inquiry'] = JSON.stringify({ ...R, tiers: [{ minScore: 20, afterSec: 0 }, R.tiers[1], R.tiers[2]] });
+  assert.equal((await getFastRules(redis, 'inquiry')).tiers[0].minScore, 20);
+  assert.equal((await getFastRules(redis)).tiers[0].minScore, 40);
+  assert.equal((await getFastRules(redis, undefined)).tiers[0].minScore, 40, '来店（kind なし）');
+});

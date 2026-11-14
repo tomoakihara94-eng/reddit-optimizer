@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const event = await redis.get<DispatchEvent>(EVENT_KEY);
   if (!event || event.status !== 'active')
     return NextResponse.json({ error: 'no active event' }, { status: 400 });
-  if (Date.now() > event.startedAt + closeSec(await getFastRules(redis)) * 1000)
+  if (Date.now() > event.startedAt + closeSec(await getFastRules(redis, event.kind)) * 1000)
     return NextResponse.json({ error: 'closed' }, { status: 400 }); // 受付終了（担当なし）
   if (event.dispatcherId === staffId)
     return NextResponse.json({ error: 'dispatcher cannot press' }, { status: 400 });

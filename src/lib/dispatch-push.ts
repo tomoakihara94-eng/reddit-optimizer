@@ -72,7 +72,7 @@ export function excludeOf(...groups: [(string | undefined)[], SkipReason][]): Re
 // 即決定の設定で、まだ通知しない人（その時点で得意度が低い人）の ID
 export async function gatedIdsNow(event: DispatchEvent, now = Date.now()): Promise<string[]> {
   const redis = getRedis();
-  const rules = await getFastRules(redis);
+  const rules = await getFastRules(redis, event.kind);
   const blocked = blockedAffinity(rules, (now - event.startedAt) / 1000);
   if (blocked <= 0) return [];
   const ctx = scoringContext(event, await getAffinityTable(redis), await getTelTable(redis));
@@ -104,7 +104,7 @@ export async function keepNotifying(): Promise<boolean> {
   const elapsed = Date.now() - event.startedAt;
   if (elapsed <= WINDOW_MS) return false;
   if (await finalizeIfDecided(redis, event)) return false;
-  const { keepNotify } = await getFastRules(redis);
+  const { keepNotify } = await getFastRules(redis, event.kind);
   if (elapsed > keepNotify.untilSec * 1000) return false; // 受付終了
   const locked = await redis.set(`dispatch:keepnotify:${event.id}`, '1', { nx: true, ex: keepNotify.everySec });
   if (!locked) return false;

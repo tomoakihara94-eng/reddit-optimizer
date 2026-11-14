@@ -52,11 +52,25 @@ export function validateFastRules(x: unknown): FastRules | null {
   };
 }
 
-export async function getFastRules(redis: Redis): Promise<FastRules> {
+// 来店と問い合わせで別々の設定（2026-11-14〜）。問い合わせ用がまだなければ来店用と同じ
+export const FAST_RULES_INQUIRY_KEY = 'dispatch:fast_rules_inquiry';
+export type RulesKind = 'visit' | 'inquiry';
+export const fastRulesKey = (kind: RulesKind = 'visit') => (kind === 'inquiry' ? FAST_RULES_INQUIRY_KEY : FAST_RULES_KEY);
+
+async function readRules(redis: Redis, key: string): Promise<FastRules | null> {
+  const raw = await redis.get(key);
+  const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  return validateFastRules(parsed);
+}
+
+// kind: 'inquiry' は問い合わせの回（event.kind をそのまま渡せる。undefined は来店）
+export async function getFastRules(redis: Redis, kind?: RulesKind): Promise<FastRules> {
   try {
-    const raw = await redis.get(FAST_RULES_KEY);
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    return validateFastRules(parsed) ?? DEFAULT_FAST_RULES;
+    if (kind === 'inquiry') {
+      const inquiry = await readRules(redis, FAST_RULES_INQUIRY_KEY);
+      if (inquiry) return inquiry;
+    }
+    return (await readRules(redis, FAST_RULES_KEY)) ?? DEFAULT_FAST_RULES;
   } catch {
     return DEFAULT_FAST_RULES;
   }
