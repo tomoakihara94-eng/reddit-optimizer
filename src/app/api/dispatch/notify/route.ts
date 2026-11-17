@@ -56,7 +56,15 @@ export async function POST(req: NextRequest) {
     await redis.del(PRESSES_KEY);
     await redis.del(CONDITIONS_KEY);
 
-    // Web push (existing PWA)
+    // Expo push（アプリ）を先に送る（2026-11-17〜。Web 版を先にしていたため最初の通知が約2秒遅れていた）
+    try {
+      const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
+      // 得意度が低い人には、即決定の設定の秒数まで送らない
+      const { title, body: text } = pushText(event, 'first');
+      await sendVisitPush(expoTokens, excludeOf([[dispatcherId], '差配者'], [await gatedIdsNow(event), '得意度・TELで遅らせ中']), title, text, { eventId: event.id, startedAt: event.startedAt, kind: event.kind, stage: '最初' });
+    } catch { /* ignore */ }
+
+    // Web push（旧 PWA）はアプリのあと
     if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_MAILTO) {
       try {
         const webpush = (await import('web-push')).default;
@@ -78,14 +86,6 @@ export async function POST(req: NextRequest) {
         );
       } catch { /* ignore */ }
     }
-
-    // Expo push (native app) — only send to currently active staff
-    try {
-      const expoTokens = (await redis.hgetall(EXPO_TOKENS_KEY)) ?? {};
-      // 得意度が低い人には、即決定の設定の秒数まで送らない
-      const { title, body: text } = pushText(event, 'first');
-      await sendVisitPush(expoTokens, excludeOf([[dispatcherId], '差配者'], [await gatedIdsNow(event), '得意度・TELで遅らせ中']), title, text, { eventId: event.id, startedAt: event.startedAt, kind: event.kind, stage: '最初' });
-    } catch { /* ignore */ }
 
     // 2回目・3回目の通知（未応答の人だけ）。秒数は即決定の設定（10・20秒）に合わせる
     const repushAt = repushTimesSec(await getFastRules(redis, event.kind)).map(s => s * 1000);
