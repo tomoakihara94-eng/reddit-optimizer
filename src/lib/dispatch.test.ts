@@ -500,3 +500,17 @@ test('写真は通知の登録がある営業のスマホだけ見られる。�
   assert.equal(await isRegisteredDevice(redis, null), false);
   assert.equal(pushText(event({ kiosk: true }), 'first').title, '🚗 お客様来店（受付）');
 });
+
+test('予約で担当指名: 計算せずにその人に決まり、結果に残り、30分止める。通知の文言は予約用', async () => {
+  const { recordReserved } = await import('./dispatch-result');
+  const { pushText } = await import('./dispatch-redis');
+  const redis = mockRedis();
+  const ev = event({ kiosk: true, reservation: { name: '山田', staffId: 'asakura' }, status: 'assigned' as const });
+  await atAsync(after(1), () => recordReserved(redis, ev, { id: 'asakura', name: '浅倉' }));
+  const [r] = await getResults(redis, jstDate(START));
+  assert.equal(r.winnerName, '浅倉');
+  assert.equal(r.decision?.mode, 'reserved');
+  assert.equal(r.reservation?.name, '山田');
+  assert.ok(redis.store['dispatch:mutes'].asakura > Date.now());
+  assert.equal(pushText(ev, 'first').title, '🗓 ご予約のお客様が来店');
+});

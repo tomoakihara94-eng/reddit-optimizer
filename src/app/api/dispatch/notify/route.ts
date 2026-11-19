@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse, after } from 'next/server';
-import { getRedis, isStaffId, pushText, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
-import { CUSTOMER_TYPES } from '@/lib/dispatch-config';
+import { getRedis, getStaff, getActiveMutes, isStaffId, pushText, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
+import { CUSTOMER_TYPES, isQuietHours } from '@/lib/dispatch-config';
 import { getLabels } from '@/lib/dispatch-labels';
-import { finalizeIfDecided, recordUnassigned } from '@/lib/dispatch-result';
+import { finalizeIfDecided, recordUnassigned, recordReserved } from '@/lib/dispatch-result';
 import { sendVisitPush, repushToPending, gatedIdsNow, excludeOf } from '@/lib/dispatch-push';
 import { getFastRules, repushTimesSec } from '@/lib/dispatch-fast';
 
@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
     const redis = getRedis();
     const body = await req.json().catch(() => ({})) as {
       dispatcherId?: string; customerType?: string; kind?: string; source?: string; line?: string; dispatchedBy?: string; note?: string; kiosk?: boolean;
+      reservation?: { name?: string; staffId?: string }; modelDecided?: boolean; // 受付 iPad（2026-11-19〜）
     };
     // 共有事項（任意、200文字まで）
     const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 200) : undefined;
@@ -28,7 +29,16 @@ export async function POST(req: NextRequest) {
     const inquiry = body.kind === 'inquiry' && sourceOk && labels.inquiryLines.includes(body.line ?? '');
     if (body.kind === 'inquiry' && !inquiry) return NextResponse.json({ error: 'invalid inquiry' }, { status: 400 });
     // お客様タイプ（来店・問い合わせとも。担当者以外には見せない）
-    const customerType = kiosk ? '？' : (CUSTOMER_TYPES as readonly string[]).includes(body.customerType ?? '') ? body.customerType : undefined;
+    // 受付 iPad: 予約あり（名前・担当（任意））／予約なし（お客様タイプ・車種が決まっているか）
+    const resName = kiosk && typeof body.reservation?.name === 'string' ? body.reservation.name.trim().slice(0, 20) : '';
+    const reservation = resName ? { name: resName, ...(body.reservation?.staffId && (await isStaffId(body.reservation.staffId, redis)) ? { staffId: body.reservation.staffId } : {}) } : undefined;
+    const validType = (CUSTOMER_TYPES as readonly string[]).includes(body.customerType ?? '') ? body.customerType : undefined;
+    const customerType = kiosk ? (reservation ? undefined : validType ?? '？') : validType;
+    const staffList = reservation?.staffId ? await getStaff(redis) : [];
+    const resStaff = staffList.find(s => s.id === reservation?.staffId);
+    const kioskNote = !kiosk ? undefined
+      : reservation ? `ご予約：${reservation.name}様${resStaff ? `（担当：${resStaff.name}）` : ''}`
+      : typeof body.modelDecided === 'boolean' ? `車種：${body.modelDecided ? '決まっている' : 'まだ決まっていない'}` : undefined;
     const dispatcherId = body.dispatcherId && (await isStaffId(body.dispatcherId, redis)) ? body.dispatcherId : undefined;
 
     // ログ記録（最新10件）
@@ -52,8 +62,27 @@ export async function POST(req: NextRequest) {
       ...(customerType ? { customerType } : {}),
       ...(inquiry ? { kind: 'inquiry' as const, ...(body.source ? { source: body.source } : {}), line: body.line } : {}),
       ...(kiosk ? { kiosk: true, dispatchedBy: '受付iPad' } : dispatchedBy ? { dispatchedBy } : {}),
-      ...(note ? { note } : {}),
+      ...((kioskNote ?? note) ? { note: kioskNote ?? note } : {}),
+      ...(reservation ? { reservation } : {}),
     };
+
+    // 予約で担当が指名され、その人に通知が届く状態なら: 計算せずにその人に決めて、その人にだけ知らせる（ユーザー指定）
+    // 届かない（登録なし・通知OFF・夜間）ときは、いつもどおり全員に通知する
+    if (resStaff && !isQuietHours()) {
+      const tokens = ((await redis.hgetall(EXPO_TOKENS_KEY)) ?? {}) as Record<string, string>;
+      const muted = await getActiveMutes(redis);
+      if (tokens[resStaff.id] && !(resStaff.id in muted)) {
+        const assigned: DispatchEvent = { ...event, status: 'assigned', winner: { id: resStaff.id, name: resStaff.name, rank: resStaff.rank } };
+        await redis.set(EVENT_KEY, assigned, { ex: 3600 });
+        await redis.del(PRESSES_KEY);
+        const { title, body: text } = pushText(assigned, 'first');
+        const others = staffList.filter(s => s.id !== resStaff.id).map(s => s.id);
+        await sendVisitPush(tokens, excludeOf([others, '予約の担当以外']), title, text, { eventId: event.id, startedAt: event.startedAt, kind: 'visit', stage: '予約の担当' });
+        await recordReserved(redis, assigned, resStaff);
+        return NextResponse.json({ success: true, eventId: event.id, assigned: resStaff.name });
+      }
+    }
+
     await redis.set(EVENT_KEY, event, { ex: 3600 });
     await redis.del(PRESSES_KEY);
     await redis.del(CONDITIONS_KEY);

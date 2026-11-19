@@ -24,6 +24,7 @@ export type DispatchEvent = {
   line?: string;   // 問い合わせの内線（内線5等）
   dispatchedBy?: string; // 差配した人（来店）／電話を受けた人（問い合わせ）
   kiosk?: boolean;       // 入口の受付 iPad からお客様が押した来店（2026-11-19〜。写真あり）
+  reservation?: { name: string; staffId?: string }; // 受付 iPad で「予約している」（2026-11-19〜）
   note?: string;         // 共有事項（差配者が入力。営業全員に見せる）
   winner?: { id: string; name: string; rank: string };
 };
@@ -136,6 +137,7 @@ export function pushText(event: DispatchEvent, round: 'first' | 'again' | 'keep'
     return { title, body: `${where}${noteLine(event)}　長押し・Apple Watch で応答を選べます` };
   }
   if (round === 'keep') return { title: '🚗 お客様がお待ちです', body: 'まだ担当が決まっていません。応答をお願いします' };
+  if (event.reservation && event.status === 'assigned') return { title: '🗓 ご予約のお客様が来店', body: `${event.reservation.name}様がお見えです（受付 iPad）。お迎えをお願いします` };
   if (event.kiosk) return { title: round === 'again' ? '🚗 お客様来店（受付・再通知）' : '🚗 お客様来店（受付）', body: '📷 アプリでお客様の写真を見られます　長押し・Apple Watch で応答を選べます' };
   const by = event.dispatchedBy ? `差配：${event.dispatchedBy}　` : '';
   return { title: round === 'again' ? '🚗 お客様来店（再通知）' : '🚗 お客様来店', body: `${by}${noteLine(event).trim()}${event.note ? '　' : ''}長押し・Apple Watch で応答を選べます` };

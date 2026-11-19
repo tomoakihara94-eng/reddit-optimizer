@@ -28,10 +28,11 @@ export type DispatchResult = {
   rows: ResultRow[];
   // 決まり方（2026-11-06〜。実況コメント用）。fast=即決定（tier の条件で）／window=30秒で最高点／late=30秒後に最初の応答
   // none=担当なし（2026-11-11〜）: reason closed=受付終了（50秒）／cancelled=決まる前に差配者が「次のお客様」
-  decision?: { mode: 'fast' | 'window' | 'late' | 'none'; decidedSec: number; tier?: { minScore: number; afterSec: number }; reason?: 'closed' | 'cancelled' };
+  decision?: { mode: 'fast' | 'window' | 'late' | 'none' | 'reserved'; decidedSec: number; tier?: { minScore: number; afterSec: number }; reason?: 'closed' | 'cancelled' };
   // 担当なしの回は true（winnerId は ''、winnerName は '担当なし'。古いアプリでもそのまま表示できるように）
   unassigned?: boolean;
   kiosk?: boolean; // 受付 iPad からの来店（写真は /photo?eventId=。1日で消える）
+  reservation?: { name: string; staffId?: string }; // 予約のお客様（担当指名なら mode 'reserved'）
 };
 
 const RESULT_TTL_SECONDS = 60 * 60 * 24 * 180; // 180日保存
@@ -124,6 +125,23 @@ export async function finalizeIfDecided(redis: Redis, event: DispatchEvent): Pro
     }
   }
   return winner;
+}
+
+// 予約のお客様で担当が指名されたとき: 計算せずにその人に決める（2026-11-19〜、受付 iPad）
+export async function recordReserved(redis: Redis, event: DispatchEvent, staff: { id: string; name: string }) {
+  await redis.set(`dispatch:finalize:${event.id}`, '1', { nx: true, ex: 300 });
+  const result: DispatchResult = {
+    eventId: event.id, startedAt: event.startedAt, assignedAt: Date.now(),
+    customerType: event.customerType ?? null, kiosk: true, ...(event.reservation ? { reservation: event.reservation } : {}),
+    ...(event.note ? { note: event.note } : {}), dispatchedBy: event.dispatchedBy,
+    winnerId: staff.id, winnerName: staff.name, rows: [], decision: { mode: 'reserved', decidedSec: 0 },
+  };
+  const key = resultsKey(jstDate(event.startedAt));
+  await redis.rpush(key, JSON.stringify(result));
+  await redis.expire(key, RESULT_TTL_SECONDS);
+  // 来店の担当と同じく30分は来店通知を止める
+  await redis.hset(MUTES_KEY, { [staff.id]: Date.now() + WINNER_MUTE_MIN * 60_000 });
+  await redis.hdel(MUTE_REASONS_KEY, staff.id);
 }
 
 // 担当が決まらないまま終わった回（受付終了・決まる前の「次のお客様」・次の通知で上書き）も記録する（2026-11-11〜）
