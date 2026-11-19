@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, eventId: event.id }); // 受付 iPad は eventId で写真を送る
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
