@@ -3,6 +3,7 @@ import { getRedis, getActiveMutes, getActiveMuteReasons, getInquiryOnly, EVENT_K
 import { parsePresses } from '@/lib/dispatch-winner';
 import { finalizeIfDecided } from '@/lib/dispatch-result';
 import { getLeader } from '@/lib/dispatch-leader';
+import { hasPhoto } from '@/lib/dispatch-photo';
 import { WINDOW_MS, isQuietHours } from '@/lib/dispatch-config';
 import { getFastRules, closeSec } from '@/lib/dispatch-fast';
 
@@ -27,6 +28,8 @@ export async function GET(req: Request) {
     ...(event.kind === 'inquiry' ? { kind: 'inquiry', source: event.source, line: event.line } : { kind: 'visit' }),
     ...(event.dispatchedBy ? { dispatchedBy: event.dispatchedBy } : {}),
     ...(event.note ? { note: event.note } : {}),
+    // 受付 iPad の来店: 写真があれば photo: true（アプリは /photo?eventId= を端末のトークン付きで読む）
+    ...(event.kiosk ? { kiosk: true, eventId: event.id, photo: await hasPhoto(redis, String(event.id)).catch(() => false) } : {}),
   };
 
   if (event.status === 'assigned') {

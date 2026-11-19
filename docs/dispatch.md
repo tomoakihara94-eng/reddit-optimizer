@@ -47,6 +47,14 @@
 - `POST /leader { staffId }`（null で解除、暗証番号なし）。`dispatch:leader:YYYY-MM-DD`（JST、3日）。次の日は未選択
 - `/status` が `leader: { id, name } | null` を全員に返す（差配者画面の右上・営業の待機画面に表示）
 
+## 受付 iPad とお客様の写真（2026-11-19〜）
+
+- 入口の iPad（アプリの役割「受付」）でお客様がボタン → `POST /notify { kiosk: true }`。来店のみ、お客様タイプは「？」（ユーザー指定: 選ばせない）、dispatchedBy は「受付iPad」、通知の文言は「🚗 お客様来店（受付）」
+- 写真: アプリが無音で1枚撮り `POST /photo?eventId=`（本文は JPEG、1.5MB まで、通知から10分以内、1回だけ）。Vercel Blob の非公開ストア `dispatch-photos`（東京 hnd1）に `photos/<eventId>.jpg`、`ttlDays: 1` で1日後に自動削除。`dispatch:photo:<eventId>`（1日）で有無を管理
+- 見る: `GET /photo?eventId=` は通知の登録がある営業のスマホ（`X-Device-Token`）か管理者（`X-Admin-Pin`）だけ（`isRegisteredDevice`）。見せる相手は通知が届いた営業全員（ユーザー指定）
+- `/status` は受付の来店で `kiosk: true, photo: boolean`、結果にも `kiosk: true`
+- 個人情報: 入口と iPad 画面に目的・保存期間・「撮影を希望されない方はスタッフへ」を掲示、画面に「カメラ作動中」、撮影後に写真を表示（隠し撮りにしない）。顔認識はしない
+
 ## 問い合わせ（電話）
 
 - 差配者が内線（必須）・お客様タイプ（必須、アプリ側で強制）・サイト（任意）を選び `POST /notify { kind: 'inquiry', line, customerType, source? }`（1.1.37〜。サイトなしでも受け付ける）

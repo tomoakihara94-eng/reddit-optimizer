@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   try {
     const redis = getRedis();
     const body = await req.json().catch(() => ({})) as {
-      dispatcherId?: string; customerType?: string; kind?: string; source?: string; line?: string; dispatchedBy?: string; note?: string;
+      dispatcherId?: string; customerType?: string; kind?: string; source?: string; line?: string; dispatchedBy?: string; note?: string; kiosk?: boolean;
     };
     // 共有事項（任意、200文字まで）
     const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 200) : undefined;
@@ -21,12 +21,14 @@ export async function POST(req: NextRequest) {
     // 差配した人・電話を受けた人（1.1.35 以降のアプリが送る。名前は管理者が変えられるので文字数だけ確かめる）
     const dispatchedBy = typeof body.dispatchedBy === 'string' && body.dispatchedBy.trim() && body.dispatchedBy.trim().length <= 20
       ? body.dispatchedBy.trim() : undefined;
+    // 受付 iPad（お客様が押す）。来店のみ。お客様タイプは「？」扱い（ユーザー指定: お客様には選ばせない）
+    const kiosk = body.kiosk === true && body.kind !== 'inquiry';
     // 問い合わせ: 内線は必須、サイトは任意（送るなら一覧にあるもの）
     const sourceOk = !body.source || labels.inquirySources.includes(body.source);
     const inquiry = body.kind === 'inquiry' && sourceOk && labels.inquiryLines.includes(body.line ?? '');
     if (body.kind === 'inquiry' && !inquiry) return NextResponse.json({ error: 'invalid inquiry' }, { status: 400 });
     // お客様タイプ（来店・問い合わせとも。担当者以外には見せない）
-    const customerType = (CUSTOMER_TYPES as readonly string[]).includes(body.customerType ?? '') ? body.customerType : undefined;
+    const customerType = kiosk ? '？' : (CUSTOMER_TYPES as readonly string[]).includes(body.customerType ?? '') ? body.customerType : undefined;
     const dispatcherId = body.dispatcherId && (await isStaffId(body.dispatcherId, redis)) ? body.dispatcherId : undefined;
 
     // ログ記録（最新10件）
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
       ...(dispatcherId ? { dispatcherId } : {}),
       ...(customerType ? { customerType } : {}),
       ...(inquiry ? { kind: 'inquiry' as const, ...(body.source ? { source: body.source } : {}), line: body.line } : {}),
-      ...(dispatchedBy ? { dispatchedBy } : {}),
+      ...(kiosk ? { kiosk: true, dispatchedBy: '受付iPad' } : dispatchedBy ? { dispatchedBy } : {}),
       ...(note ? { note } : {}),
     };
     await redis.set(EVENT_KEY, event, { ex: 3600 });

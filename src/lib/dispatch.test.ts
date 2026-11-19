@@ -489,3 +489,14 @@ test('即決定の設定は来店と問い合わせで別々（問い合わせ�
   assert.equal((await getFastRules(redis)).tiers[0].minScore, 40);
   assert.equal((await getFastRules(redis, undefined)).tiers[0].minScore, 40, '来店（kind なし）');
 });
+
+// ─── 受付 iPad（写真） ───
+test('写真は通知の登録がある営業のスマホだけ見られる。受付の来店は通知の文言が変わる', async () => {
+  const { isRegisteredDevice } = await import('./dispatch-photo');
+  const { pushText } = await import('./dispatch-redis');
+  const redis = mockRedis({ 'dispatch:expo_tokens': { asakura: 'tokA' } });
+  assert.equal(await isRegisteredDevice(redis, 'tokA'), true);
+  assert.equal(await isRegisteredDevice(redis, 'tokZ'), false);
+  assert.equal(await isRegisteredDevice(redis, null), false);
+  assert.equal(pushText(event({ kiosk: true }), 'first').title, '🚗 お客様来店（受付）');
+});

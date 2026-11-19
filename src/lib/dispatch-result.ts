@@ -31,6 +31,7 @@ export type DispatchResult = {
   decision?: { mode: 'fast' | 'window' | 'late' | 'none'; decidedSec: number; tier?: { minScore: number; afterSec: number }; reason?: 'closed' | 'cancelled' };
   // 担当なしの回は true（winnerId は ''、winnerName は '担当なし'。古いアプリでもそのまま表示できるように）
   unassigned?: boolean;
+  kiosk?: boolean; // 受付 iPad からの来店（写真は /photo?eventId=。1日で消える）
 };
 
 const RESULT_TTL_SECONDS = 60 * 60 * 24 * 180; // 180日保存
@@ -85,6 +86,7 @@ function buildResult(
     ...(event.kind === 'inquiry' ? { kind: 'inquiry' as const, source: event.source, line: event.line } : {}),
     ...(event.dispatchedBy ? { dispatchedBy: event.dispatchedBy } : {}),
     ...(event.note ? { note: event.note } : {}),
+    ...(event.kiosk ? { kiosk: true } : {}),
     winnerId: winner?.id ?? '', winnerName: winner?.name ?? '担当なし',
     rows: [...ranked, ...excluded],
     decision,
