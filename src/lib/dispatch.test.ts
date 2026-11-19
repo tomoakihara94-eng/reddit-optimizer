@@ -511,6 +511,6 @@ test('予約で担当指名: 計算せずにその人に決まり、結果に残
   assert.equal(r.winnerName, '浅倉');
   assert.equal(r.decision?.mode, 'reserved');
   assert.equal(r.reservation?.name, '山田');
-  assert.ok(redis.store['dispatch:mutes'].asakura > Date.now());
+  assert.ok(redis.store['dispatch:mutes'].asakura > after(1), '30分止める（テストの時刻基準）');
   assert.equal(pushText(ev, 'first').title, '🗓 ご予約のお客様が来店');
 });
