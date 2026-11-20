@@ -514,3 +514,11 @@ test('予約で担当指名: 計算せずにその人に決まり、結果に残
   assert.ok(redis.store['dispatch:mutes'].asakura > after(1), '30分止める（テストの時刻基準）');
   assert.equal(pushText(ev, 'first').title, '🗓 ご予約のお客様が来店');
 });
+
+test('受付の本日納車・ご指名は通知の文言が変わる', async () => {
+  const { pushText } = await import('./dispatch-redis');
+  const base = { kiosk: true, status: 'assigned' as const };
+  assert.equal(pushText(event({ ...base, reservation: { name: '佐藤', kind: 'delivery' } }), 'first').title, '🚗 本日納車のお客様が来店');
+  assert.equal(pushText(event({ ...base, reservation: { name: '佐藤', kind: 'nominated' } }), 'first').title, '🙋 ご指名のお客様が来店');
+  assert.equal(pushText(event({ ...base, reservation: { name: '佐藤' } }), 'first').title, '🗓 ご予約のお客様が来店');
+});

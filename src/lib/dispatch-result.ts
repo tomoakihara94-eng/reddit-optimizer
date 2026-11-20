@@ -32,7 +32,7 @@ export type DispatchResult = {
   // 担当なしの回は true（winnerId は ''、winnerName は '担当なし'。古いアプリでもそのまま表示できるように）
   unassigned?: boolean;
   kiosk?: boolean; // 受付 iPad からの来店（写真は /photo?eventId=。1日で消える）
-  reservation?: { name: string; staffId?: string }; // 予約のお客様（担当指名なら mode 'reserved'）
+  reservation?: { name: string; staffId?: string; kind?: 'reserved' | 'nominated' | 'delivery' }; // 受付で担当につないだお客様（担当がいれば mode 'reserved'）
 };
 
 const RESULT_TTL_SECONDS = 60 * 60 * 24 * 180; // 180日保存

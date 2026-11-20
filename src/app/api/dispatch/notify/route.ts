@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const redis = getRedis();
     const body = await req.json().catch(() => ({})) as {
       dispatcherId?: string; customerType?: string; kind?: string; source?: string; line?: string; dispatchedBy?: string; note?: string; kiosk?: boolean;
-      reservation?: { name?: string; staffId?: string }; modelDecided?: boolean; // 受付 iPad（2026-11-19〜）
+      reservation?: { name?: string; staffId?: string; kind?: string }; modelDecided?: boolean; // 受付 iPad（2026-11-19〜）
     };
     // 共有事項（任意、200文字まで）
     const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 200) : undefined;
@@ -31,13 +31,17 @@ export async function POST(req: NextRequest) {
     // お客様タイプ（来店・問い合わせとも。担当者以外には見せない）
     // 受付 iPad: 予約あり（名前・担当（任意））／予約なし（お客様タイプ・車種が決まっているか）
     const resName = kiosk && typeof body.reservation?.name === 'string' ? body.reservation.name.trim().slice(0, 20) : '';
-    const reservation = resName ? { name: resName, ...(body.reservation?.staffId && (await isStaffId(body.reservation.staffId, redis)) ? { staffId: body.reservation.staffId } : {}) } : undefined;
+    const resKind = body.reservation?.kind === 'delivery' ? 'delivery' as const : body.reservation?.kind === 'nominated' ? 'nominated' as const : 'reserved' as const;
+    const reservation = resName ? {
+      name: resName, kind: resKind,
+      ...(body.reservation?.staffId && (await isStaffId(body.reservation.staffId, redis)) ? { staffId: body.reservation.staffId } : {}),
+    } : undefined;
     const validType = (CUSTOMER_TYPES as readonly string[]).includes(body.customerType ?? '') ? body.customerType : undefined;
     const customerType = kiosk ? (reservation ? undefined : validType ?? '？') : validType;
     const staffList = reservation?.staffId ? await getStaff(redis) : [];
     const resStaff = staffList.find(s => s.id === reservation?.staffId);
     const kioskNote = !kiosk ? undefined
-      : reservation ? `ご予約：${reservation.name}様${resStaff ? `（担当：${resStaff.name}）` : ''}`
+      : reservation ? `${resKind === 'delivery' ? '本日納車' : resKind === 'nominated' ? 'ご指名' : 'ご予約'}：${reservation.name}様${resStaff ? `（担当：${resStaff.name}）` : ''}`
       : typeof body.modelDecided === 'boolean' ? `車種：${body.modelDecided ? '決まっている' : 'まだ決まっていない'}` : undefined;
     const dispatcherId = body.dispatcherId && (await isStaffId(body.dispatcherId, redis)) ? body.dispatcherId : undefined;
 
