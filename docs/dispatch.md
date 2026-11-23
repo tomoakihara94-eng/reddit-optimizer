@@ -53,6 +53,7 @@
 - 写真: アプリが無音で1枚撮り `POST /photo?eventId=`（本文は JPEG、1.5MB まで、通知から10分以内、1回だけ）。Vercel Blob の非公開ストア `dispatch-photos`（東京 hnd1）に `photos/<eventId>.jpg`、`ttlDays: 1` で1日後に自動削除。`dispatch:photo:<eventId>`（1日）で有無を管理
 - 見る: `GET /photo?eventId=` は通知の登録がある営業のスマホ（`X-Device-Token`）か管理者（`X-Admin-Pin`）だけ（`isRegisteredDevice`）。見せる相手は通知が届いた営業全員（ユーザー指定）
 - `/status` は受付の来店で `kiosk: true, photo: boolean`、結果にも `kiosk: true`
+- `DELETE /photo?date=YYYY-MM-DD`（管理者、日本時間、なしは今日）: その日に撮った写真をすぐ消す（1日の自動削除を待たずに）
 - **予約あり／なし**（2026-11-19〜）: 受付 iPad は `reservation: { name, staffId? }` か `customerType`＋`modelDecided` を送る。共有事項に「ご予約：◯◯様（担当：△△）」「車種：決まっている／まだ決まっていない」
 - 予約で担当が指名され、その人に届く状態（登録あり・通知OFFでない・夜間でない）なら、計算せずにその人に決める（event を assigned、他の営業には送らない＝理由「予約の担当以外」、`recordReserved` で結果に mode 'reserved'、来店の担当と同じく30分止める）。届かないときは普通に全員へ。ユーザー指定
 - `/stats` の当選回数に予約の指名は数えない

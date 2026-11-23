@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { put, get } from '@vercel/blob';
+import { put, get, list, del } from '@vercel/blob';
 import { getRedis, EVENT_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
 import { isAdmin } from '@/lib/dispatch-admin';
 import { photoPath, photoKey, PHOTO_MAX_BYTES, PHOTO_UPLOAD_WINDOW_MS, isRegisteredDevice } from '@/lib/dispatch-photo';
+import { jstDate } from '@/lib/dispatch-result';
 
 // 受付 iPad の写真のアップロード（POST、本文は JPEG そのまま、?eventId=）
 //   今の来店（受付 iPad から押されたもの）で、通知から10分以内・まだ写真がないときだけ受け付ける
@@ -34,4 +35,26 @@ export async function GET(req: NextRequest) {
   const r = await get(photoPath(eventId), { access: 'private' }).catch(() => null);
   if (!r) return NextResponse.json({ error: 'not found' }, { status: 404 });
   return new Response(r.stream, { headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, no-store' } });
+}
+
+// 写真を消す（管理者のみ、DELETE ?date=YYYY-MM-DD、日本時間。なしは今日）。2026-11-23〜
+//   1日で自動削除されるが、すぐ消したいとき用。消した数と名前を返す。元に戻せない
+export async function DELETE(req: NextRequest) {
+  if (!isAdmin(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const date = new URL(req.url).searchParams.get('date') ?? jstDate(Date.now());
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: 'invalid date' }, { status: 400 });
+  const redis = getRedis();
+  const targets: { url: string; pathname: string }[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await list({ prefix: 'photos/', cursor, limit: 1000 });
+    for (const b of page.blobs) if (jstDate(new Date(b.uploadedAt).getTime()) === date) targets.push({ url: b.url, pathname: b.pathname });
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  if (targets.length) await del(targets.map(t => t.url));
+  for (const t of targets) {
+    const id = t.pathname.replace(/^photos\//, '').replace(/\.jpg$/, '');
+    await redis.del(photoKey(id));
+  }
+  return NextResponse.json({ date, deleted: targets.length, files: targets.map(t => t.pathname) });
 }
