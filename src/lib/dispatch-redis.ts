@@ -26,6 +26,7 @@ export type DispatchEvent = {
   kiosk?: boolean;       // 入口の受付 iPad からお客様が押した来店（2026-11-19〜。写真あり）
   // 受付 iPad で担当につなぐお客様（2026-11-19〜）。kind: reserved=予約している／nominated=予約なしで担当を指名／delivery=本日納車
   reservation?: { name: string; staffId?: string; kind?: 'reserved' | 'nominated' | 'delivery' };
+  eta?: { minutes: number; at: number }; // 受付の来店で、担当が「すぐ／◯分後に行きます」を押した（2026-11-24〜。受付 iPad に出す）
   note?: string;         // 共有事項（差配者が入力。営業全員に見せる）
   winner?: { id: string; name: string; rank: string };
 };

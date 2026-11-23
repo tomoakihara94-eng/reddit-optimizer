@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     ...(event.dispatchedBy ? { dispatchedBy: event.dispatchedBy } : {}),
     ...(event.note ? { note: event.note } : {}),
     // 受付 iPad の来店: 写真があれば photo: true（アプリは /photo?eventId= を端末のトークン付きで読む）
-    ...(event.kiosk ? { kiosk: true, eventId: event.id, photo: await hasPhoto(redis, String(event.id)).catch(() => false) } : {}),
+    ...(event.kiosk ? { kiosk: true, eventId: event.id, photo: await hasPhoto(redis, String(event.id)).catch(() => false), ...(event.eta ? { eta: event.eta } : {}) } : {}),
   };
 
   if (event.status === 'assigned') {

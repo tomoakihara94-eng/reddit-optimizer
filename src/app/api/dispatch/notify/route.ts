@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server';
-import { getRedis, getStaff, getActiveMutes, isStaffId, pushText, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
-import { CUSTOMER_TYPES, isQuietHours } from '@/lib/dispatch-config';
+import { getRedis, getStaff, isStaffId, pushText, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
+import { CUSTOMER_TYPES } from '@/lib/dispatch-config';
 import { getLabels } from '@/lib/dispatch-labels';
 import { finalizeIfDecided, recordUnassigned, recordReserved } from '@/lib/dispatch-result';
 import { sendVisitPush, repushToPending, gatedIdsNow, excludeOf } from '@/lib/dispatch-push';
@@ -70,18 +70,17 @@ export async function POST(req: NextRequest) {
       ...(reservation ? { reservation } : {}),
     };
 
-    // 予約で担当が指名され、その人に通知が届く状態なら: 計算せずにその人に決めて、その人にだけ知らせる（ユーザー指定）
-    // 届かない（登録なし・通知OFF・夜間）ときは、いつもどおり全員に通知する
-    if (resStaff && !isQuietHours()) {
+    // 受付で担当が選ばれたら: 計算せずにその人に決めて、その人にだけ知らせる（ユーザー指定）
+    // 2026-11-24〜 通知OFF・担当後の30分停止・夜間・登録なしでも、ほかの営業には送らない（以前は全員に送っていた）
+    if (resStaff) {
       const tokens = ((await redis.hgetall(EXPO_TOKENS_KEY)) ?? {}) as Record<string, string>;
-      const muted = await getActiveMutes(redis);
-      if (tokens[resStaff.id] && !(resStaff.id in muted)) {
+      {
         const assigned: DispatchEvent = { ...event, status: 'assigned', winner: { id: resStaff.id, name: resStaff.name, rank: resStaff.rank } };
         await redis.set(EVENT_KEY, assigned, { ex: 3600 });
         await redis.del(PRESSES_KEY);
         const { title, body: text } = pushText(assigned, 'first');
         const others = staffList.filter(s => s.id !== resStaff.id).map(s => s.id);
-        await sendVisitPush(tokens, excludeOf([others, '予約の担当以外']), title, text, { eventId: event.id, startedAt: event.startedAt, kind: 'visit', stage: '予約の担当' });
+        await sendVisitPush(tokens, excludeOf([others, '予約の担当以外']), title, text, { eventId: event.id, startedAt: event.startedAt, kind: 'visit', stage: '予約の担当', force: true });
         await recordReserved(redis, assigned, resStaff);
         return NextResponse.json({ success: true, eventId: event.id, assigned: resStaff.name });
       }

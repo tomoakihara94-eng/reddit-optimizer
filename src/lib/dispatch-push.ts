@@ -20,7 +20,7 @@ export async function sendVisitPush(
   exclude: Record<string, SkipReason>,
   title: string,
   body: string,
-  meta: { eventId?: string; startedAt?: number; stage: string; kind?: 'visit' | 'inquiry' } = { stage: '?' },
+  meta: { eventId?: string; startedAt?: number; stage: string; kind?: 'visit' | 'inquiry'; force?: boolean } = { stage: '?' },
 ) {
   const redis = getRedis();
   const muted = await getActiveMutes(redis); // 「いけない」・通知OFF・来店の当選で止めている人
@@ -29,10 +29,11 @@ export async function sendVisitPush(
     for (const id of await getInquiryOnly(redis)) if (!exclude[id]) exclude = { ...exclude, [id]: '問い合わせのみ' };
   }
   const staffIds = (await getStaff(redis)).map(s => s.id);
+  // force: 受付で担当が指名されたとき。通知OFF・担当後の停止・夜間でもその人には届ける（2026-11-24 ユーザー指定）
   const { targets, skipped } = planPush(
-    staffIds, expoTokens as Record<string, string>, exclude, muted, isQuietHours(), // 夜間（19:00〜翌8:15）は送らない
+    staffIds, expoTokens as Record<string, string>, exclude, meta.force ? {} : muted, meta.force ? false : isQuietHours(), // 夜間（19:00〜翌8:15）は送らない
   );
-  const { startedAt, kind: _kind, ...where } = meta;
+  const { startedAt, kind: _kind, force: _force, ...where } = meta;
   const log: PushLog = { t: Date.now(), ...where, sent: targets.map(x => x.staffId), skipped };
   if (targets.length > 0) {
     const messages = targets.map(({ staffId, token }) => ({
