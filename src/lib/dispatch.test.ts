@@ -522,3 +522,8 @@ test('受付の本日納車・ご指名は通知の文言が変わる', async ()
   assert.equal(pushText(event({ ...base, reservation: { name: '佐藤', kind: 'nominated' } }), 'first').title, '🙋 ご指名のお客様が来店');
   assert.equal(pushText(event({ ...base, reservation: { name: '佐藤' } }), 'first').title, '🗓 ご予約のお客様が来店');
 });
+
+test('受付の写真は1時間（見られる時間と、消すまでの時間）', async () => {
+  const { PHOTO_KEEP_SEC } = await import('./dispatch-photo');
+  assert.equal(PHOTO_KEEP_SEC, 3600);
+});

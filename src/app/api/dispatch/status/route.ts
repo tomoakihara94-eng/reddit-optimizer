@@ -3,7 +3,8 @@ import { getRedis, getActiveMutes, getActiveMuteReasons, getInquiryOnly, EVENT_K
 import { parsePresses } from '@/lib/dispatch-winner';
 import { finalizeIfDecided } from '@/lib/dispatch-result';
 import { getLeader } from '@/lib/dispatch-leader';
-import { hasPhoto } from '@/lib/dispatch-photo';
+import { hasPhoto, cleanupPhotos } from '@/lib/dispatch-photo';
+import { after } from 'next/server';
 import { WINDOW_MS, isQuietHours } from '@/lib/dispatch-config';
 import { getFastRules, closeSec } from '@/lib/dispatch-fast';
 
@@ -11,6 +12,8 @@ export async function GET(req: Request) {
   // 営業アプリは自分の staffId を付けて問い合わせる。当選者本人にだけお客様タイプを返す
   const staffId = new URL(req.url).searchParams.get('staffId');
   const redis = getRedis();
+  // 1時間を過ぎた受付の写真を消す（返事を待たせないよう、返したあとに。5分に1回まで）
+  after(() => cleanupPhotos(redis).catch(() => 0));
   const event = await redis.get<DispatchEvent>(EVENT_KEY);
   const mutes = await getActiveMutes(redis);
   const muteReasons = await getActiveMuteReasons(redis).catch(() => ({}));

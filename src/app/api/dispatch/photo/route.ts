@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { put, get, list, del } from '@vercel/blob';
 import { getRedis, EVENT_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
 import { isAdmin } from '@/lib/dispatch-admin';
-import { photoPath, photoKey, PHOTO_MAX_BYTES, PHOTO_UPLOAD_WINDOW_MS, isRegisteredDevice } from '@/lib/dispatch-photo';
+import { photoPath, photoKey, PHOTO_MAX_BYTES, PHOTO_UPLOAD_WINDOW_MS, PHOTO_KEEP_SEC, isRegisteredDevice } from '@/lib/dispatch-photo';
 import { jstDate } from '@/lib/dispatch-result';
 
 // 受付 iPad の写真のアップロード（POST、本文は JPEG そのまま、?eventId=）
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   await put(photoPath(eventId), Buffer.from(body), {
     access: 'private', contentType: 'image/jpeg', addRandomSuffix: false, allowOverwrite: false, ttlDays: 1,
   });
-  await redis.set(photoKey(eventId), '1', { ex: 86400 });
+  await redis.set(photoKey(eventId), '1', { ex: PHOTO_KEEP_SEC }); // 見られるのは1時間だけ
   return NextResponse.json({ success: true });
 }
 

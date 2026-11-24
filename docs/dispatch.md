@@ -50,7 +50,8 @@
 ## 受付 iPad とお客様の写真（2026-11-19〜）
 
 - 入口の iPad（アプリの役割「受付」）でお客様がボタン → `POST /notify { kiosk: true }`。来店のみ、お客様タイプは「？」（ユーザー指定: 選ばせない）、dispatchedBy は「受付iPad」、通知の文言は「🚗 お客様来店（受付）」
-- 写真: アプリが無音で1枚撮り `POST /photo?eventId=`（本文は JPEG、1.5MB まで、通知から10分以内、1回だけ）。Vercel Blob の非公開ストア `dispatch-photos`（東京 hnd1）に `photos/<eventId>.jpg`、`ttlDays: 1` で1日後に自動削除。`dispatch:photo:<eventId>`（1日）で有無を管理
+- 写真: アプリが無音で1枚撮り `POST /photo?eventId=`（本文は JPEG、1.5MB まで、通知から10分以内、1回だけ）。Vercel Blob の非公開ストア `dispatch-photos`（東京 hnd1）に `photos/<eventId>.jpg`
+- **1時間で削除**（2026-11-24〜、受付画面に明記）: `dispatch:photo:<eventId>` を1時間で消す（以降 GET /photo は 404＝誰も見られない）＋ `/status` のたびに `cleanupPhotos`（5分に1回まで、1時間を過ぎた Blob を del）＋ 保険の `ttlDays: 1`。アプリが誰も開いていないと Blob の削除は次の問い合わせまで遅れる（受付 iPad は待機中5分ごとに問い合わせる）
 - 見る: `GET /photo?eventId=` は通知の登録がある営業のスマホ（`X-Device-Token`）か管理者（`X-Admin-Pin`）だけ（`isRegisteredDevice`）。見せる相手は通知が届いた営業全員（ユーザー指定）
 - `/status` は受付の来店で `kiosk: true, photo: boolean`、結果にも `kiosk: true`
 - `DELETE /photo?date=YYYY-MM-DD`（管理者、日本時間、なしは今日）: その日に撮った写真をすぐ消す（1日の自動削除を待たずに）
