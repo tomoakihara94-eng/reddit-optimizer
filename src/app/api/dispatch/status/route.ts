@@ -4,7 +4,7 @@ import { parsePresses } from '@/lib/dispatch-winner';
 import { finalizeIfDecided } from '@/lib/dispatch-result';
 import { getLeader } from '@/lib/dispatch-leader';
 import { hasPhoto, cleanupPhotos } from '@/lib/dispatch-photo';
-import { offStaffOn, syncOffdaysHourly } from '@/lib/dispatch-offdays';
+import { offStaffOn, syncOffdaysDaily } from '@/lib/dispatch-offdays';
 import { after } from 'next/server';
 import { WINDOW_MS, isQuietHours } from '@/lib/dispatch-config';
 import { getFastRules, closeSec } from '@/lib/dispatch-fast';
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   const redis = getRedis();
   // 1時間を過ぎた受付の写真を消す（返事を待たせないよう、返したあとに。5分に1回まで）
   after(() => cleanupPhotos(redis).catch(() => 0));
-  after(() => syncOffdaysHourly(redis).catch(() => {})); // 公休表を1時間に1回取り込む
+  after(() => syncOffdaysDaily(redis).catch(() => {})); // 公休表を1日1回取り込む
   const event = await redis.get<DispatchEvent>(EVENT_KEY);
   const mutes = await getActiveMutes(redis);
   const muteReasons = await getActiveMuteReasons(redis).catch(() => ({}));

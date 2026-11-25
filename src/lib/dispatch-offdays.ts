@@ -11,7 +11,7 @@ export const OFFDAYS_SOURCES_KEY = 'dispatch:offdays_sources';  // JSON: 公開 
 export const OFFDAYS_SYNC_KEY = 'dispatch:offdays_sync';        // JSON: 最後に取り込んだ結果
 const offdaysKey = (month: string) => `dispatch:offdays:${month}`;      // JSON: { staffId: [日, …] }
 const overrideKey = (date: string) => `dispatch:attendance:${date}`;   // ハッシュ: staffId → 'off' | 'work'
-const SYNC_LOCK = 'dispatch:offdays_sync_lock';
+const syncLock = (date: string) => `dispatch:offdays_sync:${date}`; // 1日1回（2026-11-25 ユーザー指定）
 
 // CSV を表に（"…" で囲んだセル・カンマ入りにも対応）
 export function parseCsv(text: string): string[][] {
@@ -85,9 +85,9 @@ export async function syncOffdays(redis: Redis): Promise<{ at: number; results: 
   return out;
 }
 
-// 1時間に1回まで（/status のたびに呼ぶ）
-export async function syncOffdaysHourly(redis: Redis) {
-  if (await redis.set(SYNC_LOCK, '1', { nx: true, ex: 3600 })) await syncOffdays(redis);
+// 1日1回（日本時間の日付ごと）。/status のたびに呼び、その日の最初の1回だけ取り込む（朝いちばんにアプリが開かれたとき）
+export async function syncOffdaysDaily(redis: Redis, now = Date.now()) {
+  if (await redis.set(syncLock(jstDate(now)), '1', { nx: true, ex: 2 * 86400 })) await syncOffdays(redis);
 }
 
 export async function getMonthOffdays(redis: Redis, month: string): Promise<Record<string, number[]>> {

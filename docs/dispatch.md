@@ -134,7 +134,7 @@
 
 - 取り込み元: Google スプレッドシートの公休のシート（月ごと）。**ファイル全体は公開しない**（別のシートがある）。「ファイル → 共有 → ウェブに公開 → そのシートだけ → CSV」のリンクを、管理者画面「公休」に月ごとに登録（`POST /offdays { sources }`、`dispatch:offdays_sources`）
 - 表の形: A1 がその月の日付（2026/12/25 など）、1行目の「アプリ名称」より右の数字が日、D 列「アプリ名称」がアプリの営業名（「該当なし」は飛ばす）。セルが「休」なら公休、「国」「出」・空欄は出勤（ユーザー指定）。`parseOffdays`
-- 保存: `dispatch:offdays:YYYY-MM`（{ staffId: [日] }、120日）。`/status` のたびに1時間に1回取り込む（`syncOffdaysHourly`）。管理者の「今すぐ取り込む」も
+- 保存: `dispatch:offdays:YYYY-MM`（{ staffId: [日] }、120日）。`/status` のたびに呼び、日本時間の1日1回だけ取り込む（`syncOffdaysDaily`、2026-11-25 ユーザー指定で1時間→1日）。管理者の「今すぐ取り込む」も
 - 本人の切り替え: 営業画面「今日：出勤／公休」→ `POST /attendance { staffId, off, token }`（本人のスマホだけ、今日だけ、`dispatch:attendance:YYYY-MM-DD`）。表より優先
 - 通知: 今日公休の人には来店も問い合わせも送らない（理由「公休」）。受付の指名（force）は除く
 - `/status` の `offToday`（営業ID）、`GET /offdays?month=` は日ごとの公休の名前と今日の公休（誰でも）
