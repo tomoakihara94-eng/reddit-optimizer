@@ -139,6 +139,16 @@
 - 通知: 今日公休の人には来店も問い合わせも送らない（理由「公休」）。受付の指名（force）は除く
 - `/status` の `offToday`（営業ID）、`GET /offdays?month=` は日ごとの公休の名前と今日の公休（誰でも）
 
+## 在庫検索（`src/lib/dispatch-inventory.ts`、2026-11-26〜）
+
+- 取り込み元: グーネットの「在庫検索一覧」でダウンロードした CSV（Shift_JIS、4行目が見出し、240列）。サイトとの連携はできないので**毎回手動**
+- 取り込み方: パソコンのブラウザ `/dispatch/inventory`（暗証番号を入れて CSV を選ぶ）か、アプリの管理者画面「在庫」。どちらも `POST /inventory`（管理者、本文は CSV そのまま）。**取り込むたびに全部入れ替え**
+- 検索のキー: 管理用番号（例「07-12★　●1005　展示：役トラ」）の先頭の「07-12」（`keyOf`）。同じ番号の車が複数あり（展示場所が違う）、全部返す。入力の全角・ハイフンのゆれはそろえる（`normalizeNo`）
+- 取り込む項目: 管理用番号の全文・ブランド・車種・グレード・付加情報・年式・走行・色・車検・本体価格・支払総額・修復・ドア・排気・燃料・型式・車台番号・大判キャッチ・掲載・装備（「○」の列名）。**仕入れの列は取り込まない**
+- 保存: `dispatch:inventory`（ハッシュ: 番号 → 車の配列の JSON）、`dispatch:inventory_meta`（取り込んだ日時・台数・番号数・CSV の出力日時）
+- 見られる人: `GET /inventory?no=07-12` は営業のスマホ（`X-Device-Token`、通知の登録がある端末）か管理者だけ（車台番号を含むため公開しない）
+- `/dispatch/*` のページはログイン不要（`src/proxy.ts`）なので、`/dispatch/inventory` は暗証番号で守る。暗証番号はページに保存しない
+
 ## 投票率（`src/lib/dispatch-stats.ts`、2026-11-04〜）
 
 - 投票率 = 応答した回数 ÷ 通知が届いた回数（営業ごと・日ごと）。`GET /stats?days=1|7|30`（管理者）が投票率 `rate` と当選率 `winRate` を返す
@@ -181,6 +191,8 @@
 | `dispatch:offdays:YYYY-MM` | 公休表（staffId → 日の配列） | 120日 |
 | `dispatch:attendance:YYYY-MM-DD` | 本人の出勤／公休の切り替え | 2日 |
 | `dispatch:offdays_sources` | 公休表の公開 CSV の URL | 保持 |
+| `dispatch:inventory` | 在庫（管理用番号の「07-12」→ 車の配列） | 次の取り込みまで |
+| `dispatch:inventory_meta` | 在庫の最後の取り込み | 次の取り込みまで |
 | `dispatch:stats:YYYY-MM-DD` | 投票率の集計（`<id>:n` / `<id>:r` / `<id>:r:<応答>`） | 180日 |
 | `dispatch:notified:<eventId>` | その回で数えた人 | 1日 |
 
@@ -191,7 +203,7 @@
 ## 管理者（暗証番号）
 
 - 暗証番号は Vercel の環境変数 `DISPATCH_ADMIN_PIN`。ヘッダー `X-Admin-Pin` で照合（`src/lib/dispatch-admin.ts`）
-- 必要な API: `/admin-verify`、`/staff`（追加・削除）、`/stats`、`/affinity`、`/sales-units`、`/staff-name`、`/fast-rules`、`/tel`、`/labels` の POST
+- 必要な API: `/admin-verify`、`/staff`（追加・削除）、`/stats`、`/affinity`、`/sales-units`、`/staff-name`、`/fast-rules`、`/tel`、`/labels` の POST、`/inventory` の POST
 - 変更は `vercel env rm` → `vercel env add` → 本番再公開。反映まで10秒ほどかかる
 - **未対応**: `/notify` 自体は暗証番号不要（古いアプリ・外部から送れる）
 

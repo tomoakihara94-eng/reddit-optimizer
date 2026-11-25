@@ -561,3 +561,37 @@ test('今日の公休は表＋本人の切り替え（切り替えが優先）',
   await setTodayAttendance(redis, 'ishigami', true, now);  // 表では出勤だが休み
   assert.deepEqual(await offStaffOn(redis, now), ['ishigami']);
 });
+
+test('在庫 CSV: 管理用番号の左の「07-12」でまとめ、仕入れの列は取り込まない', async () => {
+  const { parseInventory, keyOf, normalizeNo, decodeCsv, saveInventory, findCars } = await import('./dispatch-inventory');
+  const csv = [
+    '"出力日時：2026年11月26日 08:43"',
+    '"条件"',
+    '',
+    '"在庫ID","グーネット中古車掲載","管理用番号","ブランド","車種","グレード","年式","車両本体価格","エアコン","ナビ","仕入価格"',
+    '"A1","掲載","07-12★　●1005　展示：役トラ","ダイハツ","ハイゼットトラック","スタンダード","2026年","111万円","○","×","500000"',
+    '"A2","非掲載","07-12▲ ●1108 展示：遠興南","ダイハツ","ハイゼットトラック","ジャンボ","2025年","130万円","○","○","600000"',
+    '"A3","掲載","メモだけ","スズキ","ジムニー","XC","2024年","200万円","○","○",""',
+  ].join('\r\n');
+  const p = parseInventory(csv)!;
+  assert.equal(p.exportedAt, '2026年11月26日 08:43');
+  assert.equal(p.cars.length, 2); // 番号のない行は取り込まない
+  assert.deepEqual(p.cars[1].features, ['エアコン', 'ナビ']);
+  assert.ok(!JSON.stringify(p.cars).includes('500000'));
+  assert.equal(keyOf(p.cars[0].memo), '07-12');
+  assert.equal(normalizeNo('０７ー１２'), '07-12');
+  assert.equal(decodeCsv(new TextEncoder().encode('﻿管理用番号')), '管理用番号');
+
+  const store: Record<string, any> = {};
+  const redis: any = {
+    del: async (k: string) => { delete store[k]; },
+    hset: async (k: string, o: object) => { store[k] = { ...(store[k] ?? {}), ...o }; },
+    hget: async (k: string, f: string) => store[k]?.[f] ?? null,
+    set: async (k: string, v: string) => { store[k] = v; },
+  };
+  store['dispatch:inventory'] = { 'OLD-1': '[]' };
+  const meta = await saveInventory(redis, p.cars, p.exportedAt);
+  assert.equal(meta.numbers, 1);
+  assert.equal((await findCars(redis, '07-12')).length, 2);
+  assert.equal((await findCars(redis, 'OLD-1')).length, 0); // 取り込むたびに全部入れ替え
+});
