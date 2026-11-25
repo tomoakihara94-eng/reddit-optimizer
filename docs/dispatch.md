@@ -130,6 +130,15 @@
 - 来店の通知（最初・再通知・送り続け）ではこの人を外す（送信記録の理由「問い合わせのみ」）。投票率の分母にも入らない
 - `/status` が `inquiryOnly`（ID の配列）を全員に返す。アプリは来店中の画面を出さない・差配者の一覧に出す
 
+## 公休（`src/lib/dispatch-offdays.ts`、2026-11-25〜）
+
+- 取り込み元: Google スプレッドシートの公休のシート（月ごと）。**ファイル全体は公開しない**（別のシートがある）。「ファイル → 共有 → ウェブに公開 → そのシートだけ → CSV」のリンクを、管理者画面「公休」に月ごとに登録（`POST /offdays { sources }`、`dispatch:offdays_sources`）
+- 表の形: A1 がその月の日付（2026/12/25 など）、1行目の「アプリ名称」より右の数字が日、D 列「アプリ名称」がアプリの営業名（「該当なし」は飛ばす）。セルが「休」なら公休、「国」「出」・空欄は出勤（ユーザー指定）。`parseOffdays`
+- 保存: `dispatch:offdays:YYYY-MM`（{ staffId: [日] }、120日）。`/status` のたびに1時間に1回取り込む（`syncOffdaysHourly`）。管理者の「今すぐ取り込む」も
+- 本人の切り替え: 営業画面「今日：出勤／公休」→ `POST /attendance { staffId, off, token }`（本人のスマホだけ、今日だけ、`dispatch:attendance:YYYY-MM-DD`）。表より優先
+- 通知: 今日公休の人には来店も問い合わせも送らない（理由「公休」）。受付の指名（force）は除く
+- `/status` の `offToday`（営業ID）、`GET /offdays?month=` は日ごとの公休の名前と今日の公休（誰でも）
+
 ## 投票率（`src/lib/dispatch-stats.ts`、2026-11-04〜）
 
 - 投票率 = 応答した回数 ÷ 通知が届いた回数（営業ごと・日ごと）。`GET /stats?days=1|7|30`（管理者）が投票率 `rate` と当選率 `winRate` を返す
@@ -169,6 +178,9 @@
 | `dispatch:staff_added` | 追加した営業（ID → 名前） | 保持 |
 | `dispatch:staff_removed` | 削除した営業（ID → 時刻） | 保持 |
 | `dispatch:inquiry_only` | 電話問い合わせだけ受ける営業 | 保持 |
+| `dispatch:offdays:YYYY-MM` | 公休表（staffId → 日の配列） | 120日 |
+| `dispatch:attendance:YYYY-MM-DD` | 本人の出勤／公休の切り替え | 2日 |
+| `dispatch:offdays_sources` | 公休表の公開 CSV の URL | 保持 |
 | `dispatch:stats:YYYY-MM-DD` | 投票率の集計（`<id>:n` / `<id>:r` / `<id>:r:<応答>`） | 180日 |
 | `dispatch:notified:<eventId>` | その回で数えた人 | 1日 |
 

@@ -527,3 +527,37 @@ test('受付の写真は1時間（見られる時間と、消すまでの時間�
   const { PHOTO_KEEP_SEC } = await import('./dispatch-photo');
   assert.equal(PHOTO_KEEP_SEC, 3600);
 });
+
+// ─── 公休 ───
+test('公休表の取り込み: A1 の月、D 列のアプリ名称、「休」だけが公休（国・出・空欄は出勤）、該当なしは無視', async () => {
+  const { parseOffdays } = await import('./dispatch-offdays');
+  const csv = [
+    '2026/12/25,名字,名前,アプリ名称,1,2,3,4',
+    ',,,,火,水,木,金',
+    '社長,社長,,該当なし,,,,',
+    '平賀　友章,平賀,友章,平賀,,休,,休',
+    '石神　悠,石神,悠,石神,休,国,出,',
+    '"山田, 太郎",山田,太郎,山田,休,,,',
+  ].join('\n');
+  const p = parseOffdays(csv, [{ id: 'sato', name: '平賀' }, { id: 'ishigami', name: '石神' }]);
+  assert.equal(p?.month, '2026-12');
+  assert.deepEqual(p?.off, { sato: [2, 4], ishigami: [1] });
+  assert.deepEqual(p?.unmatched, ['山田']);
+});
+
+test('今日の公休は表＋本人の切り替え（切り替えが優先）', async () => {
+  const { offStaffOn, setTodayAttendance } = await import('./dispatch-offdays');
+  const store: Record<string, any> = {};
+  const redis: any = {
+    get: async (k: string) => store[k] ?? null,
+    hgetall: async (k: string) => store[k] ?? null,
+    hset: async (k: string, o: object) => { store[k] = { ...(store[k] ?? {}), ...o }; },
+    expire: async () => 1,
+  };
+  const now = Date.UTC(2026, 11, 2, 1); // JST 12/2 10:00
+  store['dispatch:offdays:2026-12'] = JSON.stringify({ sato: [2], ishigami: [3] });
+  assert.deepEqual(await offStaffOn(redis, now), ['sato']);
+  await setTodayAttendance(redis, 'sato', false, now);     // 表では休みだが出勤
+  await setTodayAttendance(redis, 'ishigami', true, now);  // 表では出勤だが休み
+  assert.deepEqual(await offStaffOn(redis, now), ['ishigami']);
+});

@@ -4,6 +4,7 @@ import { getFastRules, blockedAffinity, gatedStaffIds } from './dispatch-fast';
 import { finalizeIfDecided } from './dispatch-result';
 import { planPush, recordPush, type PushLog, type SkipReason } from './dispatch-pushlog';
 import { markNotified } from './dispatch-stats';
+import { offStaffOn } from './dispatch-offdays';
 
 const PUSH_TTL_SECONDS = 120;
 
@@ -24,6 +25,10 @@ export async function sendVisitPush(
 ) {
   const redis = getRedis();
   const muted = await getActiveMutes(redis); // 「いけない」・通知OFF・来店の当選で止めている人
+  // 今日公休の人には送らない（公休表＋本人の切り替え。受付の指名 force は除く）
+  if (!meta.force) {
+    for (const id of await offStaffOn(redis).catch(() => [] as string[])) if (!exclude[id]) exclude = { ...exclude, [id]: '公休' };
+  }
   // 来店の通知は「電話問い合わせだけ受ける」人には送らない
   if (meta.kind !== 'inquiry') {
     for (const id of await getInquiryOnly(redis)) if (!exclude[id]) exclude = { ...exclude, [id]: '問い合わせのみ' };

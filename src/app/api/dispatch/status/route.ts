@@ -4,6 +4,7 @@ import { parsePresses } from '@/lib/dispatch-winner';
 import { finalizeIfDecided } from '@/lib/dispatch-result';
 import { getLeader } from '@/lib/dispatch-leader';
 import { hasPhoto, cleanupPhotos } from '@/lib/dispatch-photo';
+import { offStaffOn, syncOffdaysHourly } from '@/lib/dispatch-offdays';
 import { after } from 'next/server';
 import { WINDOW_MS, isQuietHours } from '@/lib/dispatch-config';
 import { getFastRules, closeSec } from '@/lib/dispatch-fast';
@@ -14,13 +15,15 @@ export async function GET(req: Request) {
   const redis = getRedis();
   // 1時間を過ぎた受付の写真を消す（返事を待たせないよう、返したあとに。5分に1回まで）
   after(() => cleanupPhotos(redis).catch(() => 0));
+  after(() => syncOffdaysHourly(redis).catch(() => {})); // 公休表を1時間に1回取り込む
   const event = await redis.get<DispatchEvent>(EVENT_KEY);
   const mutes = await getActiveMutes(redis);
   const muteReasons = await getActiveMuteReasons(redis).catch(() => ({}));
   const quiet = isQuietHours(); // 差配者画面に「夜間は通知なし」を出すため
   const inquiryOnly = await getInquiryOnly(redis).catch(() => []); // 電話問い合わせだけ受ける営業
   const leader = await getLeader(redis).catch(() => null);          // 今日の責任者
-  if (!event) return NextResponse.json({ status: 'idle', mutes, muteReasons, inquiryOnly, leader, quiet }, { headers: { 'Cache-Control': 'no-store' } });
+  const offToday = await offStaffOn(redis).catch(() => [] as string[]); // 今日公休の営業
+  if (!event) return NextResponse.json({ status: 'idle', mutes, muteReasons, inquiryOnly, leader, offToday, quiet }, { headers: { 'Cache-Control': 'no-store' } });
 
   const rawConditions = (await redis.hgetall(CONDITIONS_KEY)) ?? {};
   const conditions = rawConditions as Record<string, string>;
@@ -37,13 +40,13 @@ export async function GET(req: Request) {
 
   if (event.status === 'assigned') {
     const customerType = staffId && staffId === event.winner?.id ? event.customerType ?? null : undefined;
-    return NextResponse.json({ status: 'assigned', winner: event.winner, eventId: event.id, ...kindInfo, conditions, mutes, muteReasons, inquiryOnly, leader, ...(customerType !== undefined ? { customerType } : {}) });
+    return NextResponse.json({ status: 'assigned', winner: event.winner, eventId: event.id, ...kindInfo, conditions, mutes, muteReasons, inquiryOnly, leader, offToday, ...(customerType !== undefined ? { customerType } : {}) });
   }
 
   const winner = await finalizeIfDecided(redis, event);
   if (winner) {
     const customerType = staffId && staffId === winner.id ? event.customerType ?? null : undefined;
-    return NextResponse.json({ status: 'assigned', winner, eventId: event.id, ...kindInfo, conditions, mutes, muteReasons, inquiryOnly, leader, ...(customerType !== undefined ? { customerType } : {}) });
+    return NextResponse.json({ status: 'assigned', winner, eventId: event.id, ...kindInfo, conditions, mutes, muteReasons, inquiryOnly, leader, offToday, ...(customerType !== undefined ? { customerType } : {}) });
   }
 
   const raw = (await redis.hgetall(PRESSES_KEY)) ?? {};
@@ -64,6 +67,7 @@ export async function GET(req: Request) {
     muteReasons,
     inquiryOnly,
     leader,
+    offToday,
     ...kindInfo,
     conditions,
   });
