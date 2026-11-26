@@ -592,6 +592,12 @@ test('在庫 CSV: 管理用番号の左の「07-12」でまとめ、仕入れの
   store['dispatch:inventory'] = { 'OLD-1': '[]' };
   const meta = await saveInventory(redis, p.cars, p.exportedAt);
   assert.equal(meta.numbers, 1);
-  assert.equal((await findCars(redis, '07-12')).length, 2);
+  const found = await findCars(redis, '07-12');
+  assert.equal(found.length, 2);
+  assert.equal(found[0].gooUrl, undefined); // テストの在庫ID「A1」は形が違う
+
+  const { gooUrlOf } = await import('./dispatch-inventory');
+  assert.equal(gooUrlOf({ stockId: '0600173A30261117W047', listed: '掲載' }), 'https://www.goo-net.com/usedcar/spread/goo/15/700060017330261117047.html');
+  assert.equal(gooUrlOf({ stockId: '0600173A30261117W047', listed: '非掲載' }), undefined);
   assert.equal((await findCars(redis, 'OLD-1')).length, 0); // 取り込むたびに全部入れ替え
 });

@@ -16,7 +16,17 @@ export type Car = {
   price: string; total: string; repair: string; door: string; displacement: string; fuel: string;
   modelCode: string; chassis: string; catchCopy: string; listed: string;
   features: string[];  // 「○」の付いた装備
+  gooUrl?: string;     // グーネットの車のページ（検索で返すときに在庫ID から作る。保存はしない）
 };
+
+// 在庫ID → グーネットの車のページ（2026-11-26 確認）
+//   在庫ID「0600173A30261117W047」から英字を抜いて頭に 700 →「700060017330261117047」
+//   URL の途中の数字（/15/）は何でも同じページが出るので 15 に固定。売れて掲載が終わると「掲載終了」のページになる
+export function gooUrlOf(car: Pick<Car, 'stockId' | 'listed'>): string | undefined {
+  const m = /^(\d{7})[A-Z](\d{8})[A-Z](\d{3})$/.exec(car.stockId);
+  if (!m || car.listed !== '掲載') return undefined;
+  return `https://www.goo-net.com/usedcar/spread/goo/15/700${m[1]}${m[2]}${m[3]}.html`;
+}
 
 // CSV のバイト列 → 文字列。サイトの CSV は Shift_JIS。Excel などで UTF-8 に保存し直したものも読めるように
 export function decodeCsv(bytes: Uint8Array): string {
@@ -82,5 +92,6 @@ export async function saveInventory(redis: Redis, cars: Car[], exportedAt?: stri
 export async function findCars(redis: Redis, no: string): Promise<Car[]> {
   const raw = await redis.hget(INVENTORY_KEY, normalizeNo(no));
   if (!raw) return [];
-  return (typeof raw === 'string' ? JSON.parse(raw) : raw) as Car[];
+  const cars = (typeof raw === 'string' ? JSON.parse(raw) : raw) as Car[];
+  return cars.map(c => ({ ...c, gooUrl: gooUrlOf(c) }));
 }

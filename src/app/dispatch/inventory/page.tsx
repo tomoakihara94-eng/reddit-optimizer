@@ -5,7 +5,7 @@
 import { useState } from 'react';
 
 type Meta = { at: number; count: number; numbers: number; exportedAt?: string };
-type Car = { memo: string; maker: string; model: string; grade: string; year: string; mileage: string; color: string; total: string };
+type Car = { memo: string; maker: string; model: string; grade: string; year: string; mileage: string; color: string; total: string; gooUrl?: string };
 
 export default function InventoryUploadPage() {
   const [pin, setPin] = useState('');
@@ -77,6 +77,7 @@ export default function InventoryUploadPage() {
                   <p className="font-bold">{c.maker} {c.model} {c.grade}</p>
                   <p className="text-white/60">{c.year}・{c.mileage}・{c.color}・支払総額 {c.total}</p>
                   <p className="text-amber-200/80">{c.memo}</p>
+                  {c.gooUrl ? <a href={c.gooUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-300 underline">グーネットで見る</a> : null}
                 </li>
               ))}
             </ul>
