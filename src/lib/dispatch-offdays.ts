@@ -85,6 +85,15 @@ export async function syncOffdays(redis: Redis): Promise<{ at: number; results: 
   return out;
 }
 
+// CSV を直接取り込む（パソコンの /dispatch/inventory から、スプレッドシートで「ダウンロード → CSV」したファイル。2026-11-26〜）
+//   公開リンクを作らなくても取り込める。ただし毎朝の自動の取り込みはないので、表を直したらもう一度送る
+export async function importOffdaysCsv(redis: Redis, csv: string) {
+  const p = parseOffdays(csv, await getStaff(redis));
+  if (!p) return null;
+  await redis.set(offdaysKey(p.month), JSON.stringify(p.off), { ex: 120 * 86400 });
+  return { month: p.month, staffCount: p.staffCount, unmatched: p.unmatched };
+}
+
 // 1日1回（日本時間の日付ごと）。/status のたびに呼び、その日の最初の1回だけ取り込む（朝いちばんにアプリが開かれたとき）
 export async function syncOffdaysDaily(redis: Redis, now = Date.now()) {
   if (await redis.set(syncLock(jstDate(now)), '1', { nx: true, ex: 2 * 86400 })) await syncOffdays(redis);
