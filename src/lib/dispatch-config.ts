@@ -23,6 +23,13 @@ export const STAFF: readonly StaffMember[] = [
   { id: 'yamato',    name: '大和',   rank: 'B' },
 ];
 
+// 受付 iPad（お客様が見る画面）だけで使う名前（2026-11-26 ユーザー指定）。ない人はふだんの名前
+//   名前そのもの（営業画面・計算結果・公休表のアプリ名称）は変えない。アプリ 1.1.67〜が /config の kioskName を使う
+export const KIOSK_NAMES: Readonly<Record<string, string>> = {
+  motonari: '馬塚 基成',
+  kyotoku:  '馬塚 教徳',
+};
+
 // ─── 担当者の決め方 ───────────────────────────────
 // 得点 =（応答 ＋ コンディション ＋ 実績台数 × 0.1）× お客様タイプ別の得意係数
 // 得点が同じなら先に押した人。
