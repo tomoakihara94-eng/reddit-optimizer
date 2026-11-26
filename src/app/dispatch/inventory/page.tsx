@@ -11,8 +11,10 @@ type SyncResult = { url?: string; month?: string; staffCount?: number; unmatched
 type Msg = { ok: boolean; text: string } | null;
 
 const monthLabel = (m?: string) => (m ? `${m.slice(0, 4)}年${Number(m.slice(5, 7))}月` : '');
+// どのリンクの結果か分かるように、リンクの gid（シートの番号）を添える
+const linkTag = (u?: string) => { const g = u ? /gid=(\d+)/.exec(u)?.[1] : undefined; return u ? `（${g ? `gid=${g}` : u.slice(0, 60)}）` : ''; };
 const resultText = (r: SyncResult) =>
-  r.error ? `⚠️ ${r.error}` : `✅ ${monthLabel(r.month)}：${r.staffCount}人を取り込みました${r.unmatched?.length ? `（アプリに見つからない名前：${r.unmatched.join('・')}）` : ''}`;
+  r.error ? `⚠️ ${r.error}${linkTag(r.url)}` : `✅ ${monthLabel(r.month)}：${r.staffCount}人を取り込みました${r.unmatched?.length ? `（アプリに見つからない名前：${r.unmatched.join('・')}）` : ''}`;
 
 export default function InventoryUploadPage() {
   const [pin, setPin] = useState('');
