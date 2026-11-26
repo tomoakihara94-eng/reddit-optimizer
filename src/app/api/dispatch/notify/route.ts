@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server';
-import { getRedis, getStaff, isStaffId, pushText, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
+import { getRedis, getStaff, isStaffId, pushText, resLabel, EVENT_KEY, PRESSES_KEY, CONDITIONS_KEY, TOKENS_KEY, EXPO_TOKENS_KEY, NOTIFY_LOG_KEY, type DispatchEvent } from '@/lib/dispatch-redis';
 import { CUSTOMER_TYPES } from '@/lib/dispatch-config';
 import { getLabels } from '@/lib/dispatch-labels';
 import { finalizeIfDecided, recordUnassigned, recordReserved } from '@/lib/dispatch-result';
@@ -8,8 +8,6 @@ import { getFastRules, repushTimesSec } from '@/lib/dispatch-fast';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 再通知（最大20秒後）まで関数を生かしておく
-
-const RES_LABEL = { reserved: 'ご予約', nominated: 'ご指名', delivery: '本日納車' } as const;
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,8 +41,8 @@ export async function POST(req: NextRequest) {
     const staffList = reservation?.staffId ? await getStaff(redis) : [];
     const resStaff = staffList.find(s => s.id === reservation?.staffId);
     const kioskNote = !kiosk ? undefined
-      : reservation && !resStaff ? `${RES_LABEL[resKind]}のお客様がご来店です。担当は応答ください。（${reservation.name}様）` // 担当がわからない → 全員へ（2026-11-26 ユーザー指定の文言）
-      : reservation ? `${resKind === 'delivery' ? '本日納車' : resKind === 'nominated' ? 'ご指名' : 'ご予約'}：${reservation.name}様${resStaff ? `（担当：${resStaff.name}）` : ''}`
+      // 「本日ご納車の◯◯様がご来店です」（2026-11-26 ユーザー指定の文言）。担当がわからない → 全員へ「担当は応答ください。」
+      : reservation ? `${resLabel(resKind)}の${reservation.name}様がご来店です。${resStaff ? `（担当：${resStaff.name}）` : '担当は応答ください。'}`
       : typeof body.modelDecided === 'boolean' ? `車種：${body.modelDecided ? '決まっている' : 'まだ決まっていない'}` : undefined;
     const dispatcherId = body.dispatcherId && (await isStaffId(body.dispatcherId, redis)) ? body.dispatcherId : undefined;
 

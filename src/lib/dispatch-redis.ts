@@ -132,6 +132,10 @@ function noteLine(event: DispatchEvent) {
 }
 
 // 通知のタイトルと本文（来店 / 問い合わせ）
+// 受付の種類の言い方（通知・共有事項で共通）
+export const resLabel = (k?: string) => (k === 'delivery' ? '本日ご納車' : k === 'nominated' ? 'ご指名' : 'ご予約');
+const resIcon = (k?: string) => (k === 'delivery' ? '🚗' : k === 'nominated' ? '🙋' : '🗓');
+
 export function pushText(event: DispatchEvent, round: 'first' | 'again' | 'keep'): { title: string; body: string } {
   if (event.kind === 'inquiry') {
     const where = [event.source, event.line].filter(Boolean).join('・') + (event.dispatchedBy ? `（受付：${event.dispatchedBy}）` : '');
@@ -139,18 +143,15 @@ export function pushText(event: DispatchEvent, round: 'first' | 'again' | 'keep'
     return { title, body: `${where}${noteLine(event)}　長押し・Apple Watch で応答を選べます` };
   }
   if (round === 'keep') return { title: '🚗 お客様がお待ちです', body: 'まだ担当が決まっていません。応答をお願いします' };
+  // 受付で予約あり・本日納車・ご指名 →「本日ご納車の◯◯様がご来店です」（2026-11-26 ユーザー指定の文言）
   if (event.reservation && event.status === 'assigned') {
-    const k = event.reservation.kind ?? 'reserved';
-    const title = k === 'delivery' ? '🚗 本日納車のお客様が来店' : k === 'nominated' ? '🙋 ご指名のお客様が来店' : '🗓 ご予約のお客様が来店';
-    return { title, body: `${event.reservation.name}様がお見えです（受付 iPad）。お迎えをお願いします` };
+    return { title: `${resIcon(event.reservation.kind)} ${resLabel(event.reservation.kind)}の${event.reservation.name}様がご来店です`, body: 'お迎えをお願いします（受付 iPad）' };
   }
   // 受付で予約あり・担当がわからない → 全員へ（2026-11-26〜。文言はユーザー指定）
   if (event.kiosk && event.reservation) {
-    const k = event.reservation.kind ?? 'reserved';
-    const label = k === 'delivery' ? '本日納車' : k === 'nominated' ? 'ご指名' : 'ご予約';
     return {
-      title: `🗓 ${label}のお客様がご来店です${round === 'again' ? '（再通知）' : ''}`,
-      body: `担当は応答ください。（${event.reservation.name}様）📷 アプリでお客様の写真を見られます`,
+      title: `${resIcon(event.reservation.kind)} ${resLabel(event.reservation.kind)}の${event.reservation.name}様がご来店です${round === 'again' ? '（再通知）' : ''}`,
+      body: '担当は応答ください。📷 アプリでお客様の写真を見られます',
     };
   }
   if (event.kiosk) return { title: round === 'again' ? '🚗 お客様来店（受付・再通知）' : '🚗 お客様来店（受付）', body: '📷 アプリでお客様の写真を見られます　長押し・Apple Watch で応答を選べます' };

@@ -512,15 +512,15 @@ test('予約で担当指名: 計算せずにその人に決まり、結果に残
   assert.equal(r.decision?.mode, 'reserved');
   assert.equal(r.reservation?.name, '山田');
   assert.ok(redis.store['dispatch:mutes'].asakura > after(1), '30分止める（テストの時刻基準）');
-  assert.equal(pushText(ev, 'first').title, '🗓 ご予約のお客様が来店');
+  assert.equal(pushText(ev, 'first').title, '🗓 ご予約の山田様がご来店です');
 });
 
 test('受付の本日納車・ご指名は通知の文言が変わる', async () => {
   const { pushText } = await import('./dispatch-redis');
   const base = { kiosk: true, status: 'assigned' as const };
-  assert.equal(pushText(event({ ...base, reservation: { name: '佐藤', kind: 'delivery' } }), 'first').title, '🚗 本日納車のお客様が来店');
-  assert.equal(pushText(event({ ...base, reservation: { name: '佐藤', kind: 'nominated' } }), 'first').title, '🙋 ご指名のお客様が来店');
-  assert.equal(pushText(event({ ...base, reservation: { name: '佐藤' } }), 'first').title, '🗓 ご予約のお客様が来店');
+  assert.equal(pushText(event({ ...base, reservation: { name: '佐藤', kind: 'delivery' } }), 'first').title, '🚗 本日ご納車の佐藤様がご来店です');
+  assert.equal(pushText(event({ ...base, reservation: { name: '佐藤', kind: 'nominated' } }), 'first').title, '🙋 ご指名の佐藤様がご来店です');
+  assert.equal(pushText(event({ ...base, reservation: { name: '佐藤' } }), 'first').title, '🗓 ご予約の佐藤様がご来店です');
 });
 
 test('受付の写真は1時間（見られる時間と、消すまでの時間）', async () => {
@@ -605,7 +605,10 @@ test('在庫 CSV: 管理用番号の左の「07-12」でまとめ、仕入れの
 test('受付で予約あり・担当がわからない → 全員への通知の文言', async () => {
   const { pushText } = await import('./dispatch-redis');
   const ev = { ...event(), kiosk: true, reservation: { name: '山田', kind: 'reserved' as const } };
-  assert.deepEqual(pushText(ev as any, 'first'), { title: '🗓 ご予約のお客様がご来店です', body: '担当は応答ください。（山田様）📷 アプリでお客様の写真を見られます' });
-  assert.equal(pushText(ev as any, 'again').title, '🗓 ご予約のお客様がご来店です（再通知）');
+  assert.deepEqual(pushText(ev as any, 'first'), { title: '🗓 ご予約の山田様がご来店です', body: '担当は応答ください。📷 アプリでお客様の写真を見られます' });
+  assert.equal(pushText(ev as any, 'again').title, '🗓 ご予約の山田様がご来店です（再通知）');
+  // 担当が決まっている（受付で担当を選んだ）本日納車
+  const del = { ...ev, status: 'assigned', reservation: { name: '鈴木', kind: 'delivery' } };
+  assert.equal(pushText(del as any, 'first').title, '🚗 本日ご納車の鈴木様がご来店です');
   assert.equal(pushText({ ...event(), kiosk: true } as any, 'first').title, '🚗 お客様来店（受付）'); // 予約なしは従来どおり
 });
