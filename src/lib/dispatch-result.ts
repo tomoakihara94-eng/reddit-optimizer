@@ -88,6 +88,7 @@ function buildResult(
     ...(event.dispatchedBy ? { dispatchedBy: event.dispatchedBy } : {}),
     ...(event.note ? { note: event.note } : {}),
     ...(event.kiosk ? { kiosk: true } : {}),
+    ...(event.reservation ? { reservation: event.reservation } : {}), // 予約あり・担当がわからない（計算で決めた回）も計算結果の「予約」タブに出すため（2026-11-26〜）
     winnerId: winner?.id ?? '', winnerName: winner?.name ?? '担当なし',
     rows: [...ranked, ...excluded],
     decision,
