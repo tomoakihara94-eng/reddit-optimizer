@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRedis, getStaff } from '@/lib/dispatch-redis';
 import { isAdmin } from '@/lib/dispatch-admin';
 import { jstDate } from '@/lib/dispatch-result';
-import { OFFDAYS_SOURCES_KEY, OFFDAYS_SYNC_KEY, getMonthOffdays, importOffdaysCsv, offStaffOn, syncOffdays } from '@/lib/dispatch-offdays';
+import { OFFDAYS_SOURCES_KEY, OFFDAYS_SYNC_KEY, getMonthOffdays, importOffdaysCsv, offStaffOn, syncOffdays, toCsvUrl } from '@/lib/dispatch-offdays';
 import { decodeCsv } from '@/lib/dispatch-inventory';
 
 // 公休（2026-11-25〜）
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({})) as { sources?: unknown; sync?: boolean };
   const redis = getRedis();
   if (body.sources !== undefined) {
-    const urls = Array.isArray(body.sources) ? body.sources.filter((u): u is string => typeof u === 'string' && /^https:\/\/docs\.google\.com\/spreadsheets\//.test(u.trim())).map(u => u.trim()).slice(0, 12) : [];
+    const urls = Array.isArray(body.sources) ? body.sources.filter((u): u is string => typeof u === 'string' && /^https:\/\/docs\.google\.com\/spreadsheets\//.test(u.trim())).map(toCsvUrl).slice(0, 12) : [];
     await redis.set(OFFDAYS_SOURCES_KEY, JSON.stringify(urls));
   }
   const result = await syncOffdays(redis);

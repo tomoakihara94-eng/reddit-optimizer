@@ -62,6 +62,14 @@ export function parseOffdays(csv: string, staff: { id: string; name: string }[])
   return { month, off, unmatched, staffCount };
 }
 
+// 「ウェブに公開」で「ウェブページ」形式のリンク（…/pubhtml?gid=…）を貼られても CSV で読めるようにする（2026-11-26〜）
+//   …/pubhtml?gid=1&single=true → …/pub?gid=1&single=true&output=csv
+export function toCsvUrl(url: string): string {
+  const u = url.trim().replace(/\/pubhtml(\?|$)/, '/pub$1');
+  if (!/\/pub\?/.test(u) || /[?&]output=csv\b/.test(u)) return u;
+  return u.replace(/[?&]output=[^&]*/, '') + '&output=csv';
+}
+
 // 登録された公開 CSV をすべて取り込む
 export async function syncOffdays(redis: Redis): Promise<{ at: number; results: { url: string; month?: string; staffCount?: number; unmatched?: string[]; error?: string }[] }> {
   const urls = ((await redis.get<string[]>(OFFDAYS_SOURCES_KEY)) ?? []) as string[];

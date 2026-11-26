@@ -612,3 +612,11 @@ test('受付で予約あり・担当がわからない → 全員への通知の
   assert.equal(pushText(del as any, 'first').title, '🚗 本日ご納車の鈴木様がご来店です');
   assert.equal(pushText({ ...event(), kiosk: true } as any, 'first').title, '🚗 お客様来店（受付）'); // 予約なしは従来どおり
 });
+
+test('公休表: 「ウェブページ」形式のリンクも CSV に直す', async () => {
+  const { toCsvUrl } = await import('./dispatch-offdays');
+  const base = 'https://docs.google.com/spreadsheets/d/e/2PACX-abc';
+  assert.equal(toCsvUrl(`${base}/pubhtml?gid=19&single=true`), `${base}/pub?gid=19&single=true&output=csv`);
+  assert.equal(toCsvUrl(`${base}/pub?gid=19&single=true&output=csv`), `${base}/pub?gid=19&single=true&output=csv`);
+  assert.equal(toCsvUrl(`${base}/pub?gid=19&single=true&output=pdf`), `${base}/pub?gid=19&single=true&output=csv`);
+});

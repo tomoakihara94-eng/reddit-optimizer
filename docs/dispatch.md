@@ -137,6 +137,7 @@
 - 保存: `dispatch:offdays:YYYY-MM`（{ staffId: [日] }、120日）。`/status` のたびに呼び、日本時間の1日1回だけ取り込む（`syncOffdaysDaily`、2026-11-25 ユーザー指定で1時間→1日）。管理者の「今すぐ取り込む」も
 - 本人の切り替え: 営業画面「今日：出勤／公休」→ `POST /attendance { staffId, off, token }`（本人のスマホだけ、今日だけ、`dispatch:attendance:YYYY-MM-DD`）。表より優先
 - 通知: 今日公休の人には来店も問い合わせも送らない（理由「公休」）。受付の指名（force）は除く
+- 「ウェブページ」形式のリンク（`…/pubhtml?gid=…`）を貼られても、保存時に `…/pub?…&output=csv` に直す（`toCsvUrl`、2026-11-26〜）
 - パソコンからも: `/dispatch/inventory`（在庫と同じページ）で、公開リンクの登録・今すぐ取り込み、またはシートをダウンロードした CSV を直接送る（`POST /offdays`、`Content-Type: text/csv`、`importOffdaysCsv`。公開しなくてよいが毎朝の自動取り込みはない）（2026-11-26〜）
 - `/status` の `offToday`（営業ID）、`GET /offdays?month=` は日ごとの公休の名前と今日の公休（誰でも）
 
