@@ -144,6 +144,15 @@ export function pushText(event: DispatchEvent, round: 'first' | 'again' | 'keep'
     const title = k === 'delivery' ? '🚗 本日納車のお客様が来店' : k === 'nominated' ? '🙋 ご指名のお客様が来店' : '🗓 ご予約のお客様が来店';
     return { title, body: `${event.reservation.name}様がお見えです（受付 iPad）。お迎えをお願いします` };
   }
+  // 受付で予約あり・担当がわからない → 全員へ（2026-11-26〜。文言はユーザー指定）
+  if (event.kiosk && event.reservation) {
+    const k = event.reservation.kind ?? 'reserved';
+    const label = k === 'delivery' ? '本日納車' : k === 'nominated' ? 'ご指名' : 'ご予約';
+    return {
+      title: `🗓 ${label}のお客様がご来店です${round === 'again' ? '（再通知）' : ''}`,
+      body: `担当は応答ください。（${event.reservation.name}様）📷 アプリでお客様の写真を見られます`,
+    };
+  }
   if (event.kiosk) return { title: round === 'again' ? '🚗 お客様来店（受付・再通知）' : '🚗 お客様来店（受付）', body: '📷 アプリでお客様の写真を見られます　長押し・Apple Watch で応答を選べます' };
   const by = event.dispatchedBy ? `差配：${event.dispatchedBy}　` : '';
   return { title: round === 'again' ? '🚗 お客様来店（再通知）' : '🚗 お客様来店', body: `${by}${noteLine(event).trim()}${event.note ? '　' : ''}長押し・Apple Watch で応答を選べます` };

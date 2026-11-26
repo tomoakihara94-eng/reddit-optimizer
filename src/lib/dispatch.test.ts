@@ -601,3 +601,11 @@ test('在庫 CSV: 管理用番号の左の「07-12」でまとめ、仕入れの
   assert.equal(gooUrlOf({ stockId: '0600173A30261117W047', listed: '非掲載' }), undefined);
   assert.equal((await findCars(redis, 'OLD-1')).length, 0); // 取り込むたびに全部入れ替え
 });
+
+test('受付で予約あり・担当がわからない → 全員への通知の文言', async () => {
+  const { pushText } = await import('./dispatch-redis');
+  const ev = { ...event(), kiosk: true, reservation: { name: '山田', kind: 'reserved' as const } };
+  assert.deepEqual(pushText(ev as any, 'first'), { title: '🗓 ご予約のお客様がご来店です', body: '担当は応答ください。（山田様）📷 アプリでお客様の写真を見られます' });
+  assert.equal(pushText(ev as any, 'again').title, '🗓 ご予約のお客様がご来店です（再通知）');
+  assert.equal(pushText({ ...event(), kiosk: true } as any, 'first').title, '🚗 お客様来店（受付）'); // 予約なしは従来どおり
+});
