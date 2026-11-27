@@ -620,3 +620,14 @@ test('公休表: 「ウェブページ」形式のリンクも CSV に直す', a
   assert.equal(toCsvUrl(`${base}/pub?gid=19&single=true&output=csv`), `${base}/pub?gid=19&single=true&output=csv`);
   assert.equal(toCsvUrl(`${base}/pub?gid=19&single=true&output=pdf`), `${base}/pub?gid=19&single=true&output=csv`);
 });
+
+test('受付で担当を選んだ本日納車は15分、予約は30分止める', async () => {
+  const { recordReserved } = await import('./dispatch-result');
+  const redis = mockRedis();
+  const del = event({ kiosk: true, reservation: { name: '鈴木', staffId: 'asakura', kind: 'delivery' }, status: 'assigned' as const });
+  await atAsync(START, () => recordReserved(redis, del, { id: 'asakura', name: '浅倉' }));
+  assert.equal(redis.store['dispatch:mutes'].asakura, START + 15 * 60_000);
+  const res = event({ id: String(START + 1), kiosk: true, reservation: { name: '山田', staffId: 'ito', kind: 'reserved' }, status: 'assigned' as const });
+  await atAsync(START, () => recordReserved(redis, res, { id: 'ito', name: '伊藤' }));
+  assert.equal(redis.store['dispatch:mutes'].ito, START + 30 * 60_000);
+});

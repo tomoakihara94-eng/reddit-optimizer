@@ -64,6 +64,7 @@ export const MUTE_CUSTOM_MAX_MIN = 720;
 export const MUTE_REASON_MAX = 100;
 // 当選（差配）された営業は、接客中なので来店通知を30分止める（本人が再開できる）
 export const WINNER_MUTE_MIN = 30;
+export const DELIVERY_MUTE_MIN = 15; // 受付で担当を選んだ本日納車は15分だけ止める（2026-11-27 ユーザー指定）
 // 営業が自分で「来店通知 OFF」にしたとき（ON に戻すまで）。期限は実質無期限
 export const MUTE_OFF = -1;
 export const MUTE_OFF_MS = 10 * 365 * 24 * 3600_000;

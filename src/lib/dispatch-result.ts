@@ -1,6 +1,6 @@
 import type { Redis } from '@upstash/redis';
 import { EVENT_KEY, PRESSES_KEY, STAFF_CONDITIONS_KEY, MUTES_KEY, MUTE_REASONS_KEY, getAffinityTable, getTelTable, getSalesUnits, type DispatchEvent } from './dispatch-redis';
-import { WINDOW_MS, WINNER_MUTE_MIN } from './dispatch-config';
+import { WINDOW_MS, WINNER_MUTE_MIN, DELIVERY_MUTE_MIN } from './dispatch-config';
 import { getFastRules, closeSec, type FastRules } from './dispatch-fast';
 import { determineWinner, parsePresses, scoreBreakdown, type Press, type ScoreBreakdown } from './dispatch-winner';
 
@@ -140,8 +140,9 @@ export async function recordReserved(redis: Redis, event: DispatchEvent, staff: 
   const key = resultsKey(jstDate(event.startedAt));
   await redis.rpush(key, JSON.stringify(result));
   await redis.expire(key, RESULT_TTL_SECONDS);
-  // 来店の担当と同じく30分は来店通知を止める
-  await redis.hset(MUTES_KEY, { [staff.id]: Date.now() + WINNER_MUTE_MIN * 60_000 });
+  // 来店の担当と同じく30分は来店通知を止める。本日納車は15分（2026-11-27 ユーザー指定）
+  const muteMin = event.reservation?.kind === 'delivery' ? DELIVERY_MUTE_MIN : WINNER_MUTE_MIN;
+  await redis.hset(MUTES_KEY, { [staff.id]: Date.now() + muteMin * 60_000 });
   await redis.hdel(MUTE_REASONS_KEY, staff.id);
 }
 
